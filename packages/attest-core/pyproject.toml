@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "attest-core"
+version = "0.1.0"
+description = "attest core domain model, canonicalisation, and CSD-1 digest"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "pydantic==2.13.5",
+  "rfc8785==0.1.4",
+  "jsonschema==4.26.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/attest_core"]

@@ -1,0 +1,53 @@
+[importlinter]
+root_packages =
+    attest_core
+    attest_collect
+    attest_sign
+    attest_store
+    attest_policy
+    attest_export
+    attest_cli
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Package layering: cli, export, peer adapters, core
+type = layers
+layers =
+    attest_cli
+    attest_export
+    attest_policy | attest_store | attest_sign | attest_collect
+    attest_core
+
+[importlinter:contract:core-is-pure]
+name = attest_core performs no I/O
+type = forbidden
+source_modules =
+    attest_core
+forbidden_modules =
+    httpx
+    pygit2
+    sigstore
+    securesystemslib
+    subprocess
+    socket
+    urllib
+    requests
+
+[importlinter:contract:policy-is-pure]
+name = attest_policy performs no I/O beyond reading its own file via the CLI
+type = forbidden
+source_modules =
+    attest_policy.evaluate
+forbidden_modules =
+    httpx
+    pygit2
+    subprocess
+    socket
+
+[importlinter:contract:verifier-isolation]
+name = The verifier does not share code paths with the signer
+type = forbidden
+source_modules =
+    attest_sign.verifier
+forbidden_modules =
+    attest_sign.sigstore_signer

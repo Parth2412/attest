@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "attest-store"
+version = "0.1.0"
+description = "attest Git-ref, filesystem, and OCI storage adapters"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "attest-core",
+  "pygit2==1.20.0",
+  "oras",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/attest_store"]

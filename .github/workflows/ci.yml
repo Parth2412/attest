@@ -1,0 +1,100 @@
+name: ci
+on:
+  push: { branches: [dev, main] }
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - name: Verify Python selection
+        run: >-
+          uv run python -c "import platform; expected='${{ matrix.python }}';
+          actual='.'.join(platform.python_version_tuple()[:2]);
+          raise SystemExit(0 if actual == expected else f'expected Python {expected}, got {actual}')"
+      - run: uv sync --locked --all-packages
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run python scripts/run_mypy.py
+      - run: uv run lint-imports
+      - run: uv run pytest --cov --cov-report=term-missing
+
+  vectors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/run_test_group.py vectors F-01 F-02
+
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/run_test_group.py adversarial F-08
+
+  schema-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Check schema drift when F-01 is complete
+        run: |
+          if grep -qF '| `F-01` | Done |' docs/06-BRD-INDEX-AND-TRACEABILITY.md; then
+            uv run python -m attest_core.schema --write spec/schemas/
+            git diff --exit-code spec/schemas/
+          else
+            echo "schema-drift: not applicable until F-01 is Done"
+          fi
+
+  banned-language:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/check_banned_language.py
+
+  traceability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/check_traceability.py
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run bandit -r packages --exclude "*/tests/*" -c pyproject.toml
+      - run: uv run pip-audit
