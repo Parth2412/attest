@@ -601,6 +601,7 @@ jobs:
         with:
           version: "0.11.2"
           python-version: ${{ matrix.python }}
+          enable-cache: false
       - name: Verify Python selection
         run: >-
           uv run python -c "import platform; expected='${{ matrix.python }}';
@@ -619,7 +620,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run python scripts/run_test_group.py vectors F-01 F-02
 
@@ -629,7 +630,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run python scripts/run_test_group.py adversarial F-08
 
@@ -638,7 +639,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - name: Check schema drift when F-01 is complete
         run: |
@@ -654,7 +655,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run python scripts/check_banned_language.py
 
@@ -663,7 +664,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run python scripts/check_traceability.py
 
@@ -672,7 +673,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12" }
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run bandit -r packages --exclude "*/tests/*" -c pyproject.toml
       - run: uv run pip-audit
