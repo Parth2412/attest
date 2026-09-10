@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "attest-policy"
+version = "0.1.0"
+description = "attest policy model and deterministic evaluation"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "attest-core",
+  "pyyaml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/attest_policy"]
