@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `GLOSS-001` |
-| Version | `1.0.4` |
+| Version | `1.0.5` |
 | Status | **NORMATIVE** for terminology and identifiers |
 | Last updated | 2026-09-10 |
 
@@ -158,8 +158,10 @@ Errors are identified, not just messaged, so policies and tests can assert on th
 | `ERR-POLICY-*` | 600–699 | Policy evaluation failures and violations |
 | `ERR-EXPORT-*` | 700–799 | Export failures |
 
-Every raised error **MUST** carry a code, a human message, and a remediation hint. Specified
-per feature in the BRDs.
+Every attest-defined domain error escaping a public feature-operation boundary **MUST** carry a
+code, a human message, and a remediation hint specified by that feature's BRD. Direct Pydantic
+model diagnostics may raise `ValidationError`; the owning operation translates them before they
+cross its boundary (`ADR-030`).
 
 ---
 
