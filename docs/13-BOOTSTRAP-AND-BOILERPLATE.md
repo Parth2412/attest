@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BOOT-001` |
-| Version | `1.5.0` |
+| Version | `1.6.0` |
 | Status | **NORMATIVE** for repository scaffold, file contents, and tooling configuration |
 | Last updated | 2026-09-11 |
 
@@ -24,7 +24,7 @@
 | uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | just | latest | `cargo install just` or package manager |
 | git | 2.40+ | system |
-| libgit2 | via `pygit2` wheel | resolved by uv |
+| libgit2 | optional via the `pygit2` package extras | resolved by uv when selected |
 
 ---
 
@@ -238,6 +238,7 @@ dev = [
   "pip-audit",
   "mutmut",
   "respx",
+  "pygit2==1.20.0",
 ]
 
 [tool.ruff]
@@ -312,9 +313,9 @@ packages = ["src/attest_core"]
 | Package | `dependencies` |
 |---|---|
 | `attest-core` | `pydantic`, `rfc8785`, `jsonschema` |
-| `attest-collect` | `attest-core`, `pygit2`, `httpx` |
+| `attest-collect` | `attest-core`, `httpx`; optional `pygit2` extra |
 | `attest-sign` | `attest-core`, `sigstore` |
-| `attest-store` | `attest-core`, `pygit2`, `oras` |
+| `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
 | `attest-cli` | all six above, `typer`, `rich`, `structlog`, `pyyaml` |
@@ -323,7 +324,9 @@ packages = ["src/attest_core"]
 baselines below.** Run `uv add` and let the resolver pin into `uv.lock`. `uv.lock` is the source of
 truth (`TECH-001 §3`). Do not hand-write version numbers from memory.
 
-The first bootstrap lock **MUST** resolve these empirically validated versions exactly:
+The first bootstrap lock **MUST** resolve these empirically validated versions exactly. The root
+development group owns the `pygit2` pin so both Git implementations remain mandatory in CI while
+base package installation remains independent of a native wheel (`ADR-034`):
 
 | Dependency | Required bootstrap version | Evidence |
 |---|---|---|

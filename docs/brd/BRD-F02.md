@@ -88,6 +88,10 @@ Two implementations, per `ADR-007`:
 
 Both **MUST** pass the identical conformance suite.
 
+`pygit2` is installed through the optional `pygit2` package extra. The base installation **MUST**
+remain fully operational through `SubprocessBackend`; the development and CI environment **MUST**
+install the pinned extra and exercise both implementations (`ADR-034`).
+
 ## 5. Requirements
 
 | ID | Requirement |

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.0.3` |
+| Version | `1.0.4` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-11 |
 
 ---
 
@@ -98,7 +98,7 @@ packages/
 | `pydantic` (v2.x) | Models, validation, JSON Schema generation, camelCase aliasing | `attest-core` |
 | `rfc8785` | RFC 8785 JCS canonicalisation | `attest-core` |
 | `sigstore` | Keyless signing, native DSSE signing/verification, bundles, trust root | `attest-sign` |
-| `pygit2` | libgit2 bindings — tree diffing without shelling out | `attest-collect` |
+| `pygit2` | Optional libgit2 backend; pinned in development/CI for conformance | `attest-collect[pygit2]`, `attest-store[pygit2]`, root `dev` group |
 | `httpx` | HTTP client (forge APIs) | `attest-collect` |
 | `typer` | CLI framework | `attest-cli` |
 | `rich` | Terminal output, tables, diagnostics | `attest-cli` |
@@ -135,8 +135,12 @@ a setting that is awkward to guarantee via porcelain commands.
 
 *Risk:* `pygit2` requires compiled libgit2, complicating wheels on some platforms. **Mitigation:**
 define a narrow `GitBackend` protocol in `attest-collect` with a `pygit2` implementation and a
-`subprocess` fallback implementation, both passing the same test vectors. Do this from day one;
-retrofitting it later is painful. Recorded as `ADR-007`.
+`subprocess` fallback implementation, both passing the same test vectors. `pygit2` is an optional
+package extra and is imported lazily; the base installation therefore remains usable through the
+Git CLI when a compatible wheel is unavailable. The exact `pygit2` baseline remains mandatory in
+the root development group so CI exercises both backends. `attest-store` follows the same optional
+native-backend rule and keeps its Git-ref backend usable through the Git CLI. Recorded as
+`ADR-007` and `ADR-034`.
 
 **`rfc8785` for canonicalisation.**
 Do not hand-roll canonicalisation with `json.dumps(sort_keys=True)`. It is *not* RFC 8785: it

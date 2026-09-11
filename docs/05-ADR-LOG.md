@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.13.0` |
+| Version | `1.14.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -1097,6 +1097,50 @@ an invalid repository URL would permit incomplete signed metadata.
 `ERR-COLLECT-104` and `ERR-COLLECT-105`. Conformance tests must inject each failure class into
 both backend paths and prove identical public codes. Diagnostic causes remain available to Python
 callers without becoming stable user-facing text.
+
+---
+
+## ADR-034 — Make pygit2 an optional backend extra
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `TECH-001`, `BOOT-001`, `BRD-F02`,
+`BRD-F07`, `COMPAT-001`
+
+**Context.** ADR-007 requires a subprocess fallback because a compatible `pygit2`/libgit2 wheel
+may be unavailable. The bootstrap manifests nevertheless made `pygit2` a mandatory dependency of
+both `attest-collect` and `attest-store`. Because `attest-cli` installs every workspace package,
+dependency resolution could fail before the collector ever had an opportunity to select its
+fallback. The mandatory dependency therefore defeated the installation-risk mitigation it was
+meant to preserve.
+
+**Decision.** `attest-collect` and `attest-store` expose a `pygit2` optional dependency extra
+containing `pygit2==1.20.0` and do not include it in their base dependencies. Both packages import
+`pygit2` lazily. A base installation remains fully operational through the Git CLI:
+`SubprocessBackend` implements F-02, and the F-07 `GitRefStore` uses its subprocess implementation
+when the extra is absent.
+
+The workspace root development group pins `pygit2==1.20.0`. The committed lock retains that exact
+validated version, and CI installs the development group and runs conformance against both native
+and subprocess implementations. Automatic F-02 selection prefers pygit2 when importable and falls
+back only when it is unavailable; explicitly requesting an unavailable pygit2 backend raises
+`ERR-COLLECT-104`. Distribution builds may select the extra but may not make base package
+installation depend on a compatible native wheel.
+
+**Rationale.** A fallback is meaningful only if users can install and start the program without
+the primary backend. Keeping the exact native dependency in development and CI preserves the
+stronger dual-implementation test obligation without transferring wheel availability risk to
+every user. The same rule for storage prevents its transitive dependency from silently undoing
+the collector's portability guarantee.
+
+**Rejected alternatives.** Keeping `pygit2` mandatory would make ADR-007 ineffective for wheel
+installation failures. Removing it from CI would permit the preferred backend to rot. Making
+`attest-store` mandatory-native would still force pygit2 into `attest-cli`. Falling back after an
+operational Git error remains forbidden because it can make two backends observe different
+repository states.
+
+**Consequences.** Package metadata, compatibility documentation, and the lock must keep base and
+extra installation paths explicit. Release validation must prove a minimal installation without
+pygit2 and the full development installation with it. F-07 must provide subprocess behavior for
+its Git-ref store rather than relying exclusively on libgit2.
 
 ---
 
