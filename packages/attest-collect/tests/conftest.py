@@ -196,13 +196,20 @@ def unicode_paths_repo(tmp_path_factory: pytest.TempPathFactory) -> GitCase:
 def invalid_utf8_path_repo(tmp_path_factory: pytest.TempPathFactory) -> GitCase:
     repository = _case_root(tmp_path_factory, "invalid-utf8-path")
     base = _commit(repository, "base", allow_empty=True)
-    raw_path = os.fsencode(repository) + b"/bad-\xff.txt"
-    descriptor = os.open(raw_path, os.O_WRONLY | os.O_CREAT, 0o644)
-    try:
-        os.write(descriptor, b"invalid path byte\n")
-    finally:
-        os.close(descriptor)
-    head = _commit(repository, "add raw path")
+    blob = (
+        run_git(repository, "hash-object", "-w", "--stdin", input_bytes=b"invalid path byte\n")
+        .stdout.decode("ascii")
+        .strip()
+    )
+    tree_record = b"100644 blob " + blob.encode("ascii") + b"\tbad-\xff.txt\0"
+    tree = (
+        run_git(repository, "mktree", "-z", input_bytes=tree_record).stdout.decode("ascii").strip()
+    )
+    head = (
+        run_git(repository, "commit-tree", tree, "-p", base, "-m", "add raw path")
+        .stdout.decode("ascii")
+        .strip()
+    )
     return GitCase("invalid-utf8-path", repository, base, head)
 
 
