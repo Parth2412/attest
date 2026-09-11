@@ -220,6 +220,8 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-11**: Removed inactive workflow placeholders; `e2e-sign.yml` and `release.yml` now
+  arrive only with their owning features (`ADR-028`).
 - **2026-09-11**: Pinned the bootstrap CI action/toolchain inputs, locked CI installation, and
   expanded the required Python matrix to Linux and macOS (`ADR-027`).
 - **2026-09-10**: Bootstrapped all seven distributions at 0.1.0, resolved the GitHub owner in the

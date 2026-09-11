@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.7.0` |
+| Version | `1.8.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -825,6 +825,37 @@ leaves integration-branch merge commits without post-merge evidence.
 **Consequences.** The check job expands from two Linux cells to four cross-platform cells, so CI
 uses more runner time. Automation upgrades are manual and auditable rather than automatic. A stale
 pin can miss upstream fixes and therefore must be reviewed routinely.
+
+---
+
+## ADR-028 — Omit inactive workflow placeholders
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `BOOT-001 §§2, 12, 16, 17`
+
+**Context.** The bootstrap created comment-only `.github/workflows/e2e-sign.yml` and
+`.github/workflows/release.yml` files to reserve their future locations. GitHub registered both as
+workflows, rejected them because they contained no workflow structure, and emitted failed push
+runs `34517253705` and `34517254746` on the bootstrap merge even though the active CI workflow
+succeeded.
+
+**Decision.** A file with a recognized workflow extension exists under `.github/workflows/` only
+when its owning feature delivers a valid executable workflow. At bootstrap, `ci.yml` is the only
+workflow file. F-06 creates `e2e-sign.yml`; F-11 creates `release.yml`. Their reserved names remain
+normative in documentation, but no empty, comment-only, disabled-extension, skipped, or no-op file
+is committed for either workflow beforehand.
+
+**Rationale.** GitHub treats recognized workflow paths as executable configuration, not inert
+placeholders. Absence states the lifecycle honestly and cannot generate false failure or success
+evidence. The owning BRDs already define the exact future paths.
+
+**Rejected alternatives.** Comment-only files are empirically invalid. A skipped or no-op job
+would create misleading green workflow history. An always-failing manual workflow would add an
+intentional failure surface. Renaming placeholders with a disabled extension would preserve files
+that serve no runtime purpose and could still be mistaken for implementation.
+
+**Consequences.** The bootstrap tree contains only `ci.yml` under `.github/workflows/`. F-06 and
+F-11 add their workflow files rather than filling existing placeholders. Repository tree checks
+must use feature lifecycle state when evaluating those future paths.
 
 ---
 

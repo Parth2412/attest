@@ -402,14 +402,14 @@ WORK
 3. Replace <org> in packages/attest-core/src/attest_core/constants.py (ADR-013).
 4. Write the three scripts to their behaviour contracts: §9 check_banned_language.py,
    §10 check_traceability.py, §11 new_adr.py.
-5. Create e2e-sign.yml and release.yml as EMPTY files with a comment naming their
-   owning BRD (F-06, F-11). Do not fill them.
+5. Do not create e2e-sign.yml or release.yml. Their owning BRDs (F-06, F-11)
+   create those paths only when the workflows are valid (ADR-028).
 6. uv sync --all-packages && uv run pre-commit install
 
 FORBIDDEN during bootstrap (BOOT-001 §17)
   implementing any function · hand-writing the JSON Schema · creating test vectors ·
   pinning dependency versions from memory · adding a dependency not in §4.1 ·
-  filling e2e-sign.yml or release.yml · choosing a different layout ·
+  creating e2e-sign.yml or release.yml · choosing a different layout ·
   "improving" any configuration in BOOT-001
 
 EXIT — the fourteen boxes of BOOT-001 §16, all of them. Notably:
@@ -724,7 +724,7 @@ Verify every sigstore-python and securesystemslib call against the INSTALLED
 version before writing it (AGENTS.md §4). CH-02 assumptions A, B, D, E are the
 inputs here.
 
-Also delivers .github/workflows/e2e-sign.yml (created empty at bootstrap).
+Also delivers .github/workflows/e2e-sign.yml; the file is absent until this feature implements it.
 EOF
 )"
 
@@ -1035,7 +1035,7 @@ NON-NEGOTIABLES
   - checkout uses fetch-depth: 0 wherever a ChangeSet is computed — a shallow
     clone silently changes what the digest covers.
 
-Also delivers .github/workflows/release.yml (created empty at bootstrap): wheels,
+Also delivers .github/workflows/release.yml; the file is absent until this feature implements it:
 multi-arch container, SBOM, self-attestation, publish.
 
 DoD: the quickstart works UNMODIFIED on a genuinely fresh repository.

@@ -27,8 +27,8 @@
 
 - **Development Stage**: **Pre-alpha scaffold.** BOOT-001 is complete; all twelve features remain
   Planned in `BRD-INDEX §7.1`.
-- **Build Status**: Locked local bootstrap gates are green on CPython 3.12.13 and 3.13.12. The
-  GitHub Actions run is required before the bootstrap PR merges.
+- **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
+  Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: Seven parameterised workspace-import smoke cases pass. Feature coverage is
   not applicable because every feature module remains a docstring-only stub.
 - **Known Issues**:
@@ -96,7 +96,7 @@ The workspace resolves through committed `uv.lock`. The evidence-backed bootstra
 
 ```
 project/
-├── .github/workflows/{ci,e2e-sign,release}.yml
+├── .github/workflows/ci.yml
 ├── .attest/{config.yaml,policy.yaml,claims.d/}
 ├── .importlinter · .pre-commit-config.yaml · Justfile · pyproject.toml · uv.lock
 ├── AGENTS.md · CLAUDE.md · GEMINI.md · PROJECT_SPECS.md · COMPATIBILITY.md
@@ -346,6 +346,8 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-11**: `ADR-028` removed invalid inactive workflow placeholders after GitHub registered
+  the comment-only files as failed workflows. F-06 and F-11 now create their paths only when valid.
 - **2026-09-11**: `ADR-027` made bootstrap CI deterministic and supply-chain pinned: immutable
   action SHAs, exact uv selection, locked installs, asserted Python 3.12/3.13 selection across
   Linux and macOS, and post-merge runs on `dev` and `main`.

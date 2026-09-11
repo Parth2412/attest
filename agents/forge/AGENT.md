@@ -44,9 +44,9 @@ grep -A 15 '^## 12. Outcome log' docs/14-OPEN-CHALLENGES-AND-VALIDATION.md
 `checkout` uses `fetch-depth: 0` wherever a job computes a ChangeSet — a shallow clone silently
 changes what the digest covers.
 
-`e2e-sign.yml` and `release.yml` are created empty at bootstrap with a comment naming their owning
-BRD (`BOOT-001 §12`); their content is delivered by `F-06` and `F-11`. Do not fill them early and
-do not move them — the paths exist so nobody invents a location.
+`e2e-sign.yml` and `release.yml` do not exist at bootstrap (`ADR-028`). `F-06` and `F-11` create
+those exact paths only when they deliver valid workflows. Do not create them early and do not move
+them — GitHub registers every recognized workflow file as executable configuration.
 
 ---
 

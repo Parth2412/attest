@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BOOT-001` |
-| Version | `1.4.0` |
+| Version | `1.5.0` |
 | Status | **NORMATIVE** for repository scaffold, file contents, and tooling configuration |
 | Last updated | 2026-09-11 |
 
@@ -37,9 +37,7 @@ docstring naming their BRD. Paths marked `(generated)` are produced by a command
 attest/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml
-│       ├── e2e-sign.yml
-│       └── release.yml
+│       └── ci.yml
 ├── .attest/
 │   ├── config.yaml
 │   ├── policy.yaml
@@ -679,9 +677,9 @@ jobs:
       - run: uv run pip-audit
 ```
 
-`e2e-sign.yml` and `release.yml` are **not** created with content at bootstrap — they are
-delivered by `BRD-F06` and `BRD-F11` respectively. Create them as empty files with a comment
-naming the owning BRD, so the paths exist and nobody invents a location.
+`e2e-sign.yml` and `release.yml` **MUST NOT exist** at bootstrap. GitHub registers every recognized
+workflow file and rejects comment-only placeholders. `BRD-F06` and `BRD-F11` create those exact
+paths only when they deliver valid executable workflows (`ADR-028`).
 
 ---
 
@@ -791,6 +789,8 @@ the boilerplate task.
 - [ ] `AGENTS.md` is at the repository root, copied from `docs/09-AGENTS.md`
 - [ ] `docs/` contains all 15 documents plus 12 BRDs
 - [ ] `LICENSE` is Apache-2.0 and `LICENSE.spec` is CC-BY-4.0 (`ADR-017`)
+- [ ] `.github/workflows/` contains only the valid `ci.yml`; inactive workflow placeholders do
+      not exist (`ADR-028`)
 - [ ] CI runs green on the bootstrap commit
 - [ ] Zero business logic exists anywhere
 
@@ -808,6 +808,6 @@ job is to make `BRD-F01` startable, not to anticipate it.
 | Create test vectors | They are normative; authored in `BRD-F01`/`BRD-F02` with human review |
 | Pin dependency versions from memory | Use `uv add`; only the executed `CH-01`/`CH-02` baselines in §4.1 are pre-authorised, and `uv.lock` is truth (`AGENTS.md §4`) |
 | Add a dependency not in §4.1 | Requires an ADR |
-| Create `e2e-sign.yml` or `release.yml` content | Owned by `BRD-F06` and `BRD-F11` |
+| Create `e2e-sign.yml` or `release.yml` | GitHub registers them immediately; owned by `BRD-F06` and `BRD-F11` (`ADR-028`) |
 | Choose a different project layout | `ARCH-001 §2` is normative |
 | "Improve" any configuration in this document | It is `NORMATIVE` |
