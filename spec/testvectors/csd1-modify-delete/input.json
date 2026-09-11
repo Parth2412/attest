@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "path": "src/a.py",
+      "changeType": "modified",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "2222222222222222222222222222222222222222",
+      "newBlob": "3333333333333333333333333333333333333333"
+    },
+    {
+      "path": "old.txt",
+      "changeType": "deleted",
+      "oldMode": "100644",
+      "newMode": null,
+      "oldBlob": "1111111111111111111111111111111111111111",
+      "newBlob": null
+    }
+  ]
+}

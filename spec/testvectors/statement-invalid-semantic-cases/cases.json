@@ -1,0 +1,42 @@
+[
+  {
+    "name": "subject-predicate-digest-mismatch",
+    "operation": "replace",
+    "path": ["predicate", "changeSet", "digest"],
+    "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "errorCode": "ERR-BUILD-203"
+  },
+  {
+    "name": "trusted-local-environment",
+    "operation": "replace",
+    "path": ["predicate", "collection", "environment", "kind"],
+    "value": "local"
+  },
+  {
+    "name": "truncated-paths-omitted",
+    "operations": [
+      {
+        "operation": "replace",
+        "path": ["predicate", "changeSet", "pathsTruncated"],
+        "value": true
+      },
+      {
+        "operation": "replace",
+        "path": ["predicate", "changeSet", "paths"],
+        "value": null
+      }
+    ]
+  },
+  {
+    "name": "noncanonical-safe-byte-escape",
+    "operation": "replace",
+    "path": ["predicate", "changeSet", "paths", 0],
+    "value": "src/%61.py"
+  },
+  {
+    "name": "duplicate-claim-id",
+    "operation": "append-copy",
+    "path": ["predicate", "authorship", "claims"],
+    "index": 0
+  }
+]

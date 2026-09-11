@@ -25,6 +25,7 @@ source_modules =
     attest_core
 forbidden_modules =
     httpx
+    os
     pygit2
     sigstore
     securesystemslib

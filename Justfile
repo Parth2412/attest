@@ -29,12 +29,16 @@ vectors:
 adversarial:
     uv run python scripts/run_test_group.py adversarial F-08
 
-schema:
-    @echo "not yet implemented — schema generation belongs to BRD-F01" >&2
-    @exit 2
+mutation-core:
+    cd packages/attest-core && uv run mutmut run
+    cd packages/attest-core && uv run mutmut results
+    cd packages/attest-core && ! uv run mutmut results | grep -q ': survived$'
 
-schema-check: schema
-    git diff --exit-code spec/schemas/
+schema:
+    uv run python scripts/write_schema.py
+
+schema-check:
+    uv run python scripts/write_schema.py --check
 
 banned:
     uv run python scripts/check_banned_language.py
@@ -43,7 +47,7 @@ trace:
     uv run python scripts/check_traceability.py
 
 security:
-    uv run bandit -r packages --exclude "*/tests/*" -c pyproject.toml
+    uv run bandit -r packages --exclude "*/tests/*,*/mutants/*" -c pyproject.toml
     uv run pip-audit
 
 adr TITLE:

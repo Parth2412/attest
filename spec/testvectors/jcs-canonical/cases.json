@@ -1,0 +1,38 @@
+[
+  {
+    "name": "recursive-object-ordering",
+    "input": {
+      "z": 0,
+      "array": [
+        {
+          "b": true,
+          "a": null
+        }
+      ],
+      "a": "value"
+    },
+    "expected": "{\"a\":\"value\",\"array\":[{\"a\":null,\"b\":true}],\"z\":0}"
+  },
+  {
+    "name": "rfc8785-utf16-property-order",
+    "input": {
+      "€": "Euro Sign",
+      "\r": "Carriage Return",
+      "דּ": "Hebrew Letter Dalet With Dagesh",
+      "1": "One",
+      "😀": "Emoji: Grinning Face",
+      "": "Control",
+      "ö": "Latin Small Letter O With Diaeresis"
+    },
+    "expected": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\":\"Control\",\"ö\":\"Latin Small Letter O With Diaeresis\",\"€\":\"Euro Sign\",\"😀\":\"Emoji: Grinning Face\",\"דּ\":\"Hebrew Letter Dalet With Dagesh\"}"
+  },
+  {
+    "name": "string-escaping-and-integers",
+    "input": {
+      "string": "€$\u000f\nA'B\"\\\"/",
+      "integers": [0, 1, -1, 9007199254740991],
+      "literals": [null, true, false]
+    },
+    "expected": "{\"integers\":[0,1,-1,9007199254740991],\"literals\":[null,true,false],\"string\":\"€$\\u000f\\nA'B\\\"\\\\\\\"/\"}"
+  }
+]

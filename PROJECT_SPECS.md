@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven package scaffolds at 0.1.0. No feature behavior exists.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 is implemented in `attest-core`.
 - **Last Updated**: 2026-09-11
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -25,18 +25,19 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha scaffold.** BOOT-001 is complete; all twelve features remain
-  Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 are complete; the other
+  eleven features remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
-- **Test Coverage**: Seven parameterised workspace-import smoke cases pass. Feature coverage is
-  not applicable because every feature module remains a docstring-only stub.
+- **Test Coverage**: The F-01 model, canonicalisation, digest, schema, boundary, property, and
+  vector suites enforce the 95% `attest-core` branch-coverage floor; workspace smoke tests remain.
 - **Known Issues**:
-  - No product feature is implemented; the CLI, schema, test vectors, workflows, and Action files
-    are intentionally non-executable until their owning BRDs.
+  - F-02 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
+    until their owning BRDs are completed.
   - Seven empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10 through
     validation PRs #1–#3 plus `ADR-018`–`ADR-021`.
-- **Next Milestone**: Begin `BRD-F01`; start the week-long `CH-03` harness experiment in parallel.
+- **Next Milestone**: Resolve the F-02 `base_commit` contract conflict through an ADR, then begin
+  `BRD-F02`; start the week-long `CH-03` harness experiment in parallel.
 
 ---
 
@@ -121,7 +122,7 @@ out of order means inventing those contracts.
 
 | ID | Feature | Package | Milestone | Depends on | Challenge gate | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ☐ not started |
+| `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ✓ done |
 | `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ☐ not started |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ☐ not started |
 | `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ☐ not started |
