@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.12.0` |
+| Version | `1.13.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -1046,6 +1046,57 @@ F-02 to F-10. Mutable warning lists would undermine the frozen result contract.
 **Consequences.** F-02 adds `ERR-COLLECT-105`, two stable warning codes, and typed backend
 diagnostics. Callers must supply repository identity for repositories without a usable remote.
 The CLI later maps its backend flag directly to the three documented selector values.
+
+---
+
+## ADR-033 — Complete the F-02 error boundary
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `BRD-F02`, `ADR-030`, `F-02`
+
+**Context.** ADR-032 defines the F-02 operation inputs but leaves three public failure classes
+ambiguous. A repository identity may be present but impossible to normalise, a backend selector
+may be unknown rather than merely unavailable, and an otherwise valid Git operation may fail
+after repository and revision validation. Passing raw `pygit2` or subprocess exceptions through
+`collect_changeset()` would violate the coded public-operation boundary established by ADR-030.
+
+The existing shallow-clone criterion also overlaps general revision failure. Without an exact
+classification rule, the same absent object could produce `ERR-COLLECT-101` or
+`ERR-COLLECT-103` depending on the backend.
+
+**Decision.** `collect_changeset()` maps every failure leaving its public boundary to one of the
+BRD-F02 codes and preserves the code, human message, and remediation fields:
+
+- `ERR-COLLECT-101` applies only when the selected diff-base input is a full 40-character
+  lowercase OID, that object is unavailable, and the repository reports itself as shallow.
+- `ERR-COLLECT-102` applies when `repo_path` is not a Git repository.
+- `ERR-COLLECT-103` applies to every other unresolved base, head, or explicit merge-base input,
+  including malformed OIDs and unknown symbolic revisions.
+- `ERR-COLLECT-104` applies to an unknown selector, an explicitly selected unavailable backend,
+  or automatic selection finding neither backend usable.
+- `ERR-COLLECT-105` applies when repository identity is absent or cannot be normalised to the
+  canonical HTTPS form required by F-01.
+- `ERR-COLLECT-106` applies when a backend operation fails after repository, backend, revision,
+  and repository-identity validation, including invalid entry data returned by a backend.
+
+Backend-specific exceptions may be retained as exception causes for debugging, but their text is
+not part of the stable public error message and is never used to classify a failure. Automatic
+selection falls back only during backend availability checks, never after an operational error.
+
+**Rationale.** Mutually exclusive classifications make both implementations observable in the
+same way and prevent backend exception wording from becoming an accidental API. Restricting the
+shallow code to a missing full object identity avoids falsely telling a caller to deepen a clone
+when the actual input is a mistyped branch or malformed revision.
+
+**Rejected alternatives.** Mapping every Git failure to `ERR-COLLECT-103` would hide repository
+corruption and permission failures as revision mistakes. Treating any failure in a shallow clone
+as `ERR-COLLECT-101` would prescribe `fetch-depth: 0` for unrelated errors. Exposing raw backend
+exceptions would make error behavior platform- and implementation-dependent. Silently dropping
+an invalid repository URL would permit incomplete signed metadata.
+
+**Consequences.** F-02 adds `ERR-COLLECT-106` and broadens the precise conditions of
+`ERR-COLLECT-104` and `ERR-COLLECT-105`. Conformance tests must inject each failure class into
+both backend paths and prove identical public codes. Diagnostic causes remain available to Python
+callers without becoming stable user-facing text.
 
 ---
 
