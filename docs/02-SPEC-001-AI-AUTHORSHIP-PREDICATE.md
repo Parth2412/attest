@@ -106,7 +106,7 @@ The Statement conforms to the in-toto Statement format:
       }
     }
   ],
-  "predicateType": "https://attest.dev/ai-authorship/v0.1",
+  "predicateType": "https://parth2412.github.io/attest/ai-authorship/v0.1",
   "predicate": { }
 }
 ```
@@ -118,6 +118,22 @@ The Statement conforms to the in-toto Statement format:
   Digest defined in §5.
 - The subject digest is the binding anchor. It is what prevents an attestation being replayed
   against a different set of changes.
+
+The Statement fields are:
+
+| Field | Required | Type and constraint |
+|---|---|---|
+| `_type` | yes | string; literal `https://in-toto.io/Statement/v1` |
+| `subject` | yes | array containing exactly one `Subject` |
+| `predicateType` | yes | string; literal URI from §3.1 |
+| `predicate` | yes | `Predicate`, §6 |
+
+A `Subject` contains required `name` and `digest` fields. `name` is the literal `changeset`.
+`digest` is a closed object containing exactly one required property, `sha256`, whose value is
+exactly 64 lowercase hexadecimal characters.
+
+Ordinary wire properties follow the camel-case rule in `GLOSS-001 §4`. The in-toto property
+`_type` and digest-map key `sha256` are protocol-defined exceptions (`ADR-029`).
 
 > **Design note.** The subject is the ChangeSet Digest rather than the head commit SHA. Commit
 > SHAs change on rebase, squash, and amend, which would silently invalidate every attestation in
@@ -251,6 +267,11 @@ Commit identities are inputs used to derive that set, but are excluded from the 
 
 ## 6. Predicate fields
 
+The field tables in this section are the complete v0.1 structural contract (`ADR-029`). A required
+field must be present. An optional field may be omitted or set to JSON `null`; conforming emitters
+**MUST** omit optional fields whose value is null so that they produce one canonical shape. Unless
+stated otherwise, strings are non-empty, integer counts are non-negative, and arrays may be empty.
+
 ### 6.1 Top-level structure
 
 ```json
@@ -305,6 +326,11 @@ loss and prevent an implementation inventing fields.
 | `digest` | yes | **MUST** equal `subject[0].digest.sha256`. A verifier **MUST** check this equality. |
 | `stats` | yes | Integers only. Line counts are deliberately **excluded** — they are diff-algorithm dependent and would be non-reproducible. |
 | `paths` | no | Canonical Git paths per §4.1. **MAY** be omitted or truncated for very large ChangeSets; if truncated, `pathsTruncated: true` **MUST** be set. Renderers may provide decoded display text separately. |
+| `pathsTruncated` | no | Boolean. When `true`, `paths` **MUST** be present and contains only the retained prefix. When absent or `false`, no truncation is asserted. |
+
+`stats` is a `ChangeSetStats` object with four required non-negative integer fields:
+`filesChanged`, `filesAdded`, `filesModified`, and `filesDeleted`. `filesChanged` counts every
+entry, including `typechange`; the other three fields count only their named change types.
 
 > **Note on line counts.** Every AI-analytics tool reports "lines added by AI". We deliberately
 > do not, in signed fields, because line counts cannot be reproduced deterministically. Reporting
@@ -322,12 +348,12 @@ loss and prevent an implementation inventing fields.
       "agent":  { "name": "claude-code", "version": "2.4.1" },
       "model":  { "provider": "anthropic", "name": "claude-opus-4-6", "version": "20260401" },
       "sessionId": "sess_9f2c…",
-      "promptDigest": "sha256:9a1f…",
+      "promptDigest": "<64 lowercase hex characters>",
       "scope": { "paths": ["src/a.py"] },
       "source": {
         "kind": "sidecar",
         "reference": ".attest/claims.d/01J8….json",
-        "digest": "sha256:44ab…"
+        "digest": "<64 lowercase hex characters>"
       },
       "claimedAt": "2026-07-20T09:14:03Z"
     }
@@ -350,6 +376,19 @@ loss and prevent an implementation inventing fields.
 | `claims[].source.kind` | yes | Enum: `trailer`, `sidecar`, `git-note`, `forge-api`, `manual` |
 | `claims[].source.digest` | yes | Digest of the raw source material, so the claim can be traced back |
 | `claims[].claimedAt` | no | Timestamp asserted by the claiming tool. **Untrusted** — it is the tool's clock. |
+
+`mode`, `claimsPresent`, and `claims` are required. `mode` has no wire-model default. A collector
+that has no authorship evidence **MUST** explicitly emit `unknown`; it must not omit `mode`.
+
+Nested authorship objects have these fields:
+
+| Object | Required fields | Optional fields | Constraints |
+|---|---|---|---|
+| `AuthorshipClaim` | `claimId`, `agent`, `source` | `model`, `sessionId`, `promptDigest`, `scope`, `claimedAt` | `claimId` is a ULID or UUIDv7; `promptDigest`, when present, is 64 lowercase hex |
+| `AgentRef` | `name` | `version` | Free-form harness name; unknown names are valid |
+| `ModelRef` | `provider`, `name` | `version` | Values **MUST NOT** be guessed |
+| `ClaimScope` | `paths` | — | Every item is a canonical Git path per §4.1 |
+| `ClaimSource` | `kind`, `reference`, `digest` | — | `kind` uses the closed enum above; `digest` is 64 lowercase hex |
 
 **Mode derivation (NORMATIVE).** The collector **MUST** derive `mode` as follows and **MUST NOT**
 apply any other heuristic:
@@ -375,14 +414,14 @@ apply any other heuristic:
       "verdict": "approved",
       "submittedAt": "2026-07-20T11:02:44Z",
       "isChangeAuthor": false,
-      "evidence": { "kind": "forge-api", "digest": "sha256:71cd…" }
+      "evidence": { "kind": "forge-api", "digest": "<64 lowercase hex characters>" }
     }
   ],
   "automatedReviews": [
     {
       "tool": "coderabbit",
       "verdict": "commented",
-      "findingsDigest": "sha256:0b3e…",
+      "findingsDigest": "<64 lowercase hex characters>",
       "submittedAt": "2026-07-20T10:31:00Z"
     }
   ],
@@ -392,14 +431,23 @@ apply any other heuristic:
 
 | Field | Required | Notes |
 |---|---|---|
-| `required` | yes | Whether the forge required review for this merge |
+| `required` | yes | Boolean or the literal string `unknown`; whether the forge required review for this merge |
 | `state` | yes | Enum: `approved`, `changes-requested`, `commented`, `none`, `unknown` |
 | `humanApprovals` | yes | Integer count of distinct human approvers |
+| `reviewers` | yes | Array of `Reviewer`, possibly empty |
 | `reviewers[].identity` | yes | Stable, namespaced identity: `<provider>:<immutable-id>:<login>`. The immutable numeric ID **MUST** be included — logins are renameable and are insufficient for audit. |
 | `reviewers[].isChangeAuthor` | yes | Whether this reviewer also authored the change. Enables separation-of-duties policy. |
 | `reviewers[].evidence.digest` | yes | Digest of the forge API response that established this record, so the claim is traceable |
 | `automatedReviews` | no | Bot reviews. **MUST NOT** be counted in `humanApprovals`. |
 | `reviewLatencySeconds` | no | Integer seconds between change readiness and approval |
+
+Nested review objects have these fields:
+
+| Object | Required fields | Optional fields | Constraints |
+|---|---|---|---|
+| `Reviewer` | `identity`, `identityProvider`, `verdict`, `submittedAt`, `isChangeAuthor`, `evidence` | — | `submittedAt` is a timestamp; `verdict` is `ReviewVerdict` |
+| `ReviewEvidence` | `kind`, `digest` | — | `kind` is the literal `forge-api`; `digest` is 64 lowercase hex |
+| `AutomatedReview` | `tool`, `verdict`, `findingsDigest`, `submittedAt` | — | `findingsDigest` is 64 lowercase hex; `submittedAt` is a timestamp |
 
 > **Design note.** Separating `humanApprovals` from `automatedReviews` is deliberate and is the
 > field an auditor will care about most. A bot approving a bot's code is the exact failure mode
@@ -409,11 +457,13 @@ apply any other heuristic:
 
 ```json
 [
-  { "name": "unit-tests", "conclusion": "success", "runId": "1029384756", "detailsDigest": "sha256:…" }
+  { "name": "unit-tests", "conclusion": "success", "runId": "1029384756", "detailsDigest": "<64 lowercase hex characters>" }
 ]
 ```
 
-Optional. `conclusion` enum: `success`, `failure`, `neutral`, `cancelled`, `skipped`, `timed_out`.
+The predicate-level `checks` array is optional. Every `Check` contains the required fields `name`,
+`conclusion`, `runId`, and `detailsDigest`. `conclusion` is one of `success`, `failure`, `neutral`,
+`cancelled`, `skipped`, `timed_out`; `detailsDigest` is 64 lowercase hexadecimal characters.
 
 ### 6.6 `collection`
 
@@ -439,6 +489,13 @@ Optional. `conclusion` enum: `success`, `failure`, `neutral`, `cancelled`, `skip
 | `collectedAt` | yes | Collector's clock. Trust anchor is the transparency log timestamp, not this. |
 | `environment.kind` | yes | Enum: `github-actions`, `gitlab-ci`, `local`, `other` |
 | `environment.trusted` | yes | `false` **MUST** be set for `local`. Policies **SHOULD** refuse to gate on untrusted-environment attestations. |
+
+`Collection` contains required `collector`, `collectedAt`, and `environment` fields.
+`CollectorRef` contains required non-empty `name` and `version` strings. `EnvironmentRef` contains
+required `kind` and `trusted` fields and optional `runId`, `runAttempt`, `workflowRef`, `oidcIssuer`,
+and `eventName` fields. `runAttempt`, when present, is an integer of at least one. An environment
+whose `kind` is `local` **MUST** have `trusted: false`; this is enforced as a runtime semantic
+invariant as well as during collection.
 
 > **Critical.** An attestation produced on a developer laptop is not worthless — it is a
 > developer-asserted record. But it must be distinguishable from one produced by a CI job whose
@@ -584,6 +641,12 @@ field rejection. It does not supersede semantic invariants elsewhere in this spe
 Cross-field equality, including the subject/predicate digest invariant, **MUST** be enforced by
 runtime validators and verification step 5 (`ADR-021`).
 
+The reference `generate_json_schema(predicate_version)` function produces the complete structural
+schema for a `Statement`. `predicate_version` **MUST** be the exact string `0.1`. Any other value
+**MUST** fail with `ERR-BUILD-205`; version fallback or best-effort generation is prohibited.
+Writing the returned schema to the repository is tooling I/O outside the pure core package and is
+performed by `just schema` (`ADR-029`).
+
 ---
 
 ## 12. Test vectors (NORMATIVE)
@@ -652,5 +715,6 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-10 | Commit identities removed from the ChangeSet Digest before first publication (`ADR-019`) |
 | 0.1.0 | 2026-09-10 | DSSE and bundle handling delegated to Sigstore-native APIs; bundle and atomic verification semantics corrected before first publication (`ADR-020`) |
 | 0.1.0 | 2026-09-10 | Structural JSON Schema and runtime semantic validation contracts separated before first publication (`ADR-021`) |
+| 0.1.0 | 2026-09-11 | Nested wire shapes, digest encoding, protocol-key exceptions, and schema-version handling completed before first implementation (`ADR-029`) |
 
 [in-toto Statements]: https://in-toto.io/

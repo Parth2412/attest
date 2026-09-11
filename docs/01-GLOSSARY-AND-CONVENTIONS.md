@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `GLOSS-001` |
-| Version | `1.0.3` |
+| Version | `1.0.4` |
 | Status | **NORMATIVE** for terminology and identifiers |
 | Last updated | 2026-09-10 |
 
@@ -123,7 +123,8 @@ are marked `DEPRECATED`, never reused.
 
 > **Wire format rule.** JSON on the wire is `camelCase` because the in-toto and Sigstore
 > ecosystems use it. Python code is `snake_case`. Pydantic aliases bridge the two. Never
-> hand-write the conversion.
+> hand-write the conversion. The protocol-defined in-toto `_type` property and digest-map
+> `sha256` key are the only v0.1 exceptions (`ADR-029`).
 
 ---
 

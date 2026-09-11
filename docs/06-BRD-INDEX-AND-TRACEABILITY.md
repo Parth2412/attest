@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | Baselined |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-11 |
 
 ---
 
@@ -130,19 +130,21 @@ orphans in either direction.
 
 ## 5. Specification traceability
 
-Which BRD implements which normative section of `SPEC-001`. Every normative section must be
-implemented by exactly one feature, so no section is orphaned or duplicated.
+Which BRD implements which normative section of `SPEC-001`. Every normative section must have
+explicit ownership. Shared sections distinguish the F-01 wire structure from the downstream
+features that populate it, so no responsibility is orphaned or ambiguous.
 
 | `SPEC-001` section | Subject | Implemented by |
 |---|---|---|
 | §3 | Statement structure | F-01, F-05 |
 | §4 | Canonicalisation | F-01 |
 | §5 | `CSD-1` digest algorithm | F-01 (algorithm), F-02 (entry extraction) |
-| §6.2 | `changeSet` field | F-02, F-05 |
-| §6.3 | `authorship` field | F-03, F-05 |
-| §6.4 | `review` field | F-04, F-05 |
-| §6.5 | `checks` field | F-04, F-05 |
-| §6.6 | `collection` field | F-05 |
+| §6.1 | Predicate structure | F-01 (structure), F-05 (population) |
+| §6.2 | `changeSet` field | F-01 (structure), F-02 and F-05 (population) |
+| §6.3 | `authorship` field | F-01 (structure), F-03 and F-05 (population) |
+| §6.4 | `review` field | F-01 (structure), F-04 and F-05 (population) |
+| §6.5 | `checks` field | F-01 (structure), F-04 and F-05 (population) |
+| §6.6 | `collection` field | F-01 (structure), F-05 (population) |
 | §7 | Signing | F-06 |
 | §8 | Verification pipeline | F-08 |
 | §8.1 | Mandatory identity check | F-08 |

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.0.2` |
+| Version | `1.0.3` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-11 |
 
 ---
 
@@ -239,7 +239,7 @@ cross-vendor. It is a file-drop protocol precisely because it requires no vendor
   "agent": { "name": "claude-code", "version": "2.4.1" },
   "model": { "provider": "anthropic", "name": "claude-opus-4-6" },
   "sessionId": "sess_9f2c…",
-  "promptDigest": "sha256:…",
+  "promptDigest": "<64 lowercase hex characters>",
   "scope": { "paths": ["src/a.py"] },
   "claimedAt": "2026-07-20T09:14:03Z"
 }
