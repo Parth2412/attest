@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.10.0` |
+| Version | `1.12.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -967,6 +967,85 @@ externally stable API would bypass the coded contracts already assigned to F-05 
 must catch it and emit their BRD-owned code. F-01 tests verify both ordinary structural diagnostics
 and retention of the three assigned semantic codes. Boundary-mapping tests remain owned by the
 features that expose those boundaries.
+
+---
+
+## ADR-031 — Keep F-02 commit identities in ChangeSetInfo
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `BRD-F02`, `ADR-019`
+
+**Context.** `AC-F02-100` requires `record.base_commit` to equal a forge-reported merge base, but
+ADR-019 and `SPEC-001 §5.3` require a ChangeSet Record to contain exactly `algorithm` and
+`entries`. F-01 implements that closed record and deliberately has no `base_commit` field.
+`REQ-F02-100` already places the forge merge base in `ChangeSetInfo.merge_base` and says to use it
+as `baseCommit`, so the acceptance criterion contradicts both its requirement and the signed wire
+contract.
+
+**Decision.** In a pull-request collection, the resolved forge-reported merge base is recorded in
+both `ChangeSetInfo.merge_base` and `ChangeSetInfo.base_commit`. `AC-F02-100` tests those two
+metadata fields. `ChangeSetRecord` remains context-free and contains no commit identity.
+
+**Rationale.** The signed predicate must retain the exact commit context used to derive entries,
+while the digest must remain stable when identical transitions move through rebase or squash
+workflows. The two `ChangeSetInfo` fields express that context without reopening CSD-1.
+
+**Rejected alternatives.** Adding `base_commit` to `ChangeSetRecord` would reverse ADR-019 and
+break required digest stability. Testing only `merge_base` would fail to prove that the same
+commit was used as the diff base. Removing `baseCommit` from signed metadata would discard the
+recomputation boundary required by `SPEC-001 §6.2`.
+
+**Consequences.** F-02 resolves the supplied merge-base revision once, diffs from that commit,
+and assigns the resolved OID to both signed metadata fields. No F-01 model or CSD-1 change is
+required.
+
+---
+
+## ADR-032 — Define the F-02 collector operation boundary
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `BRD-F02`, `F-02`
+
+**Context.** The original F-02 interface required an already-created backend even though
+`REQ-F02-160` requires automatic selection and an override. It also provided no input for the
+forge merge base required by `REQ-F02-100`, no result field for backend diagnostics, and no
+definition of `CollectionWarning`. Finally, `GitBackend.repository_url()` may return `None` while
+F-01 requires `ChangeSetInfo.repository`. Implementing any of these gaps would require invented
+public behavior.
+
+**Decision.** `collect_changeset()` accepts keyword-only `merge_base_rev` and `repository_url`
+overrides. Its `backend` argument accepts an injected `GitBackend` or one of `auto`, `pygit2`, and
+`subprocess`, defaulting to `auto`. An injected backend supports deterministic tests. In automatic
+mode, pygit2 is preferred and subprocess is used only when the pygit2 backend is unavailable;
+repository or revision failures are never masked by switching implementations. An explicit
+backend that is unavailable raises `ERR-COLLECT-104`.
+
+Every `GitBackend` exposes a stable backend name and working-tree dirtiness in addition to the
+existing revision, merge-base, diff, and repository operations. The result contains immutable
+tuples of structured warnings and a `CollectionDiagnostics` value naming the selected backend.
+`WARN-COLLECT-001` reports an ignored dirty working tree; `WARN-COLLECT-002` reports that the
+requested head differs from checked-out `HEAD`. Both conditions may be reported together and
+neither changes the tree-to-tree result.
+
+An explicit repository URL takes precedence over backend discovery. The selected value is
+normalised per `REQ-F02-110`. If neither source provides a value, the public operation raises
+`ERR-COLLECT-105` with remediation directing the caller to supply repository identity. When
+`merge_base_rev` is present, F-02 resolves it, uses it as the diff base, and records it as both
+`ChangeSetInfo.base_commit` and `ChangeSetInfo.merge_base`; otherwise it resolves and uses
+`base_rev` without calling `merge_base()`.
+
+**Rationale.** One explicit boundary makes every context-affecting input visible, retains backend
+injection for conformance testing, and produces machine-readable diagnostics without coupling the
+collector to the later CLI logging layer. Refusing to guess repository identity prevents signed
+records from silently naming the wrong project.
+
+**Rejected alternatives.** Hiding merge-base discovery inside a backend would violate
+`REQ-F02-090`. Falling back after data or revision errors could make two backends observe different
+repositories. Returning a partial result without repository identity would violate the F-01 wire
+model. Logging the backend directly would leave library callers without diagnostics and couple
+F-02 to F-10. Mutable warning lists would undermine the frozen result contract.
+
+**Consequences.** F-02 adds `ERR-COLLECT-105`, two stable warning codes, and typed backend
+diagnostics. Callers must supply repository identity for repositories without a usable remote.
+The CLI later maps its backend flag directly to the three documented selector values.
 
 ---
 
