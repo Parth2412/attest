@@ -37,6 +37,10 @@ class AttestationStore(Protocol):
 
 Backends: `GitRefStore` (default), `FilesystemStore`, `OciStore`.
 
+`pygit2` is an optional package extra. `GitRefStore` **MUST** remain fully operational through the
+Git CLI when the extra is absent, and both native and subprocess implementations **MUST** satisfy
+the same externally observable storage contract (`ADR-034`).
+
 ## 5. Requirements
 
 | ID | Requirement |

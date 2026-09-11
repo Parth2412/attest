@@ -36,7 +36,7 @@
     until their owning BRDs are completed.
   - Seven empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10 through
     validation PRs #1–#3 plus `ADR-018`–`ADR-021`.
-- **Next Milestone**: Begin `BRD-F02` against the ADR-031–ADR-033 collector boundary and close its
+- **Next Milestone**: Begin `BRD-F02` against the ADR-031–ADR-034 collector boundary and close its
   `CH-08` performance gate; start the week-long `CH-03` harness experiment in parallel.
 
 ---
@@ -54,7 +54,7 @@
 | Models & schema | Pydantic v2 (generated structural JSON Schema plus runtime semantic validators — `ADR-010`, `ADR-021`) | decided |
 | Canonicalisation | `rfc8785` (RFC 8785 JCS) | decided |
 | Signing | `sigstore` native DSSE (Fulcio + Rekor); no direct `securesystemslib` handling (`ADR-020`) | decided |
-| Git access | `pygit2` primary, `subprocess` fallback — both required, `ADR-007` | decided |
+| Git access | Optional `pygit2` primary, Git CLI fallback — both CI-conformant, `ADR-007`, `ADR-034` | decided |
 | HTTP | `httpx` | decided |
 | CLI | `typer` + `rich` | decided |
 | Logging | `structlog` | decided |

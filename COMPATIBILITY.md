@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-11 |
 
@@ -93,7 +93,7 @@ them.
 | uv | latest | 0.11.2 | Package/project manager; `uv.lock` is the source of truth for versions |
 | just | latest | 1.58.0 | Task runner; not a Python dependency |
 | git | 2.40 | 2.34.1 host | Host is below the project floor; repository bootstrap operations are compatible, but feature validation requires 2.40+ |
-| libgit2 | via `pygit2` wheel | resolved by uv | Native dependency; the reason `ADR-007` mandates a second backend |
+| libgit2 | optional via `pygit2` extras | resolved by uv when selected | Base installation uses the Git CLI when a compatible wheel is unavailable (`ADR-034`) |
 | Docker | 24.0 | 29.6.1 | Only for building/running the container distribution |
 | GitHub Actions runner | `ubuntu-latest` | — | Needs `id-token: write`, `contents: read`/`write`, `pull-requests: read` |
 
@@ -113,9 +113,9 @@ hand-write a version from memory.
 | Package | Dependencies |
 |---|---|
 | `attest-core` | `pydantic`, `rfc8785`, `jsonschema` |
-| `attest-collect` | `attest-core`, `pygit2`, `httpx` |
+| `attest-collect` | `attest-core`, `httpx`; optional `pygit2` extra |
 | `attest-sign` | `attest-core`, `sigstore` |
-| `attest-store` | `attest-core`, `pygit2`, `oras` |
+| `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
 | `attest-cli` | all six above, `typer`, `rich`, `structlog`, `pyyaml` |
@@ -220,6 +220,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-11**: Made `pygit2` an optional collector/storage backend extra while retaining its
+  exact development/CI pin and requiring Git CLI operation from the base installation
+  (`ADR-034`).
 - **2026-09-11**: Removed inactive workflow placeholders; `e2e-sign.yml` and `release.yml` now
   arrive only with their owning features (`ADR-028`).
 - **2026-09-11**: Activated the F-01 core domain contracts and their normative test vectors.
