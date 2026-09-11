@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.9.0` |
+| Version | `1.10.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -917,6 +917,56 @@ filesystem I/O inside the pure core package.
 Consumers must emit `mode` explicitly and must handle the `Review.required` tri-state. Optional
 null input is accepted for interoperability, but attest-generated canonical Statements omit it.
 Adding or changing a field after publication follows the predicate versioning rules.
+
+---
+
+## ADR-030 — Separate model diagnostics from boundary errors
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `GLOSS-001 §6`, `AGENTS.md §7`,
+`BRD-INDEX §6`, `BRD-F01`, `BRD-F05`, `BRD-F08`
+
+**Context.** The F-01 executable API probes showed that its acceptance criteria and the
+cross-cutting error obligation could not both be implemented literally. `AC-F01-010` requires
+direct Pydantic model validation to raise `ValidationError`, including Pydantic-owned failures
+such as unknown fields and incorrect primitive types. `X-05` said every error path must instead
+raise a project-coded error. Pydantic's built-in structural failures cannot be replaced with
+attest error classes without replacing or wrapping the required direct validation behavior.
+
+The downstream public-operation contracts already define the appropriate boundary codes:
+F-05 maps an invalid constructed Statement to `ERR-BUILD-210`, while F-08 maps structural and
+semantic verification failures to their `ERR-VERIFY-*` codes.
+
+**Decision.** Direct `BaseModel.model_validate()`, model construction, and assignment validation
+are a typed diagnostic layer and may raise Pydantic `ValidationError`. Those diagnostics do not
+cross a CLI, collector, builder, signer, store, verifier, policy, or export operation boundary
+without translation to the code defined by that boundary's BRD.
+
+When F-01 assigns a specific semantic code—malformed Git OID, subject/predicate digest mismatch,
+or unknown closed-enum value—the underlying validator **MUST** retain the corresponding
+`BuildError` and its `code`, `message`, and `remediation` in the Pydantic error context. Pure F-01
+functions such as `canonicalize()` and `generate_json_schema()` raise `BuildError` directly when
+their BRD assigns a code. Pydantic-owned structural diagnostics for which F-01 assigns no project
+code remain ordinary `ValidationError` entries until an owning operation maps them.
+
+`X-05` therefore applies to attest-defined domain errors escaping public feature-operation
+boundaries, not to direct model diagnostics explicitly exposed and tested by F-01. Every
+attest-defined error class still carries a code, human message, and remediation hint.
+
+**Rationale.** Structural model diagnostics and externally actionable operation failures serve
+different audiences. Preserving Pydantic's locations and stable error types makes model failures
+precise, while mapping at operation boundaries ensures CLI and automation consumers receive the
+documented project codes. This keeps one owner for each externally visible failure instead of
+inventing dozens of F-01 codes that downstream features would immediately remap.
+
+**Rejected alternatives.** Replacing every Pydantic failure with a custom exception would violate
+the F-01 acceptance criteria and lose nested field locations. Assigning one generic F-01 code to
+all structural failures would erase useful diagnostics. Treating raw `ValidationError` as an
+externally stable API would bypass the coded contracts already assigned to F-05 and F-08.
+
+**Consequences.** Callers using wire models directly handle `ValidationError`. Public operations
+must catch it and emit their BRD-owned code. F-01 tests verify both ordinary structural diagnostics
+and retention of the three assigned semantic codes. Boundary-mapping tests remain owned by the
+features that expose those boundaries.
 
 ---
 

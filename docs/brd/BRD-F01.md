@@ -101,7 +101,7 @@ schema describes a complete `Statement`, not the predicate object in isolation (
 | `REQ-F01-120` | `generate_json_schema()` **MUST** produce the complete Statement structural schema from the models for the exact predicate version `0.1`; unsupported versions **MUST** raise `ERR-BUILD-205`. The schema **MUST NOT** be hand-authored or hand-edited. Cross-field invariants that generated JSON Schema cannot express **MUST** remain enforced by runtime model validators (`ADR-021`). |
 | `REQ-F01-130` | The generated schema **MUST** be written to `spec/schemas/ai-authorship-v0.1.schema.json` by a `just schema` task, and CI **MUST** fail if the committed file differs. |
 | `REQ-F01-140` | `attest-core` **MUST NOT** import `httpx`, `pygit2`, `sigstore`, `os.path` I/O helpers, or any sibling `attest-*` package. Enforced by import-linter. |
-| `REQ-F01-150` | Every error type **MUST** carry `code`, `message`, and `remediation` attributes. |
+| `REQ-F01-150` | Every attest-defined error type **MUST** carry `code`, `message`, and `remediation` attributes. Direct Pydantic structural diagnostics remain `ValidationError`; F-01-assigned semantic codes **MUST** be retained in its error context (`ADR-030`). |
 | `REQ-F01-160` | Test vectors listed in `SPEC-001 §12` **MUST** exist under `spec/testvectors/` and be exercised by a parametrised test. |
 | `REQ-F01-170` | `AuthorshipMode` **MUST NOT** default to `human-authored`. Absence of authorship evidence maps to an explicitly supplied `unknown`; the required wire field **MUST NOT** have a model default. |
 | `REQ-F01-180` | Git path strings **MUST** use the canonical percent-encoded representation from `SPEC-001 §4.1`, round-trip byte-identically, and reject non-canonical spellings. |
@@ -124,7 +124,7 @@ schema describes a complete `Statement`, not the predicate object in isolation (
 | `AC-F01-120` | `generate_json_schema("0.1")` output validates `statement-valid` and rejects every `statement-invalid-schema-*`; runtime model validation rejects both every schema-invalid vector and every `statement-invalid-semantic-*` vector. The subject/predicate digest-mismatch semantic vector is accepted by JSON Schema and rejected with `ERR-BUILD-203` at runtime. Any unsupported version raises `ERR-BUILD-205`. |
 | `AC-F01-130` | `just schema` produces no diff on a clean tree; a manual schema edit makes CI fail. |
 | `AC-F01-140` | import-linter reports zero violations for the `attest-core` contract. |
-| `AC-F01-150` | Every error class exposes non-empty `code`, `message`, `remediation`. |
+| `AC-F01-150` | Every attest-defined error class exposes non-empty `code`, `message`, `remediation`; coded model-validation failures retain the underlying `BuildError` in the Pydantic error context. |
 | `AC-F01-160` | Every vector directory in `SPEC-001 §12` is collected and passes. |
 | `AC-F01-170` | `Authorship(mode="unknown", claims=[], claims_present=False)` preserves `mode == "unknown"`; omitting `mode` raises `ValidationError`, and no construction path defaults it to `human-authored`. |
 | `AC-F01-180` | Raw path bytes containing valid multibyte UTF-8, `%`, and `0xFF` round-trip through canonical path encoding, model validation, and RFC 8785 canonicalisation; malformed or non-canonical encodings are rejected. |

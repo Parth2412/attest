@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `AGENTS.md` |
-| Version | `1.0.3` |
+| Version | `1.0.4` |
 | Status | **NORMATIVE** for agent behaviour |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-11 |
 
 > Place this file at the repository root. It is read natively by most coding agents. Its purpose
 > is narrow: **stop the agent inventing things.** This project's value is exactness — a
@@ -154,7 +154,7 @@ If you cannot verify a call, say so and stop. Guessing is never acceptable here.
 | All wire models are Pydantic with `extra="forbid"`, `frozen=True` |
 | No naive datetimes anywhere. Timezone-aware UTC only |
 | No floats in any signed field |
-| Every error carries a code from `GLOSS-001 §6`, a message, and a remediation hint |
+| Every attest-defined error crossing a public operation boundary carries a code from `GLOSS-001 §6`, a message, and a remediation hint; direct Pydantic diagnostics follow `ADR-030` |
 | No secret may be a CLI flag; environment or file only |
 | No network call may lack an explicit timeout |
 | No new dependency without an ADR |

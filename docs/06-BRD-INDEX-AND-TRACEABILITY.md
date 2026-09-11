@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | Baselined |
 | Last updated | 2026-09-11 |
 
@@ -165,7 +165,7 @@ here rather than repeated in each BRD.
 | `X-02` | `ruff check` and `ruff format --check` pass |
 | `X-03` | import-linter contract passes (no boundary violations) |
 | `X-04` | Unit test coverage ≥ 90% for the feature's package; ≥ 95% for `attest-core` |
-| `X-05` | Every error path raises a coded error from `GLOSS-001 §6` with a remediation hint |
+| `X-05` | Every attest-defined domain error escaping a public feature-operation boundary raises a coded error from `GLOSS-001 §6` with a remediation hint; direct Pydantic model diagnostics follow `ADR-030` |
 | `X-06` | No banned language from `GLOSS-001 §2.2` in code, docs, or messages |
 | `X-07` | No naive datetimes; all timestamps timezone-aware UTC |
 | `X-08` | No network calls in `attest-core`; no I/O in pure modules |
