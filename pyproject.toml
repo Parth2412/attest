@@ -33,6 +33,7 @@ dev = [
   "pip-audit",
   "mutmut",
   "respx",
+  "pygit2==1.20.0",
 ]
 
 [tool.ruff]

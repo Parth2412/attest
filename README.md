@@ -5,8 +5,8 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** repository scaffold only. No feature is implemented, no CLI is
-> available, and no production release exists yet.
+> **Development status:** pre-alpha. The deterministic core and Git ChangeSet collector are
+> implemented; no CLI or production release exists yet.
 
 ## What attest establishes
 

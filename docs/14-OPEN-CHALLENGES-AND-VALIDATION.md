@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.0.4` |
+| Version | `1.0.5` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-11 |
 
 ---
 
@@ -256,7 +256,7 @@ evangelism.
 
 ## 10. `CH-08` — Does it hold at monorepo scale?
 
-**Status:** OPEN · **Blocks:** F-02 DoD · **Cost:** 1 day · Week 2
+**Status:** CLOSED · **Blocks:** F-02 DoD · **Cost:** 1 day · Week 2
 
 `ARCH-001 §11` targets `CSD-1` under 500 ms for 1,000 changed files. That number is an assertion.
 
@@ -267,6 +267,41 @@ measure both backends; measure a 10,000-file case.
 
 **If not met:** optimise before `F-02` DoD, or amend the target in `ARCH-001` via ADR. Do not
 silently ship a slower tool than the document claims.
+
+### Validation outcome — 2026-09-11
+
+The primary corpus was merged Kubernetes monorepo
+[PR #26755](https://github.com/kubernetes/kubernetes/pull/26755). GitHub records 3,553 changed
+files; `CSD-1` correctly produced 3,556 transitions with similarity detection disabled, from
+base `5dfbc769e56f8e7d384611ff7edd40fbe8a7e5d4` to head
+`ef0c9f0c5b8efbba948a0be2c98d9d2e32e0b68c`. The scale corpus was Linux commit
+`b24413180f5600bcb3bb70fbed5cf186b60864bd` against its parent
+`bb176f67090ca54869fc1262c913aa69d2ede070`, which contains 11,139 transitions. An exact
+1,000-transition prefix of the Linux corpus was reconstructed as real Git trees to measure the
+published threshold directly.
+
+The isolated supported environment used CPython 3.13.12, Git 2.47.3, `pygit2==1.20.0`, and
+libgit2 1.9.6. Each timed corpus had two warm-up executions. The PR and 1,000-transition cases had
+10 measured executions per backend; the 11,139-transition case had five. Each execution included
+tree extraction, `ChangeSetRecord` construction, canonicalisation, and digest computation.
+Backend construction, ref and repository-identity resolution, and working-tree warning checks were
+outside the interval, consistent with `ARCH-001 §11`'s pure-over-OIDs target. Garbage collection
+was paused only inside the timed interval. Memory figures are peak Python allocations measured by
+`tracemalloc`, not whole-process RSS.
+
+| Corpus | Backend | Transitions | Median | Maximum | Traced Python peak | Digest agreement |
+|---|---:|---:|---:|---:|---:|---|
+| Kubernetes PR #26755 | `pygit2` | 3,556 | 298.70 ms | 313.64 ms | 14.04 MiB | ✓ |
+| Kubernetes PR #26755 | Git CLI | 3,556 | 292.54 ms | 296.28 ms | 14.04 MiB | ✓ |
+| Linux exact prefix | `pygit2` | 1,000 | 79.30 ms | 86.57 ms | 3.94 MiB | ✓ |
+| Linux exact prefix | Git CLI | 1,000 | 83.22 ms | 85.24 ms | 3.94 MiB | ✓ |
+| Linux full commit | `pygit2` | 11,139 | 909.49 ms | 1,009.19 ms | 43.86 MiB | ✓ |
+| Linux full commit | Git CLI | 11,139 | 888.77 ms | 897.49 ms | 43.86 MiB | ✓ |
+
+Both backends remained below 500 ms even for the complete 3,556-transition pull request. Both
+also completed the 11,139-transition case without memory exhaustion and produced
+`02f44480739d7b2ca59601f1139e40cd3bc057a59135a87050ddbf1588b1cbe8`. The gate passes; no
+performance-target amendment or follow-up ADR is required.
 
 ---
 
@@ -301,7 +336,7 @@ is settled and what is not.
 | `CH-05` | OPEN | — | — | — |
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
-| `CH-08` | OPEN | — | — | — |
+| `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
 | `CH-09` | OPEN | — | — | — |
 
 ---

@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | Ready when F-01 Done · `CH-01` closed · `CH-08` gates DoD |
+| Status | Done · F-01 Done · `CH-01` and `CH-08` closed |
 
 ---
 
@@ -23,8 +23,8 @@ rename detection, diff algorithm defaults, path encoding, submodules, and merge-
 
 ## 3. Dependencies
 
-`F-01` (types, digest algorithm). `CH-01` real-repository conformance is closed. `CH-08`
-(monorepo scale) remains a Definition-of-Done gate.
+`F-01` (types, digest algorithm). `CH-01` real-repository conformance and `CH-08` monorepo-scale
+validation are closed.
 
 ## 4. Data contracts
 
@@ -155,7 +155,7 @@ Construct programmatically in `tmp_path`, never committed as binary repos:
 | `ERR-COLLECT-101` | Commit not present (shallow clone) | Set `fetch-depth: 0` in checkout |
 | `ERR-COLLECT-102` | Not a git repository | Run inside a repository or pass `--repo` |
 | `ERR-COLLECT-103` | Revision cannot be resolved | Check the ref exists and is fetched |
-| `ERR-COLLECT-104` | Backend selector is unknown or no selected backend is usable | Select `auto`, `pygit2`, or `subprocess`; install libgit2 or ensure `git` is on PATH |
+| `ERR-COLLECT-104` | Backend selector is unknown or no selected backend is usable | Select `auto`, `pygit2`, or `subprocess`; install `attest-collect[pygit2]` or ensure `git` is on PATH |
 | `ERR-COLLECT-105` | Repository identity is unavailable or non-normalisable | Supply a canonical HTTPS or supported Git remote URL explicitly |
 | `ERR-COLLECT-106` | Git operation failed after boundary validation | Check repository integrity and permissions, then retry |
 
@@ -174,8 +174,8 @@ Warnings are structured, non-fatal diagnostics and do not alter the collected re
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F02-*` implemented, all `AC-F02-*` green
-- [ ] Both backends pass the full fixture matrix identically
-- [ ] All `spec/testvectors/csd1-*` pass end-to-end from a real repository
-- [ ] Coverage ≥ 90%
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F02-*` implemented, all `AC-F02-*` green
+- [x] Both backends pass the full fixture matrix identically
+- [x] All `spec/testvectors/csd1-*` pass end-to-end from a real repository
+- [x] Coverage ≥ 90%
+- [x] Cross-cutting obligations satisfied

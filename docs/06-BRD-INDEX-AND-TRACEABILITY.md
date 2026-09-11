@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | Baselined |
 | Last updated | 2026-09-11 |
 
@@ -186,7 +186,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | Feature | Status |
 |---|---|
 | `F-01` | Done |
-| `F-02` | Planned |
+| `F-02` | Done |
 | `F-03` | Planned |
 | `F-04` | Planned |
 | `F-05` | Planned |
@@ -223,6 +223,25 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F01-160` | `AC-F01-160` | `packages/attest-core/tests/test_vectors.py` | ✓ |
 | `REQ-F01-170` | `AC-F01-170` | `packages/attest-core/tests/test_models.py` | ✓ |
 | `REQ-F01-180` | `AC-F01-180` | `packages/attest-core/tests/test_path.py` | ✓ |
+| `REQ-F02-010` | `AC-F02-010` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-020` | `AC-F02-020` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-030` | `AC-F02-030` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-040` | `AC-F02-040` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-050` | `AC-F02-050` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-060` | `AC-F02-060` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-070` | `AC-F02-070` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-080` | `AC-F02-080` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-090` | `AC-F02-090` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-100` | `AC-F02-100` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-110` | `AC-F02-110` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-120` | `AC-F02-120` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-130` | `AC-F02-130` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-140` | `AC-F02-140` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-150` | `AC-F02-150` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-160` | `AC-F02-160` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-170` | `AC-F02-170` | `packages/attest-collect/tests/test_conformance.py` | ✓ |
+| `REQ-F02-180` | `AC-F02-180` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-190` | `AC-F02-190` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
