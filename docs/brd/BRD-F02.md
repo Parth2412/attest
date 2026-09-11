@@ -103,13 +103,14 @@ Both **MUST** pass the identical conformance suite.
 | `REQ-F02-090` | When `merge_base_rev` is absent, resolved `base_rev` **MUST** be used as `ChangeSetInfo.base_commit` and as the diff base; attest **MUST NOT** call `merge_base()` implicitly. |
 | `REQ-F02-100` | When `merge_base_rev` is supplied by a pull-request caller, its resolved OID **MUST** be recorded in both `ChangeSetInfo.merge_base` and `ChangeSetInfo.base_commit` and used as the diff base. It **MUST NOT** enter `ChangeSetRecord` (`ADR-031`). |
 | `REQ-F02-110` | Repository URL **MUST** be normalised: scheme forced to `https`, credentials stripped, `.git` suffix removed, trailing slash removed, host lowercased. |
-| `REQ-F02-120` | A shallow clone lacking the base commit **MUST** raise `ERR-COLLECT-101` with remediation naming `fetch-depth: 0`. |
+| `REQ-F02-120` | An unavailable selected diff-base input **MUST** raise `ERR-COLLECT-101` with remediation naming `fetch-depth: 0` only when the input is a full lowercase 40-hex OID and the repository is shallow. Every other unresolved revision **MUST** raise `ERR-COLLECT-103` (`ADR-033`). |
 | `REQ-F02-130` | A dirty working tree **MUST NOT** affect the result. Dirty state **MUST** emit `WARN-COLLECT-001`; a requested head differing from checked-out `HEAD` **MUST** emit `WARN-COLLECT-002`. |
 | `REQ-F02-140` | `ChangeSetInfo.stats` **MUST** contain only integer file counts. Line counts **MUST NOT** be produced. |
 | `REQ-F02-150` | `paths` **MUST** be truncated at 1000 entries with `paths_truncated=True` set. |
-| `REQ-F02-160` | Backend selection **MUST** accept `auto`, `pygit2`, or `subprocess`, plus an injected `GitBackend`. `auto` **MUST** prefer pygit2 and fall back only when it is unavailable. The selected backend **MUST** be returned in `CollectionDiagnostics`. |
+| `REQ-F02-160` | Backend selection **MUST** accept `auto`, `pygit2`, or `subprocess`, plus an injected `GitBackend`. `auto` **MUST** prefer pygit2 and fall back only when it is unavailable. The selected backend **MUST** be returned in `CollectionDiagnostics`; an unknown or unavailable selection **MUST** raise `ERR-COLLECT-104`. |
 | `REQ-F02-170` | Both backends **MUST** produce byte-identical `ChangeSetRecord` for every conformance fixture. |
-| `REQ-F02-180` | An explicit repository URL **MUST** take precedence over backend discovery and be normalised. If neither source provides a URL, collection **MUST** raise `ERR-COLLECT-105`. |
+| `REQ-F02-180` | An explicit repository URL **MUST** take precedence over backend discovery and be normalised. Missing or non-normalisable repository identity **MUST** raise `ERR-COLLECT-105`. |
+| `REQ-F02-190` | Every backend failure escaping `collect_changeset()` **MUST** be translated to its BRD-F02 code. An operation failure after repository, backend, revision, and identity validation **MUST** raise `ERR-COLLECT-106`; raw backend exceptions **MUST NOT** cross the boundary (`ADR-030`, `ADR-033`). |
 
 ## 6. Acceptance criteria
 
@@ -126,13 +127,14 @@ Both **MUST** pass the identical conformance suite.
 | `AC-F02-090` | Omitting `merge_base_rev` uses resolved `base_rev` for `info.base_commit` and never calls `merge_base()`. |
 | `AC-F02-100` | Given a forge merge base, both `info.merge_base` and `info.base_commit` equal its resolved OID; the record has exactly `algorithm` and `entries`. |
 | `AC-F02-110` | `git@github.com:Org/Repo.git` normalises to `https://github.com/Org/Repo`. |
-| `AC-F02-120` | A depth-1 clone raises `ERR-COLLECT-101` whose remediation text contains `fetch-depth`. |
+| `AC-F02-120` | A depth-1 clone missing a supplied full base OID raises `ERR-COLLECT-101` whose remediation contains `fetch-depth`; an unknown ref and malformed OID raise `ERR-COLLECT-103`. |
 | `AC-F02-130` | Dirty state and head mismatch produce their distinct warning codes; both together produce both warnings, and the digest is unaffected. |
 | `AC-F02-140` | `ChangeSetInfo.stats` has no line-count key. |
 | `AC-F02-150` | A 1500-file ChangeSet yields 1000 paths and `paths_truncated=True`. |
-| `AC-F02-160` | Auto preference/fallback and both explicit overrides select only as documented; diagnostics name the backend actually used, and operation failures never trigger fallback. |
+| `AC-F02-160` | Auto preference/fallback and both explicit overrides select only as documented; diagnostics name the backend actually used, operation failures never trigger fallback, and an unknown or unavailable selection raises `ERR-COLLECT-104`. |
 | `AC-F02-170` | The full fixture matrix is run twice, once per backend, and all digests match. |
-| `AC-F02-180` | An explicit repository URL overrides backend discovery; a repository with neither source raises `ERR-COLLECT-105` with actionable remediation. |
+| `AC-F02-180` | An explicit repository URL overrides backend discovery; missing and malformed repository identities raise `ERR-COLLECT-105` with actionable remediation. |
+| `AC-F02-190` | Injected backend failures from both implementations produce the same assigned public code with non-empty message and remediation; the original exception is retained only as the cause. |
 
 ## 7. Test fixtures required
 
@@ -149,8 +151,9 @@ Construct programmatically in `tmp_path`, never committed as binary repos:
 | `ERR-COLLECT-101` | Commit not present (shallow clone) | Set `fetch-depth: 0` in checkout |
 | `ERR-COLLECT-102` | Not a git repository | Run inside a repository or pass `--repo` |
 | `ERR-COLLECT-103` | Revision cannot be resolved | Check the ref exists and is fetched |
-| `ERR-COLLECT-104` | No usable git backend | Install libgit2 or ensure `git` is on PATH |
-| `ERR-COLLECT-105` | Repository identity is unavailable | Supply the canonical repository URL explicitly |
+| `ERR-COLLECT-104` | Backend selector is unknown or no selected backend is usable | Select `auto`, `pygit2`, or `subprocess`; install libgit2 or ensure `git` is on PATH |
+| `ERR-COLLECT-105` | Repository identity is unavailable or non-normalisable | Supply a canonical HTTPS or supported Git remote URL explicitly |
+| `ERR-COLLECT-106` | Git operation failed after boundary validation | Check repository integrity and permissions, then retry |
 
 Warnings are structured, non-fatal diagnostics and do not alter the collected record:
 
