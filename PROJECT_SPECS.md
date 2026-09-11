@@ -36,8 +36,8 @@
     until their owning BRDs are completed.
   - Seven empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10 through
     validation PRs #1–#3 plus `ADR-018`–`ADR-021`.
-- **Next Milestone**: Resolve the F-02 `base_commit` contract conflict through an ADR, then begin
-  `BRD-F02`; start the week-long `CH-03` harness experiment in parallel.
+- **Next Milestone**: Begin `BRD-F02` against the ADR-031/ADR-032 collector boundary and close its
+  `CH-08` performance gate; start the week-long `CH-03` harness experiment in parallel.
 
 ---
 
