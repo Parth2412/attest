@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-11 |
 
@@ -26,7 +26,7 @@
 | Component | Distribution | Import name | Version | Runtime | Owning feature(s) | Status |
 |---|---|---|---|---|---|---|
 | Workspace root | `attest-workspace` | — | 0.0.0 (not published) | Python 3.12+ | — | scaffold |
-| Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | scaffold |
+| Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
 | Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04` | scaffold |
 | Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | scaffold |
 | Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | scaffold |
@@ -36,10 +36,10 @@
 | GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
 | Specification | `SPEC-001` | — | 1.0.0 (document) | — | `F-01` | baselined, unpublished |
-| Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | planned |
+| Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
-**Nothing is `active` yet.** Every distribution imports, but every feature module remains a
-docstring-only stub. See `PROJECT_SPECS.md §Current Project Status`.
+F-01 is active in `attest-core`; its F-05 builder module and every other feature distribution
+remain scaffolds. See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
 URI appears in exactly one place in code — `attest_core.constants.PREDICATE_TYPE_V0_1` — and never
@@ -222,6 +222,7 @@ entire adoption strategy (`CH-07`).
 
 - **2026-09-11**: Removed inactive workflow placeholders; `e2e-sign.yml` and `release.yml` now
   arrive only with their owning features (`ADR-028`).
+- **2026-09-11**: Activated the F-01 core domain contracts and their normative test vectors.
 - **2026-09-11**: Pinned the bootstrap CI action/toolchain inputs, locked CI installation, and
   expanded the required Python matrix to Linux and macOS (`ADR-027`).
 - **2026-09-10**: Bootstrapped all seven distributions at 0.1.0, resolved the GitHub owner in the

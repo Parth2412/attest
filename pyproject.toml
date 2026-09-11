@@ -55,10 +55,11 @@ strict = true
 warn_unreachable = true
 disallow_any_explicit = false
 enable_error_code = ["ignore-without-code","redundant-expr","truthy-bool"]
+exclude = ["(^|/)mutants/"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
-addopts = "-q --strict-markers --strict-config --import-mode=importlib"
+addopts = "-q --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants"
 markers = [
   "ac(id): the acceptance criterion this test satisfies, e.g. AC-F01-050",
   "vectors: normative test-vector conformance",

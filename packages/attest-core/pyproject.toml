@@ -16,3 +16,14 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/attest_core"]
+
+[tool.mutmut]
+source_paths = ["src/attest_core"]
+only_mutate = ["src/attest_core/canonical.py", "src/attest_core/digest.py"]
+on_dependency_change = "rerun"
+pytest_add_cli_args_test_selection = [
+  "tests/test_canonical.py",
+  "tests/test_digest.py",
+  "tests/test_path.py",
+  "tests/test_properties.py",
+]

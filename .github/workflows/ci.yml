@@ -65,8 +65,7 @@ jobs:
       - name: Check schema drift when F-01 is complete
         run: |
           if grep -qF '| `F-01` | Done |' docs/06-BRD-INDEX-AND-TRACEABILITY.md; then
-            uv run python -m attest_core.schema --write spec/schemas/
-            git diff --exit-code spec/schemas/
+            uv run python scripts/write_schema.py --check
           else
             echo "schema-drift: not applicable until F-01 is Done"
           fi

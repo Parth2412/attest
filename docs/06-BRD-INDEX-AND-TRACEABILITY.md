@@ -185,7 +185,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 
 | Feature | Status |
 |---|---|
-| `F-01` | Planned |
+| `F-01` | Done |
 | `F-02` | Planned |
 | `F-03` | Planned |
 | `F-04` | Planned |
@@ -205,9 +205,24 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 
 | Requirement | Acceptance | Test module | Status |
 |---|---|---|---|
-| `REQ-F01-010` | `AC-F01-010` | `tests/core/test_models.py` | ☐ |
-| `REQ-F01-020` | `AC-F01-020` | `tests/core/test_canonical.py` | ☐ |
-| … | … | … | ☐ |
+| `REQ-F01-010` | `AC-F01-010` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-020` | `AC-F01-020` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-030` | `AC-F01-030` | `packages/attest-core/tests/test_canonical.py` | ✓ |
+| `REQ-F01-040` | `AC-F01-040` | `packages/attest-core/tests/test_canonical.py` | ✓ |
+| `REQ-F01-050` | `AC-F01-050` | `packages/attest-core/tests/test_digest.py` | ✓ |
+| `REQ-F01-060` | `AC-F01-060` | `packages/attest-core/tests/test_digest.py` | ✓ |
+| `REQ-F01-070` | `AC-F01-070` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-080` | `AC-F01-080` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-090` | `AC-F01-090` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-100` | `AC-F01-100` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-110` | `AC-F01-110` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-120` | `AC-F01-120` | `packages/attest-core/tests/test_schema.py` | ✓ |
+| `REQ-F01-130` | `AC-F01-130` | `packages/attest-core/tests/test_schema.py` | ✓ |
+| `REQ-F01-140` | `AC-F01-140` | `packages/attest-core/tests/test_boundaries.py` | ✓ |
+| `REQ-F01-150` | `AC-F01-150` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-160` | `AC-F01-160` | `packages/attest-core/tests/test_vectors.py` | ✓ |
+| `REQ-F01-170` | `AC-F01-170` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-180` | `AC-F01-180` | `packages/attest-core/tests/test_path.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
