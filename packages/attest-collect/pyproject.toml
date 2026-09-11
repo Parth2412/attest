@@ -10,9 +10,11 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
   "attest-core",
-  "pygit2==1.20.0",
   "httpx",
 ]
+
+[project.optional-dependencies]
+pygit2 = ["pygit2==1.20.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/attest_collect"]

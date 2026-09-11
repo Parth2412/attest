@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 is implemented in `attest-core`.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 and F-02 are implemented.
 - **Last Updated**: 2026-09-11
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -25,19 +25,20 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 are complete; the other
-  eleven features remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001, F-01, and F-02 are complete; the
+  other ten features remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
-- **Test Coverage**: The F-01 model, canonicalisation, digest, schema, boundary, property, and
-  vector suites enforce the 95% `attest-core` branch-coverage floor; workspace smoke tests remain.
+- **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
+  90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
+  vectors; workspace gates remain green.
 - **Known Issues**:
-  - F-02 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
+  - F-03 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
     until their owning BRDs are completed.
-  - Seven empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10 through
-    validation PRs #1–#3 plus `ADR-018`–`ADR-021`.
-- **Next Milestone**: Begin `BRD-F02` against the ADR-031–ADR-034 collector boundary and close its
-  `CH-08` performance gate; start the week-long `CH-03` harness experiment in parallel.
+  - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
+    closed on 2026-09-11 with a supported-Git monorepo benchmark.
+- **Next Milestone**: Implement `BRD-F03` without changing the completed F-01/F-02 contracts, and
+  run the bounded `CH-03` harness experiment in parallel.
 
 ---
 
@@ -108,7 +109,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven installable, docstring-only package scaffolds
+├── packages/               seven installable distributions; F-01/F-02 active, others scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -123,7 +124,7 @@ out of order means inventing those contracts.
 | ID | Feature | Package | Milestone | Depends on | Challenge gate | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ✓ done |
-| `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ☐ not started |
+| `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ✓ done |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ☐ not started |
 | `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ☐ not started |
 | `F-05` | Attestation builder | `attest-core` | M1 | F-01, F-02, F-03 | — | Atlas | ☐ not started |
@@ -333,7 +334,7 @@ and must be updated in the same commit.
 | `CH-05` | Will teams enable a blocking gate? | Product | M2 exit | **OPEN** |
 | `CH-06` | Will anyone pay, and who signs? | Market | M3 exit | **OPEN** |
 | `CH-07` | Will anyone else implement the spec? | Strategic | standards thesis | **OPEN** |
-| `CH-08` | Does it hold at monorepo scale? | Technical | F-02 DoD | **OPEN** |
+| `CH-08` | Does it hold at monorepo scale? | Technical | F-02 DoD | **CLOSED 2026-09-11** |
 | `CH-09` | Is container cold start acceptable? | Technical | F-11 DoD | **OPEN** |
 
 `CH-02` assumption **C** was demonstrated by signing as identity X and confirming that
@@ -347,6 +348,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-11**: Completed F-02 with deterministic pygit2 and Git CLI collectors, stable
+  diagnostics, 92% package branch coverage, wheel-level optional-backend validation, and closure
+  of the `CH-08` monorepo-scale gate.
 - **2026-09-11**: `ADR-028` removed invalid inactive workflow placeholders after GitHub registered
   the comment-only files as failed workflows. F-06 and F-11 now create their paths only when valid.
 - **2026-09-11**: `ADR-027` made bootstrap CI deterministic and supply-chain pinned: immutable

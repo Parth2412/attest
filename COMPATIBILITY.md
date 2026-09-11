@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-11 |
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|---|
 | Workspace root | `attest-workspace` | — | 0.0.0 (not published) | Python 3.12+ | — | scaffold |
 | Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
-| Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04` | scaffold |
+| Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04` | active |
 | Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | scaffold |
 | Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | scaffold |
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | scaffold |
@@ -38,8 +38,9 @@
 | Specification | `SPEC-001` | — | 1.0.0 (document) | — | `F-01` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
-F-01 is active in `attest-core`; its F-05 builder module and every other feature distribution
-remain scaffolds. See `PROJECT_SPECS.md §Current Project Status`.
+F-01 is active in `attest-core`, and F-02 is active in `attest-collect`. The F-05 builder,
+F-03/F-04 collectors, and all other feature modules remain scaffolds. See
+`PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
 URI appears in exactly one place in code — `attest_core.constants.PREDICATE_TYPE_V0_1` — and never
@@ -92,8 +93,8 @@ them.
 | Python | 3.12.0 | 3.12.13 and 3.13.12 | Test matrix covers both (`BOOT-001 §12`). 3.12 is the target |
 | uv | latest | 0.11.2 | Package/project manager; `uv.lock` is the source of truth for versions |
 | just | latest | 1.58.0 | Task runner; not a Python dependency |
-| git | 2.40 | 2.34.1 host | Host is below the project floor; repository bootstrap operations are compatible, but feature validation requires 2.40+ |
-| libgit2 | optional via `pygit2` extras | resolved by uv when selected | Base installation uses the Git CLI when a compatible wheel is unavailable (`ADR-034`) |
+| git | 2.40 | 2.34.1 host; 2.47.3 validation | F-02 release validation ran on 2.47.3 because the host is below the supported floor |
+| libgit2 | optional via `pygit2` extras | 1.9.6 via pygit2 1.20.0 | Base installation uses the Git CLI when a compatible wheel is unavailable (`ADR-034`) |
 | Docker | 24.0 | 29.6.1 | Only for building/running the container distribution |
 | GitHub Actions runner | `ubuntu-latest` | — | Needs `id-token: write`, `contents: read`/`write`, `pull-requests: read` |
 
@@ -220,6 +221,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-11**: Activated F-02 in `attest-collect`; both optional pygit2 and base-install Git
+  CLI paths pass identical real-repository and normative-vector conformance. Supported-Git
+  benchmarks closed `CH-08` without changing the 500 ms target.
 - **2026-09-11**: Made `pygit2` an optional collector/storage backend extra while retaining its
   exact development/CI pin and requiring Git CLI operation from the base installation
   (`ADR-034`).
