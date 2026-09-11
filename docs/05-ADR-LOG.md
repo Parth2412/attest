@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.8.0` |
+| Version | `1.9.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-11 |
 
@@ -856,6 +856,67 @@ that serve no runtime purpose and could still be mistaken for implementation.
 **Consequences.** The bootstrap tree contains only `ci.yml` under `.github/workflows/`. F-06 and
 F-11 add their workflow files rather than filling existing placeholders. Repository tree checks
 must use feature lifecycle state when evaluating those future paths.
+
+---
+
+## ADR-029 — Complete the v0.1 wire contract before implementation
+
+**Status:** Accepted · **Date:** 2026-09-11 · **Affects:** `GLOSS-001 §§4, 8`, `SPEC-001 §§3, 6,
+11`, `ARCH-001 §7`, `BRD-INDEX §5`, `BRD-F01`
+
+**Context.** The F-01 pre-implementation audit found that the predicate examples showed nested
+objects whose required fields, optional fields, and null handling were not fully specified. The
+generated schema is authoritative for structural constraints, so leaving those decisions to
+Pydantic defaults would make the Python implementation, rather than `SPEC-001`, define the public
+wire format. The audit also found three conflicts: `mode` was wire-required while an acceptance
+criterion omitted it, the camel-case rule did not exempt in-toto's `_type` and digest-map
+`sha256` keys, and illustrative digest values used an algorithm prefix even though `GLOSS-001`
+requires the algorithm to be named by the field or map key.
+
+The `generate_json_schema(predicate_version)` signature also lacked a contract for its argument,
+and the review collector needs an explicit unknown value when it cannot determine whether review
+was required.
+
+**Decision.** The v0.1 wire model is completed in `SPEC-001 §6` with a field table for every
+nested object. Fields marked required must be present. Fields marked optional may be omitted or
+set to JSON `null`; the reference implementation canonicalises its own output by omitting optional
+null values. Arrays explicitly documented as possibly empty remain valid.
+
+`Authorship.mode` remains required on the wire and has no model default. A collector with no
+authorship evidence must explicitly set it to `unknown`; absence of evidence does not mean absence
+of the field. `Review.required` is the closed tri-state `true`, `false`, or the string `unknown`.
+
+Every SHA-256 value field contains exactly 64 lowercase hexadecimal characters with no prefix.
+The algorithm is identified by the `sha256` map key or by the field's specified SHA-256 semantics.
+The illustrative predicate examples are corrected accordingly.
+
+All Python attributes remain snake case and all ordinary JSON properties remain camel case.
+Protocol-defined `_type` and `sha256` are the only v0.1 exceptions. The additional structural
+models `DigestSet`, `ChangeSetStats`, and `ReviewEvidence` are part of F-01 because they are needed
+to generate strict nested schemas rather than permissive dictionaries.
+
+`generate_json_schema()` produces the complete v0.1 `Statement` schema. Its
+`predicate_version` argument accepts only the exact string `0.1`; any other value raises the new
+`ERR-BUILD-205`. Schema file writing belongs to a repository-level script invoked by `just schema`,
+not to `attest_core`, preserving the package's no-I/O boundary.
+
+**Rationale.** A signed format must define omission, nullability, nested requiredness, and exact
+encodings before its first implementation. Explicit protocol exceptions preserve in-toto
+interoperability without weakening the project's naming rule. Keeping `mode` present prevents an
+omitted field from being mistaken for a negative authorship assertion. A closed review tri-state
+records uncertainty without overloading JSON null or accepting arbitrary strings.
+
+**Rejected alternatives.** Inferring requiredness from illustrative examples would violate the
+document convention that examples are non-normative. Letting Pydantic defaults determine the
+schema would make other implementations reverse-engineer the Python package. Defaulting a missing
+mode to `unknown` would make a required wire field optional. Prefixing digest strings would
+contradict the normative digest convention. Writing the schema from `attest_core.schema` would put
+filesystem I/O inside the pure core package.
+
+**Consequences.** F-01 has a complete structural contract and can generate a reproducible schema.
+Consumers must emit `mode` explicitly and must handle the `Review.required` tri-state. Optional
+null input is accepted for interoperability, but attest-generated canonical Statements omit it.
+Adding or changing a field after publication follows the predicate versioning rules.
 
 ---
 
