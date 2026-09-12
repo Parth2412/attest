@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Defined the explicit F-08 verification boundary: required trust-source selection, bounded
+  identity patterns resolved through Sigstore's exact policy, stable ordered check outcomes, and
+  caller-selected repository ChangeSet recomputation.
 - Implemented F-06 ambient-OIDC Sigstore signing with exact canonical DSSE payloads, explicit
   staging or production trust roots, fail-closed bundle postconditions, secret-safe diagnostics,
   hard process deadlines, retry suppression after Rekor begins, and live staging verification.

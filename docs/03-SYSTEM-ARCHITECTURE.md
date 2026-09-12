@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
 | Last updated | 2026-09-12 |
 
@@ -86,7 +86,7 @@ rather than merely discouraged.
 | `digest.py` | `CSD-1` implementation, operating on already-extracted entries |
 | `builder.py` | Pure deterministic assembly and validation of a supplied `Collection` and collector outputs |
 | `errors.py` | Error taxonomy with codes |
-| `schema.py` | JSON Schema generation |
+| `schema.py` | JSON Schema generation and version-exact structural validation |
 
 `digest.py` takes a list of `ChangeSetEntry` — it does **not** talk to git. The git adapter
 produces the entries. This is what makes the digest testable against fixed vectors with no
@@ -119,7 +119,9 @@ the environment, clock, package metadata, filesystem, or network (`ADR-036`).
 | `dsse.py` | Convert exact canonical payload bytes into Sigstore's public DSSE Statement type; no PAE or envelope construction |
 | `sigstore_signer.py` | Process-isolated Sigstore-native keyless `sign_dsse`, ambient OIDC detection, Rekor submission, bounded bundle output |
 | `verifier.py` | The §8 verification pipeline, in order |
-| `trustroot.py` | Trust root management, offline trust bundle support |
+| `trustroot.py` | Explicit production/staging or supplied trust configuration; offline support |
+| `repository.py` | Independent, bounded, read-only Git CLI recomputation for verification |
+| `verify_errors.py` | Verification-only public diagnostics; no signer dependency |
 
 `verifier.py` **MUST** implement the checks as an explicit ordered list, each returning a typed
 result, so the order is auditable in code review and testable step-by-step.
@@ -201,18 +203,32 @@ message and remediation; raw validation details remain in the chained private ex
  bundle (file | git ref | OCI | store)
     │
     ├─ parse bundle + required material   ERR-VERIFY-001
-    ├─ native verify_dsse with trusted root and mandatory Identity policy
+    ├─ load explicit trust source             ERR-VERIFY-012
+    ├─ native verify_dsse with mandatory exact Identity policy
     │      cert path/time + identity/issuer + transparency + DSSE   ERR-VERIFY-013
     ├─ returned payload type + Statement  ERR-VERIFY-007
     ├─ structural schema validation       ERR-VERIFY-008
     ├─ runtime semantic validation        ERR-VERIFY-009
-    └─ (optional) recompute CSD-1 locally ERR-VERIFY-010
+    └─ (optional) recompute caller-selected ChangeSet locally ERR-VERIFY-010
 ```
 
 The Sigstore operation is an atomic cryptographic boundary (`ADR-020`). `verifier.py` may wrap its
 public result and sanitise its diagnostic message, but **MUST NOT** call private verification
 methods, reconstruct PAE, or classify failures by parsing exception text. Structural validation
 precedes Pydantic semantic model construction (`ADR-021`).
+
+The trust source is a required input. A service trust source names production or staging and
+requires the caller to state whether a TUF refresh is allowed; a supplied client trust
+configuration is offline. The verifier never infers an environment from a bundle or tries roots
+until one accepts. A bounded workflow-identity glob is resolved to exactly one certificate URI SAN,
+then that exact value and the exact issuer are passed to Sigstore's public `Identity` policy
+(`ADR-038`).
+
+Repository verification receives an explicit path, base revision, and head revision. Its
+read-only Git CLI implementation is deliberately independent of `attest-collect`, uses only pure
+`attest-core` ChangeSet construction and digest functions, and bounds every process invocation.
+This preserves peer-adapter isolation while preventing the verifier from guessing that the current
+`HEAD` is the ChangeSet the caller meant to check.
 
 ---
 
