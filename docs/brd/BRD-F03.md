@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | Ready · F-01 Done · governed by ADR-035 |
+| Status | Done · F-01 Done · governed by ADR-035 |
 
 ---
 
@@ -277,8 +277,8 @@ present.
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F03-*` implemented, all `AC-F03-*` green
-- [ ] A negative test asserts no prompt text can reach the predicate under any input
-- [ ] Example harness hook scripts provided under `examples/hooks/` for at least two harnesses
-- [ ] Coverage ≥ 90%
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F03-*` implemented, all `AC-F03-*` green
+- [x] A negative test asserts no prompt text can reach the predicate under any input
+- [x] Example harness hook scripts provided under `examples/hooks/` for at least two harnesses
+- [x] Coverage ≥ 90%
+- [x] Cross-cutting obligations satisfied

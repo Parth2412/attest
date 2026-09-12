@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.4.0` |
+| Version | `1.5.0` |
 | Status | Baselined |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 ---
 
@@ -187,7 +187,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 |---|---|
 | `F-01` | Done |
 | `F-02` | Done |
-| `F-03` | Planned |
+| `F-03` | Done |
 | `F-04` | Planned |
 | `F-05` | Planned |
 | `F-06` | Planned |
@@ -242,6 +242,20 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F02-170` | `AC-F02-170` | `packages/attest-collect/tests/test_conformance.py` | ✓ |
 | `REQ-F02-180` | `AC-F02-180` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
 | `REQ-F02-190` | `AC-F02-190` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F03-010` | `AC-F03-010` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-020` | `AC-F03-020` | `packages/attest-collect/tests/test_sidecar.py`, `test_trailers.py`, `test_gitnotes.py` | ✓ |
+| `REQ-F03-030` | `AC-F03-030` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-040` | `AC-F03-040` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-050` | `AC-F03-050` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-060` | `AC-F03-060` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-070` | `AC-F03-070` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-080` | `AC-F03-080` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-090` | `AC-F03-090` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-100` | `AC-F03-100` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-110` | `AC-F03-110` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-120` | `AC-F03-120` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-130` | `AC-F03-130` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-140` | `AC-F03-140` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
