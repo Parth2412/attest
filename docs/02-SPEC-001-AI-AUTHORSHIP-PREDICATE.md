@@ -511,6 +511,19 @@ and `eventName` fields. `runAttempt`, when present, is an integer of at least on
 whose `kind` is `local` **MUST** have `trusted: false`; this is enforced as a runtime semantic
 invariant as well as during collection.
 
+`environment.trusted` is producer context, not independent proof of trust. A producer **MUST NOT**
+set it to `true` unless it recognises the CI platform and a workload-identity credential is
+available for the recorded run. A verifier **MUST NOT** rely on `trusted: true` until the
+attestation signature has been verified against the caller's expected workload identity and
+issuer. Environment-variable presence alone is not a verifier trust anchor because a local
+process can reproduce those variables.
+
+The Python v0.1 reference implementation recognises only GitHub Actions on `github.com` as a
+trusted environment. It requires the exact signals and records the exact non-secret metadata in
+`ADR-036`; GitLab CI and every other CI environment remain untrusted until a workload-identity
+contract is specified for that platform. OIDC request credentials **MUST NOT** be copied into the
+predicate or diagnostics.
+
 > **Critical.** An attestation produced on a developer laptop is not worthless — it is a
 > developer-asserted record. But it must be distinguishable from one produced by a CI job whose
 > identity is cryptographically bound. The `trusted` flag makes that distinction explicit and
@@ -731,5 +744,6 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-10 | Structural JSON Schema and runtime semantic validation contracts separated before first publication (`ADR-021`) |
 | 0.1.0 | 2026-09-11 | Nested wire shapes, digest encoding, protocol-key exceptions, and schema-version handling completed before first implementation (`ADR-029`) |
 | 0.1.0 | 2026-09-12 | Collector-generated identifiers and complete authorship-mode edge cases defined before F-03 implementation (`ADR-035`) |
+| 0.1.0 | 2026-09-12 | Builder purity, environment trust classification, and total array ordering completed before F-05 implementation (`ADR-036`) |
 
 [in-toto Statements]: https://in-toto.io/

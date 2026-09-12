@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.15.0` |
+| Version | `1.16.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-12 |
 
@@ -1246,6 +1246,86 @@ upstream Git AI fixtures, and source-specific malformed-input tests. Git AI mode
 an explicit provider are intentionally not copied into `ModelRef`. A future Git AI schema version,
 additional trailer key, or different pattern language requires a new ADR. CH-03 remains open:
 shipping hook examples does not establish their real-world claim rate.
+
+---
+
+## ADR-036 — Separate F-05 assembly from environment collection
+
+**Status:** Accepted · **Date:** 2026-09-12 · **Affects:** `SPEC-001 §6.6`, `ARCH-001 §3`,
+`BRD-F05`, `F-05`
+
+**Context.** BRD-F05 required `build_statement()` to be pure while also requiring runtime package
+metadata and an injectable clock. It did not identify which distribution supplied the collector
+version or define the environment-adapter boundary. The phrase "recognised CI environments with
+a verifiable workload identity" had no exact platform signals, and therefore could not safely
+control `environment.trusted`. Its prescribed sort keys were not total when reviewer timestamps,
+identities, or check names tied, and it omitted automated-review ordering. `ERR-BUILD-211` was
+unreachable through the non-optional typed builder signature, and the optional-review language
+could be read as permission for the builder to invent an unknown review.
+
+GitHub's official documentation was inspected on 2026-09-12. It defines `GITHUB_ACTIONS`,
+`GITHUB_SERVER_URL`, `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, `GITHUB_WORKFLOW_REF`, and
+`GITHUB_EVENT_NAME`; exposes `ACTIONS_ID_TOKEN_REQUEST_URL` and
+`ACTIONS_ID_TOKEN_REQUEST_TOKEN` to jobs permitted to request OIDC tokens; and defines the
+github.com Actions OIDC issuer as `https://token.actions.githubusercontent.com`.
+
+**Decision.** `attest-core.build_statement()` retains the exact BRD signature and is wholly pure.
+It consumes a supplied `Collection` and never reads environment variables, time, installed
+metadata, the filesystem, or the network. `attest-collect.collect_environment()` is the bounded
+impure adapter. It accepts an optional environment mapping and an injectable clock, reads process
+environment only when the mapping is absent, calls the clock once, normalises its aware result to
+UTC seconds, and reads the installed `attest-collect` distribution version at call time. Its
+collector name is `attest`. Missing or unusable required inputs and metadata raise
+`ERR-BUILD-211`.
+
+Environment classification is exact and ordered: `GITHUB_ACTIONS == "true"` selects
+`github-actions`; otherwise `GITLAB_CI == "true"` selects `gitlab-ci`; otherwise `CI == "true"`
+selects `other`; otherwise the environment is `local`. Only github.com Actions may be trusted in
+v0.1. Trust additionally requires a non-empty run ID, workflow reference, and event name; a
+base-10 run attempt of at least one; and non-empty OIDC request URL and token signals. A trusted
+result records those non-secret fields and the fixed official issuer. OIDC request credentials
+are inspected only for availability and are never retained or exposed. Incomplete GitHub
+metadata remains `github-actions` and untrusted; independently valid optional fields may still be
+recorded. GitLab CI, other CI, and local are always untrusted until their own workload-identity
+contracts are accepted.
+
+The producer's `trusted` flag is context rather than cryptographic proof. F-08 must verify the
+signed bundle against the caller's expected identity and issuer before trusting it. This prevents
+spoofed local environment variables from becoming a trust anchor.
+
+The builder validates the assembled wire object structurally against generated JSON Schema before
+final Pydantic semantic validation and maps either failure to `ERR-BUILD-210`. Public errors do
+not contain raw validation dumps; private diagnostics remain available through exception
+chaining. Required arguments that are missing at runtime raise `ERR-BUILD-211`, despite their
+non-optional static types. A caller without F-04 data supplies an explicit unknown `Review`; the
+builder never constructs or infers one.
+
+Claims order by their specification-unique `claimId`. Reviewers order by `submittedAt`, identity,
+then canonical object bytes; automated reviews by `submittedAt`, tool, then canonical object
+bytes; and checks by name then canonical object bytes. The final canonical-byte key makes each
+non-unique primary ordering total. Empty optional checks and automated reviews are omitted. Empty
+path arrays are preserved because absence and an explicitly empty scope have different meanings.
+
+**Rationale.** Moving time and metadata reads to the collector adapter preserves the pure-core
+dependency rule and makes both operations deterministic under injected inputs. An exact,
+conservative trust predicate is auditable and fails closed without pretending that environment
+variables prove identity. Total sort keys make canonical output independent of input order even
+for ties. Explicit ownership of unknown review state preserves the rule that signed values are
+never fabricated.
+
+**Rejected alternatives.** Reading package metadata or time inside `build_statement()` violates
+the pure-core contract. Using the future CLI package version misidentifies the component that
+produces `Collection`. Treating any `CI` variable, GitLab CI, or GitHub Actions without OIDC
+availability as trusted claims more than v0.1 can verify. Passing a caller-supplied trust boolean
+merely moves the ambiguity. Stable sorting by incomplete keys retains input-order dependence.
+Synthesising an unknown review hides missing collector ownership. Publishing raw schema or model
+diagnostics risks leaking signed input data.
+
+**Consequences.** F-05 implementation spans pure assembly in `attest-core` and environment
+collection in `attest-collect`, without adding a package dependency. GitLab CI remains visibly
+untrusted in v0.1. Adding a trusted platform, changing collector identity, or changing the trust
+signals requires a new ADR. Tests must cover every trust signal independently, tied ordering,
+secret non-disclosure, both validation layers, and injected-clock failures.
 
 ---
 
