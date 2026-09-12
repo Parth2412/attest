@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-05 pure deterministic Statement assembly, structural and semantic validation,
+  total array ordering, golden-byte conformance, runtime collector metadata, and conservative
+  GitHub Actions workload-identity context without retaining OIDC request credentials.
 - Implemented F-03 deterministic authorship-claim collection across sidecars, commit trailers,
   Git AI `authorship/3.0.0` notes, and manual declarations, with exact source digests, graceful
   degradation, secure filesystem handling, and experimental Claude Code and Codex hook examples.

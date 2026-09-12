@@ -5,8 +5,9 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** pre-alpha. The deterministic core, Git ChangeSet collector, and
-> four-source authorship-claim collector are implemented; no CLI or production release exists yet.
+> **Development status:** pre-alpha. The deterministic core, Git ChangeSet and four-source
+> authorship collectors, environment metadata adapter, and schema-valid Statement builder are
+> implemented; no CLI or production release exists yet.
 
 ## What attest establishes
 

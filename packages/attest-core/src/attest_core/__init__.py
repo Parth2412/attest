@@ -1,5 +1,6 @@
 """Pure domain types and deterministic wire-format operations for attest."""
 
+from attest_core.builder import build_statement
 from attest_core.canonical import JsonValue, canonicalize
 from attest_core.digest import build_changeset_record, compute_changeset_digest
 from attest_core.errors import BuildError
@@ -70,6 +71,7 @@ __all__ = [
     "Statement",
     "Subject",
     "build_changeset_record",
+    "build_statement",
     "canonicalize",
     "compute_changeset_digest",
     "decode_git_path",

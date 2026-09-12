@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-03 are implemented.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, and F-05 are implemented.
 - **Last Updated**: 2026-09-12
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -25,21 +25,22 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-03 are
-  complete; the other nine features remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01, F-02, F-03, and F-05
+  are complete; the other eight features remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
-  vectors. F-03 retains that floor at 91% with all four claim sources, strict malformed-input
-  isolation, and secure filesystem tests; workspace gates remain green.
+  vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
+  isolation, and secure filesystem tests. F-05 has 99% `attest-core` and 100% environment-module
+  branch coverage; 297 workspace tests pass at 96% coverage.
 - **Known Issues**:
-  - F-04 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
-    until their owning BRDs are completed.
+  - F-04 and F-06 through F-12 remain unimplemented; their modules and delivery surfaces stay
+    scaffolded until their owning BRDs are completed.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement `BRD-F05`, now that its F-01/F-02/F-03 dependencies are complete,
-  while running the bounded `CH-03` harness experiment in parallel.
+- **Next Milestone**: Implement `BRD-F06` Sigstore signing against staging, now that F-05 is
+  complete and `CH-02` is closed, while running the bounded `CH-03` harness experiment in parallel.
 
 ---
 
@@ -110,7 +111,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01/F-02/F-03 active, others scaffolded
+├── packages/               seven distributions; F-01/F-02/F-03/F-05 active, others scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -128,7 +129,7 @@ out of order means inventing those contracts.
 | `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ✓ done |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ✓ done |
 | `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ☐ not started |
-| `F-05` | Attestation builder | `attest-core` | M1 | F-01, F-02, F-03 | — | Atlas | ☐ not started |
+| `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ☐ not started |
 | `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ☐ not started |
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ☐ not started |
@@ -349,6 +350,11 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-12**: Completed F-05 with a pure deterministic Statement builder, JSON Schema before
+  Pydantic semantic validation, total array ordering, committed golden canonical bytes, runtime
+  `attest-collect` version metadata, injected UTC clock, and exact GitHub Actions trust signals
+  that never retain OIDC request credentials. The 297-test workspace is at 96% coverage;
+  `attest-core` is at 99% and the environment module at 100%.
 - **2026-09-12**: Completed F-03 with deterministic sidecar, trailer, Git AI
   `authorship/3.0.0`, and manual collectors; exact raw-source digests; graceful degradation;
   secure no-symlink file handling; 91% package branch coverage; and experimental Claude Code and

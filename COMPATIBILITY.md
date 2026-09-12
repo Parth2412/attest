@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.5.0` |
+| Version | `1.6.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-12 |
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|---|
 | Workspace root | `attest-workspace` | — | 0.0.0 (not published) | Python 3.12+ | — | scaffold |
 | Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
-| Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04` | active |
+| Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04`, `F-05` | active |
 | Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | scaffold |
 | Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | scaffold |
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | scaffold |
@@ -38,9 +38,9 @@
 | Specification | `SPEC-001` | — | 1.0.0 (document) | — | `F-01` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
-F-01 is active in `attest-core`, and F-02/F-03 are active in `attest-collect`. The F-05 builder,
-F-04 collector, and all other feature modules remain scaffolds. See `PROJECT_SPECS.md §Current
-Project Status`.
+F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are
+active in `attest-collect`. The F-04 collector and all remaining feature modules remain scaffolds.
+See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
 URI appears in exactly one place in code — `attest_core.constants.PREDICATE_TYPE_V0_1` — and never
@@ -223,6 +223,10 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-12**: Activated F-05 across `attest-core` and `attest-collect`; deterministic
+  Statement assembly, two-layer validation, golden canonical bytes, and conservative GitHub
+  Actions environment trust metadata are covered at 99% core and 100% environment-module branch
+  coverage.
 - **2026-09-12**: Activated F-03 in `attest-collect`; sidecar, trailer, pinned Git AI note, and
   manual sources pass deterministic, raw-digest, malformed-input, prompt-isolation, and secure
   filesystem tests at 91% package branch coverage. Claude Code and Codex examples are
