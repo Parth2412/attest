@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.5.0` |
+| Version | `1.6.0` |
 | Status | Baselined |
 | Last updated | 2026-09-12 |
 
@@ -190,7 +190,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-03` | Done |
 | `F-04` | Planned |
 | `F-05` | Done |
-| `F-06` | Planned |
+| `F-06` | Done |
 | `F-07` | Planned |
 | `F-08` | Planned |
 | `F-09` | Planned |
@@ -266,6 +266,19 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F05-080` | `AC-F05-080` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-090` | `AC-F05-090` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-100` | `AC-F05-100` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F06-010` | `AC-F06-010` | `packages/attest-sign/tests/test_dsse.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-020` | `AC-F06-020` | `packages/attest-sign/tests/test_dsse.py` | ✓ |
+| `REQ-F06-030` | `AC-F06-030` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-040` | `AC-F06-040` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-050` | `AC-F06-050` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-060` | `AC-F06-060` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-070` | `AC-F06-070` | `packages/attest-sign/tests/test_protocols.py` | ✓ |
+| `REQ-F06-080` | `AC-F06-080` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-090` | `AC-F06-090` | `packages/attest-sign/tests/test_protocols.py` | ✓ |
+| `REQ-F06-100` | `AC-F06-100` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
+| `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
+| `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
