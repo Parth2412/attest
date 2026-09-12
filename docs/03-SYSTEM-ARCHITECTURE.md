@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
 | Last updated | 2026-09-12 |
 
@@ -84,6 +84,7 @@ rather than merely discouraged.
 | `models/changeset.py` | `ChangeSetRecord`, `ChangeSetEntry` |
 | `canonical.py` | RFC 8785 canonicalisation |
 | `digest.py` | `CSD-1` implementation, operating on already-extracted entries |
+| `builder.py` | Pure deterministic assembly and validation of a supplied `Collection` and collector outputs |
 | `errors.py` | Error taxonomy with codes |
 | `schema.py` | JSON Schema generation |
 
@@ -100,11 +101,16 @@ repository.
 | `sidecar.py` | `.attest/claims.d/*.json` | `AuthorshipClaim[]` |
 | `gitnotes.py` | notes refs (Git AI compatibility) | `AuthorshipClaim[]` |
 | `github.py` | GitHub REST/GraphQL | `Review`, `Check[]`, environment metadata |
-| `environment.py` | CI environment variables | `Collection` |
+| `environment.py` | CI environment variables, injected clock, installed `attest-collect` metadata | `Collection` |
 
 Each collector is independently failable. A collector that fails **MUST** record a degradation
 reason rather than aborting the run — except the git collector, whose failure is fatal because
 there is nothing to attest without it.
+
+`environment.py` is the impure edge for collection metadata. It reads process environment and
+installed distribution metadata only when the caller does not inject replacements, and accepts
+an injectable clock. `attest-core.builder` consumes the resulting `Collection` without reading
+the environment, clock, package metadata, filesystem, or network (`ADR-036`).
 
 ### 3.3 `attest-sign`
 
@@ -157,8 +163,8 @@ and verification only for F-12 (`ADR-022`).
     ├─4─ trailers/sidecar/    → AuthorshipClaim[]
     │    gitnotes
     ├─5─ github.py            → Review, Check[]
-    ├─6─ builder              → Statement (subject = digest)   [pure]
-    ├─7─ schema validation    → fail fast before signing       [pure]
+    ├─6─ builder              → sorted, schema-valid Statement (subject = digest)   [pure]
+    ├─7─ runtime validation   → semantic invariants before signing                  [pure]
     ├─8─ sigstore_signer.py   → native sign_dsse → DSSE + Fulcio cert + Rekor entry → Bundle
     ├─9─ store.put()          → refs/attestations/<digest>
     ├─10─ verifier.py         → re-verify what we just produced  ◀── deliberate
@@ -170,6 +176,11 @@ and verification only for F-12 (`ADR-022`).
 reporting success. This catches canonicalisation bugs, schema drift, and clock problems at
 production time rather than at audit time — which is the only time that matters and the worst
 time to discover them.
+
+The builder performs structural JSON Schema validation before constructing the final runtime
+model. It then applies Pydantic semantic validation. `ERR-BUILD-210` contains only a safe public
+message and remediation; raw validation details remain in the chained private exception and
+**MUST NOT** be copied into user-facing diagnostics (`ADR-030`, `ADR-036`).
 
 ---
 
