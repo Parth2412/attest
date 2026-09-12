@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-06 ambient-OIDC Sigstore signing with exact canonical DSSE payloads, explicit
+  staging or production trust roots, fail-closed bundle postconditions, secret-safe diagnostics,
+  hard process deadlines, retry suppression after Rekor begins, and live staging verification.
 - Implemented F-05 pure deterministic Statement assembly, structural and semantic validation,
   total array ordering, golden-byte conformance, runtime collector metadata, and conservative
   GitHub Actions workload-identity context without retaining OIDC request credentials.

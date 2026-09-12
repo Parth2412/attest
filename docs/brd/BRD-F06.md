@@ -119,11 +119,11 @@ Storage of the bundle (F-07), the independent verification pipeline (F-08), poli
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F06-*` implemented, all `AC-F06-*` green
-- [ ] End-to-end signing against Sigstore **staging** in CI, then verified with Sigstore's native
+- [x] All `REQ-F06-*` implemented, all `AC-F06-*` green
+- [x] End-to-end signing against Sigstore **staging** in CI, then verified with Sigstore's native
       DSSE verifier; the full attest verification pipeline is completed by F-08/F-10
-- [ ] `Signer` protocol isolates the library; swapping the implementation touches one module
-- [ ] No direct `securesystemslib` import or hand-written PAE/envelope assembly exists
-- [ ] Guard test prevents production-endpoint use in tests
-- [ ] Coverage ≥ 90%
-- [ ] Cross-cutting obligations satisfied
+- [x] `Signer` protocol isolates the library; swapping the implementation touches one module
+- [x] No direct `securesystemslib` import or hand-written PAE/envelope assembly exists
+- [x] Guard test prevents production-endpoint use in tests
+- [x] Coverage ≥ 90% (`attest-sign`: 95%)
+- [x] Cross-cutting obligations satisfied
