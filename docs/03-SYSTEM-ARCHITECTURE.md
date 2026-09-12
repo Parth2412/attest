@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.0.3` |
+| Version | `1.1.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 ---
 
@@ -244,6 +244,27 @@ cross-vendor. It is a file-drop protocol precisely because it requires no vendor
   "claimedAt": "2026-07-20T09:14:03Z"
 }
 ```
+
+The accepted sidecar object is closed and versioned (`ADR-035`):
+
+| Field | Required | Constraint |
+|---|---|---|
+| `schemaVersion` | yes | Literal `0.1.0` |
+| `claimId` | yes | ULID or UUIDv7 per `SPEC-001 §6.3` |
+| `agent` | yes | `AgentRef` |
+| `model` | no | `ModelRef`; both provider and name required when present |
+| `sessionId` | no | Non-empty opaque string |
+| `promptDigest` | no | 64 lowercase hexadecimal characters |
+| `scope` | no | `ClaimScope`; every path canonical per `SPEC-001 §4.1` |
+| `claimedAt` | no | RFC 3339 timestamp |
+
+The UTF-8 filename **MUST** be exactly `<claimId>.json`, and the filename identifier **MUST**
+equal the body identifier. `source` is collector-owned and **MUST NOT** appear in the sidecar.
+Unknown properties make the file malformed, with one exception: an input `prompt` property of
+any JSON type is removed before closed-object validation and reported as `WARN-COLLECT-003`.
+Its value is never copied into an Authorship Claim. Sidecars **MUST** be regular files;
+directories, devices, and symbolic links are rejected without following them. Files are read as
+UTF-8 JSON with no byte-order mark, and `source.digest` covers the exact file bytes before parsing.
 
 Wired via each harness's existing hook mechanism (post-tool-use hooks, git hooks, or a wrapper
 command). One small integration per harness; the format is identical across all of them.
