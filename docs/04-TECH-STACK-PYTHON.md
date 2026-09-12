@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
 | Last updated | 2026-09-12 |
 
@@ -134,6 +134,19 @@ Signing therefore runs in an isolated child process with a default 120-second pa
 deadline. The parent terminates an expired worker, retries at most once before Rekor begins, and
 never retries after Rekor submission begins. Do not mutate Sigstore's private HTTP sessions or
 wrap an unbounded call in a worker thread (`ADR-037`).
+
+Verification also requires its trust source explicitly (`ADR-038`). `ServiceTrustRoot` selects
+production or staging and requires an `offline` boolean; `offline=False` is the caller's explicit
+permission for a TUF refresh. The locked TUF client applies a 30-second socket timeout to every
+fetch. `SuppliedTrustRoot` parses complete client-trust-configuration JSON through the public
+`ClientTrustConfig.from_json` API and performs no network operation. Verification calls only the
+public `Bundle.from_json`, `Verifier.verify_dsse`, and `Identity` surfaces; it never imports or
+invokes Sigstore's private verification helpers.
+
+Sigstore 4.5.0's `Identity` policy is exact-only. The adapter therefore validates bounded GitHub
+workflow glob syntax itself, resolves exactly one matching URI SAN through the public certificate
+surface, and passes that resolved exact identity and the exact issuer to `Identity`. Issuer globs,
+ambiguous SAN matches, and root fallback are not supported.
 
 **`pygit2` over `GitPython` or subprocess.**
 `GitPython` shells out for many operations and is slow and fragile. Subprocess parsing of

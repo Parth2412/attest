@@ -1407,6 +1407,97 @@ secret-safe inter-process failures.
 
 ---
 
+## ADR-038 — Make the F-08 verification boundary explicit
+
+**Status:** Accepted · **Date:** 2026-09-12 · **Affects:** `ADR-004`, `SPEC-001 §8`,
+`ARCH-001`, `TECH-001`, `BRD-F08`, `F-08`, `F-10`
+
+**Context.** The F-08 pre-implementation audit found four incomplete or contradictory security
+contracts. First, `verify(bundle, constraint, repo=None)` named neither a trust root nor a Sigstore
+environment, so an implementation would have to default production, infer from untrusted bundle
+contents, read hidden configuration, or try multiple roots. Second, `CheckOutcome` had no defined
+names, result states, code semantics, or early-abort representation. Third, the BRD promised bounded
+identity globs while Sigstore 4.5.0's public `Identity` policy accepts exact identities only. Fourth,
+`AC-F08-110` expected a file modified after signing to change a digest recomputed from immutable
+signed commits, contradicting `ADR-019` and F-02's rule that working-tree state is ignored. A
+repository path alone also cannot tell the verifier which current ChangeSet the caller means.
+
+Installed-source inspection and executable probes confirmed the public verification boundary.
+`Bundle.from_json` parses serialized bundles; `Verifier.production` and `Verifier.staging` accept an
+`offline` boolean; `ClientTrustConfig.from_json` parses a complete supplied trust configuration;
+and `Verifier.verify_dsse` accepts one `VerificationPolicy` and returns payload type plus exact
+payload bytes. An expired staging certificate verified offline from its embedded RFC 3161 time and
+inclusion proof. Exact wrong identity and near-miss issuer policies failed. Removing the inclusion
+proof caused `Bundle.from_json` itself to reject the bundle, before `verify_dsse` could supply the
+BRD-mandated `ERR-VERIFY-013` classification. The locked TUF fetcher applies a 30-second socket
+timeout to every request.
+
+**Decision.** The public F-08 operation requires three positional inputs: bundle bytes,
+`IdentityConstraint`, and `TrustRootSource`. A service trust source explicitly selects production
+or staging and requires an `offline` boolean. Offline service verification uses only packaged or
+cached TUF material; online refresh occurs only when the caller explicitly sets `offline=False`.
+A supplied trust source contains complete Sigstore client-trust-configuration JSON, is parsed only
+through `ClientTrustConfig.from_json`, and performs no network operation. The verifier never infers
+an environment from bundle content and never tries more than the selected root. Trust initialization
+failure is check 2 with `ERR-VERIFY-012`.
+
+`IdentityConstraint` is validated at construction. An identity with no wildcard is exact. A glob
+is accepted only for a GitHub Actions workflow URI with an entirely literal prefix through
+`@refs/`; within the ref, each `*` matches one or more non-slash characters. Matching is
+case-sensitive and anchored to the whole URI. `**`, `?`, bracket expressions, empty values, and
+wildcards outside the ref are `ERR-VERIFY-011`. For a glob, the verifier resolves exactly one
+matching URI SAN from the public leaf-certificate surface and supplies that exact SAN and the exact
+issuer to Sigstore's public `Identity` policy. Zero or multiple matches fail `ERR-VERIFY-013`.
+
+The stable check names are `bundle-structure`, `sigstore-dsse`, `statement-payload`,
+`structural-schema`, `semantic-model`, and `changeset-recomputation`. Attempted checks record
+`passed` or `failed`; the optional sixth check records `skipped` on complete verification when no
+repository constraint was supplied. Only a failed check carries a code. On failure, that outcome is
+the final list entry and later checks are absent.
+
+Local recomputation accepts a `RepositoryConstraint` containing path, caller-selected base
+revision, and caller-selected head revision. A verifier-specific, read-only Git CLI path resolves
+those revisions and computes the tree transition independently of `attest-collect`. It disables
+replacement objects, hooks, external diff and text conversion, and rename/copy detection; ignores
+the working tree; and bounds every subprocess. Unavailable repositories, unresolved revisions,
+failed recomputation, and digest mismatch are `ERR-VERIFY-010`. `AC-F08-110` commits the changed file
+and points the constraint at the new head; it also proves that an uncommitted edit is ignored.
+
+The public function cannot be called without an identity constraint. Such an omission is rejected
+as usage or configuration error before verification, matching F-10's exit-code contract. The
+`unverified-identity` term from `ADR-004` is retained only for inspect-only output that has not
+claimed verification success; it is not a `VerificationResult` status. A standard-JSON preflight
+classifies the specific absence of an inclusion proof as failed check 2 / `ERR-VERIFY-013` even
+though the locked Sigstore parser rejects it; every other malformed bundle remains
+`ERR-VERIFY-001`. No private Sigstore method or exception-text classification is permitted.
+
+**Rationale.** Explicit trust prevents a staging root, hidden refresh, or attacker-selected root
+from silently entering production verification. Resolving a bounded pattern to an exact SAN retains
+Sigstore's audited identity and issuer enforcement instead of recreating it. Caller-selected Git
+revisions make replay checks meaningful and preserve `CSD-1`'s intentional rebase/squash stability.
+Stable result fields make early abort auditable without inventing cryptographic sub-failures that
+the upstream public API cannot distinguish.
+
+**Rejected alternatives.** Defaulting to production makes staging tests and private deployments
+depend on hidden overrides. Trying production and staging until one accepts weakens the trust
+boundary. Inferring an environment from an unsigned outer wrapper trusts attacker-controlled data.
+Implementing identity verification instead of calling `Identity` duplicates security-sensitive
+upstream behavior. Treating every glob as a regular expression permits unbounded and potentially
+pathological policies. Recomputing from the signed commits cannot detect a bundle replayed against a
+different caller-intended ChangeSet. Importing `attest-collect` violates the peer-adapter boundary;
+guessing `HEAD` makes historical verification nondeterministic. Mapping a missing proof to bundle
+malformation contradicts the explicit `ERR-VERIFY-013` requirement.
+
+**Consequences.** F-08 gains explicit trust and repository types and an independent bounded Git
+reader. Callers must choose trust behavior and current ChangeSet context rather than relying on
+defaults. Exact non-GitHub identities remain supported, but bounded glob convenience is limited to
+the trusted v0.1 GitHub Actions shape. Tests must store staging-signed v0.1 bundles with provenance,
+including a bundle whose certificate has expired, and must exercise both packaged/cached and
+supplied trust configurations offline. F-10 must compose these required inputs. F-08 cannot be
+marked Done until an independent human has reviewed the six-check order.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

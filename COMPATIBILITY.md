@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.6.0` |
+| Version | `1.7.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-12 |
 
@@ -28,18 +28,19 @@
 | Workspace root | `attest-workspace` | — | 0.0.0 (not published) | Python 3.12+ | — | scaffold |
 | Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
 | Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04`, `F-05` | active |
-| Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | scaffold |
+| Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | active |
 | Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | scaffold |
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | scaffold |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
 | GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
-| Specification | `SPEC-001` | — | 1.0.0 (document) | — | `F-01` | baselined, unpublished |
+| Specification | `SPEC-001` | — | 0.1.1 (document) | — | `F-01`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
 F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are
-active in `attest-collect`. The F-04 collector and all remaining feature modules remain scaffolds.
+active in `attest-collect`; F-06 signing is active in `attest-sign`, where F-08 verification is in
+progress. The F-04 collector and all later feature modules remain scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `SPEC-001` |
-| Version | `0.1.0` (draft for public RFC) |
+| Version | `0.1.1` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
 | Last updated | 2026-09-12 |
@@ -554,11 +554,11 @@ codes (`ADR-020`).
 | # | Check | Failure code |
 |---|---|---|
 | 1 | Bundle is well-formed, parseable, and contains a DSSE envelope plus required signing-certificate and transparency verification material | `ERR-VERIFY-001` |
-| 2 | Sigstore-native DSSE verification succeeds against the configured trusted root and the caller's mandatory expected identity and issuer, establishing certificate path/time validity, identity policy, transparency inclusion/checkpoint, DSSE signature/PAE, and log-entry consistency | `ERR-VERIFY-013` |
+| 2 | Explicit trust material is available, then Sigstore-native DSSE verification succeeds against it and the caller's mandatory expected identity and issuer, establishing certificate path/time validity, identity policy, transparency inclusion/checkpoint, DSSE signature/PAE, and log-entry consistency | `ERR-VERIFY-012` when trust initialization fails; otherwise `ERR-VERIFY-013` |
 | 3 | Returned payload type is `application/vnd.in-toto+json`, and payload bytes parse as an in-toto Statement with a recognised `predicateType` | `ERR-VERIFY-007` |
 | 4 | Statement validates against the structural JSON Schema for that predicate version | `ERR-VERIFY-008` |
 | 5 | Runtime semantic validation succeeds, including `predicate.changeSet.digest == subject[0].digest.sha256` | `ERR-VERIFY-009` |
-| 6 | If a local repository is supplied: recomputed `CSD-1` digest equals the attested digest | `ERR-VERIFY-010` |
+| 6 | If an explicit local repository, base revision, and head revision are supplied: `CSD-1` recomputed from that caller-selected ChangeSet equals the attested digest | `ERR-VERIFY-010` |
 
 ### 8.0 Offline inclusion proof (NORMATIVE, `ADR-015`)
 
@@ -568,6 +568,19 @@ Step 2 **MUST** verify the proof cryptographically from bundle contents alone.
 - Querying the transparency log at verification time **MUST NOT** be used as a substitute.
 - No configuration option may make verification depend on log reachability.
 - A bundle lacking an embedded inclusion proof **MUST** fail with `ERR-VERIFY-013`.
+
+Trust-root selection is explicit. A caller **MUST** either select the production or staging
+Sigstore environment and state whether a bounded TUF refresh is permitted, or supply a complete
+Sigstore client trust configuration. A verifier **MUST NOT** infer the environment from untrusted
+bundle contents, try multiple environments until one succeeds, or perform an undisclosed refresh.
+Offline mode uses packaged or cached TUF material only; a supplied client trust configuration also
+performs no network operation. Trust initialization failure is `ERR-VERIFY-012` in step 2.
+
+Sigstore 4.5.0 rejects a bundle with an omitted inclusion proof while parsing it. To retain the
+normative `ERR-VERIFY-013` classification above, the reference implementation performs a bounded
+standard-JSON preflight: an otherwise present transparency-log entry whose proof member is absent
+is recorded as a failed step 2 without calling private Sigstore APIs. Other malformed bundle
+structures remain `ERR-VERIFY-001` in step 1.
 
 Rationale: audit evidence must remain verifiable years later, without depending on any service
 being reachable or any log operator continuing to exist.
@@ -581,8 +594,18 @@ that is easiest to omit.
 - Implementations **MUST NOT** provide a default that accepts any identity.
 - Implementations **MUST NOT** offer a flag that skips the identity policy while still reporting
   success.
-- A verification with no identity constraint **MUST** be reported as `unverified-identity`, not
-  as success.
+- A request with no identity constraint **MUST** be rejected before verification as a usage or
+  configuration error. An inspect-only surface that has not performed verification **MAY** label
+  its state `unverified-identity`, but that label is never a verification success result.
+
+Identity comparison is case-sensitive and anchored to the whole certificate identity. Exact
+identities are accepted for any issuer. A bounded glob is accepted only for a GitHub Actions
+workflow identity URI: everything before `@refs/` is literal and `*` may occur only in the ref,
+where each `*` matches one or more non-`/` characters. `**`, `?`, bracket expressions, empty
+values, and a wildcard before `@refs/` are invalid. For a bounded glob, the implementation resolves
+exactly one matching URI SAN from the leaf certificate, then supplies that resolved exact value and
+the caller's exact issuer to Sigstore's public `Identity` policy. Zero or multiple matching SANs
+fail the atomic cryptographic step with `ERR-VERIFY-013` (`ADR-038`).
 
 Rationale: anyone can obtain a Fulcio certificate. A signature alone proves only that *some*
 identity signed. Without the mandatory identity policy, an attacker signs their own attestation
@@ -607,6 +630,13 @@ Verification output **MUST** distinguish:
 - `verified` — all mandatory checks passed against a constrained identity;
 - `verified-untrusted-environment` — all checks passed but `collection.environment.trusted` is false;
 - `failed` — with the specific failing check and code.
+
+The six stable check names, in order, are `bundle-structure`, `sigstore-dsse`,
+`statement-payload`, `structural-schema`, `semantic-model`, and `changeset-recomputation`. Each
+attempted check records `passed` or `failed`; a successful verification records the optional sixth
+check as `skipped` when no repository constraint is supplied. Passed and skipped checks have no
+code. The first failed check records its failure code and is the final entry; later, unattempted
+checks are absent (`ADR-038`).
 
 ---
 

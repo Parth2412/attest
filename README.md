@@ -6,8 +6,9 @@ records, binds them to a deterministic ChangeSet digest, and signs the resulting
 Statement with a CI workload identity.
 
 > **Development status:** pre-alpha. The deterministic core, Git ChangeSet and four-source
-> authorship collectors, environment metadata adapter, and schema-valid Statement builder are
-> implemented; no CLI or production release exists yet.
+> authorship collectors, environment metadata adapter, schema-valid Statement builder, and
+> keyless Sigstore signing adapter are implemented. Verification is in progress; no CLI or
+> production release exists yet.
 
 ## What attest establishes
 
