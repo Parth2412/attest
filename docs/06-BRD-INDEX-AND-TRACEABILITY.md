@@ -79,7 +79,7 @@ M3 ─────────────────────────�
 | `F-02` | Git ChangeSet collector (`CSD-1`) | M1 | F-01 · gated by `CH-01`, `CH-08` | `attest-collect` |
 | `F-03` | Authorship claim collector | M1 | F-01 | `attest-collect` |
 | `F-04` | Review record collector (GitHub) | M2 | F-01 | `attest-collect` |
-| `F-05` | Attestation builder | M1 | F-01, F-02, F-03 | `attest-core` |
+| `F-05` | Attestation builder | M1 | F-01, F-02, F-03 | `attest-core`, `attest-collect` |
 | `F-06` | Sigstore signing | M1 | F-01, F-05 · gated by `CH-02` | `attest-sign` |
 | `F-07` | Storage and retrieval | M2 | F-01, F-06 | `attest-store` |
 | `F-08` | Verification | M1 | F-01, F-06 · gated by `CH-02` | `attest-sign` |
@@ -189,7 +189,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-02` | Done |
 | `F-03` | Done |
 | `F-04` | Planned |
-| `F-05` | Planned |
+| `F-05` | Done |
 | `F-06` | Planned |
 | `F-07` | Planned |
 | `F-08` | Planned |
@@ -256,6 +256,16 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F03-120` | `AC-F03-120` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
 | `REQ-F03-130` | `AC-F03-130` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
 | `REQ-F03-140` | `AC-F03-140` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F05-010` | `AC-F05-010` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-020` | `AC-F05-020` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-030` | `AC-F05-030` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-040` | `AC-F05-040` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-050` | `AC-F05-050` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-060` | `AC-F05-060` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-070` | `AC-F05-070` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-080` | `AC-F05-080` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-090` | `AC-F05-090` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-100` | `AC-F05-100` | `packages/attest-core/tests/test_builder.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

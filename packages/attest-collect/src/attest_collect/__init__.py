@@ -17,6 +17,7 @@ from attest_collect.changeset import (
     CollectionWarning,
     collect_changeset,
 )
+from attest_collect.environment import collect_environment
 from attest_collect.errors import CollectError
 from attest_collect.git_pygit2 import Pygit2Backend
 from attest_collect.git_subprocess import SubprocessBackend
@@ -48,5 +49,6 @@ __all__ = [
     "TrailerCollector",
     "collect_authorship",
     "collect_changeset",
+    "collect_environment",
     "standard_collectors",
 ]

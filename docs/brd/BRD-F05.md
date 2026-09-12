@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Packages | `attest-core`, `attest-collect` |
 | Depends on | `F-01`, `F-02`, `F-03` |
-| Status | Ready · F-01, F-02, F-03 Done · governed by `ADR-036` |
+| Status | Done · F-01, F-02, F-03 Done · governed by `ADR-036` |
 
 ---
 
@@ -117,7 +117,7 @@ Signing (F-06), storage (F-07), policy (F-09).
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F05-*` implemented, all `AC-F05-*` green
-- [ ] Golden-file test: a fixed input set produces a committed golden Statement, byte-compared
-- [ ] Coverage ≥ 95% (this is `attest-core`)
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F05-*` implemented, all `AC-F05-*` green
+- [x] Golden-file test: a fixed input set produces a committed golden Statement, byte-compared
+- [x] Coverage ≥ 95% (`attest-core`: 99%; `environment.py`: 100%)
+- [x] Cross-cutting obligations satisfied

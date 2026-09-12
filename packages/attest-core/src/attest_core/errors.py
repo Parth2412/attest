@@ -1,4 +1,4 @@
-"""Coded domain errors governed by GLOSS-001 §6 and BRD-F01."""
+"""Coded domain errors governed by GLOSS-001 §6 and feature BRDs."""
 
 from __future__ import annotations
 
@@ -25,11 +25,19 @@ _ERROR_DETAILS: Final[dict[str, tuple[str, str]]] = {
         "Predicate schema version is unsupported",
         "Use predicate version 0.1 or upgrade attest",
     ),
+    "ERR-BUILD-210": (
+        "Assembled Statement failed structural or semantic validation",
+        "Report this as a builder bug and inspect the chained private diagnostic",
+    ),
+    "ERR-BUILD-211": (
+        "Required collector output or runtime metadata is missing or unusable",
+        "Ensure collection completed and attest-collect and injected inputs are valid",
+    ),
 }
 
 
 class BuildError(ValueError):
-    """Represent an F-01 build failure with REQ-F01-150 diagnostics."""
+    """Represent a coded build failure with REQ-F01-150 diagnostics."""
 
     code: str
     message: str
@@ -43,6 +51,6 @@ class BuildError(ValueError):
 
 
 def build_error(code: str) -> BuildError:
-    """Create the BRD-F01 error identified by ``code`` (REQ-F01-150)."""
+    """Create the feature-BRD error identified by ``code`` (REQ-F01-150)."""
     message, remediation = _ERROR_DETAILS[code]
     return BuildError(code=code, message=message, remediation=remediation)
