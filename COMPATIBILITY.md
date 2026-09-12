@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.4.0` |
+| Version | `1.5.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -38,9 +38,9 @@
 | Specification | `SPEC-001` | — | 1.0.0 (document) | — | `F-01` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
-F-01 is active in `attest-core`, and F-02 is active in `attest-collect`. The F-05 builder,
-F-03/F-04 collectors, and all other feature modules remain scaffolds. See
-`PROJECT_SPECS.md §Current Project Status`.
+F-01 is active in `attest-core`, and F-02/F-03 are active in `attest-collect`. The F-05 builder,
+F-04 collector, and all other feature modules remain scaffolds. See `PROJECT_SPECS.md §Current
+Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
 URI appears in exactly one place in code — `attest_core.constants.PREDICATE_TYPE_V0_1` — and never
@@ -171,6 +171,8 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | Sigstore Rekor | Transparency log | public good instance | **Public by default.** Anything in an attestation is effectively published (`SEC-001 T-06`). Private Rekor is the documented mitigation |
 | Sigstore staging | All test signing | staging instance | **Hard rule** — never write test data to the production log (`TECH-001 §6`, `QA-001 §10`). A guard test fails the suite if a production endpoint is configured in test settings |
 | GitHub REST/GraphQL | Review records, check runs | v3 / v4 | `F-04`. GitLab and Bitbucket are `OOS-02`, deferred to v1.1 |
+| Git AI note format | Cross-tool authorship claims | `authorship/3.0.0` at upstream commit `0670e7ef` | Exact read-only profile; a different schema version requires an ADR (`ADR-035`) |
+| Agent hook examples | Experimental sidecar emission | Claude Code and Codex `PostToolUse`, checked 2026-09-12 | Covers only documented file-edit/apply-patch events; `CH-03` remains open |
 | OCI registry | Optional attestation storage | OCI distribution spec | `F-07` via `oras` |
 | RFC 8785 (JCS) | Canonicalisation | — | Via `rfc8785`. `json.dumps(sort_keys=True)` is **not** equivalent and is explicitly rejected (`TECH-001 §10`) |
 | RFC 3339 | Timestamps | UTC, `Z` suffix, second precision | Naive datetimes are rejected at model validation (`REQ-F01-070`) |
@@ -221,6 +223,10 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-12**: Activated F-03 in `attest-collect`; sidecar, trailer, pinned Git AI note, and
+  manual sources pass deterministic, raw-digest, malformed-input, prompt-isolation, and secure
+  filesystem tests at 91% package branch coverage. Claude Code and Codex examples are
+  experimental, and `CH-03` remains open.
 - **2026-09-11**: Activated F-02 in `attest-collect`; both optional pygit2 and base-install Git
   CLI paths pass identical real-repository and normative-vector conformance. Supported-Git
   benchmarks closed `CH-08` without changing the 500 ms target.

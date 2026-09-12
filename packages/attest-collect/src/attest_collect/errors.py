@@ -1,4 +1,4 @@
-"""Stable public collector errors governed by BRD-F02 and ADR-033."""
+"""Stable public collector diagnostics governed by BRD-F02, BRD-F03, and their ADRs."""
 
 from __future__ import annotations
 
@@ -11,9 +11,27 @@ CollectErrorCode = Literal[
     "ERR-COLLECT-104",
     "ERR-COLLECT-105",
     "ERR-COLLECT-106",
+    "ERR-COLLECT-115",
 ]
 
-_ERROR_DETAILS: Final[dict[CollectErrorCode, tuple[str, str]]] = {
+CollectDiagnosticCode = Literal[
+    "ERR-COLLECT-101",
+    "ERR-COLLECT-102",
+    "ERR-COLLECT-103",
+    "ERR-COLLECT-104",
+    "ERR-COLLECT-105",
+    "ERR-COLLECT-106",
+    "ERR-COLLECT-111",
+    "ERR-COLLECT-112",
+    "ERR-COLLECT-113",
+    "ERR-COLLECT-114",
+    "ERR-COLLECT-115",
+    "ERR-COLLECT-116",
+    "ERR-COLLECT-117",
+    "ERR-COLLECT-118",
+]
+
+_ERROR_DETAILS: Final[dict[CollectDiagnosticCode, tuple[str, str]]] = {
     "ERR-COLLECT-101": (
         "The selected diff-base commit is unavailable in this shallow repository",
         "Set fetch-depth: 0 in the checkout configuration and retry",
@@ -39,6 +57,38 @@ _ERROR_DETAILS: Final[dict[CollectErrorCode, tuple[str, str]]] = {
         "A Git operation failed after collector boundary validation",
         "Check repository integrity and permissions, then retry",
     ),
+    "ERR-COLLECT-111": (
+        "A sidecar claim file is malformed",
+        "Validate the file against the sidecar claim schema",
+    ),
+    "ERR-COLLECT-112": (
+        "The sidecar claims directory cannot be read",
+        "Check the claims directory type and permissions",
+    ),
+    "ERR-COLLECT-113": (
+        "A Git trailer claim is malformed",
+        "Correct the trailer token and claim grammar",
+    ),
+    "ERR-COLLECT-114": (
+        "A duplicate claim identifier was discarded",
+        "Ensure claim emitters generate unique identifiers",
+    ),
+    "ERR-COLLECT-115": (
+        "A changed path is not canonical",
+        "Supply the canonical percent-encoded Git path",
+    ),
+    "ERR-COLLECT-116": (
+        "A Git AI note is unreadable, unsupported, or malformed",
+        "Fetch and validate the configured Git AI notes ref",
+    ),
+    "ERR-COLLECT-117": (
+        "A manual claim is malformed",
+        "Correct the manual claim grammar",
+    ),
+    "ERR-COLLECT-118": (
+        "A claim collector failed unexpectedly",
+        "Check the named collector and retry",
+    ),
 }
 
 
@@ -60,3 +110,8 @@ def collect_error(code: CollectErrorCode) -> CollectError:
     """Create the BRD-F02 error identified by ``code`` (REQ-F02-190)."""
     message, remediation = _ERROR_DETAILS[code]
     return CollectError(code=code, message=message, remediation=remediation)
+
+
+def collect_diagnostic_details(code: CollectDiagnosticCode) -> tuple[str, str]:
+    """Return stable public text for one collector diagnostic."""
+    return _ERROR_DETAILS[code]

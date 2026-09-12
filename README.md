@@ -5,8 +5,8 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** pre-alpha. The deterministic core and Git ChangeSet collector are
-> implemented; no CLI or production release exists yet.
+> **Development status:** pre-alpha. The deterministic core, Git ChangeSet collector, and
+> four-source authorship-claim collector are implemented; no CLI or production release exists yet.
 
 ## What attest establishes
 
@@ -18,6 +18,8 @@ status are recorded in [PROJECT_SPECS.md](PROJECT_SPECS.md).
 ## Current limitations
 
 - AI use that is not declared is invisible to the claim model.
+- Claude Code and Codex hook examples are experimental and cover only documented edit events;
+  the real-world claim-emission validation gate remains open.
 - A policy gate has no effect unless a repository administrator configures it as a required check.
 - A public transparency log can expose repository and workflow metadata; organisations with
   stricter disclosure requirements will need a private deployment.
@@ -39,6 +41,9 @@ just check
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Security reports must follow
 [SECURITY.md](SECURITY.md).
+
+Experimental claim-emission integrations and their exact limitations are documented under
+[examples/hooks](examples/hooks/README.md).
 
 ## Licensing
 

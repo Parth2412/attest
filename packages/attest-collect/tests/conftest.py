@@ -84,6 +84,36 @@ def single_add_repo(tmp_path_factory: pytest.TempPathFactory) -> GitCase:
     return GitCase("single-add", repository, base, head)
 
 
+@pytest.fixture
+def trailer_repo(tmp_path: Path) -> GitCase:
+    repository = tmp_path / "trailer-repo"
+    _init(repository)
+    base = _commit(repository, "base", allow_empty=True)
+    (repository / "a.txt").write_bytes(b"added\n")
+    head = _commit(
+        repository,
+        "change\n\n"
+        "Co-Authored-By: Jane Doe <jane@example.com>\n"
+        "Co-Authored-By: Tool Bot <bot@example.test>",
+    )
+    return GitCase("trailer-repo", repository, base, head)
+
+
+@pytest.fixture
+def duplicate_claim_repo(tmp_path: Path) -> GitCase:
+    repository = tmp_path / "duplicate-claim-repo"
+    _init(repository)
+    base = _commit(repository, "base", allow_empty=True)
+    (repository / "a.txt").write_bytes(b"added\n")
+    head = _commit(
+        repository,
+        "change\n\n"
+        "X-Attest-Claim: agent=trailer-agent; "
+        "claim-id=01890f5e-7b8a-7cc3-98c4-dc0c0c07398f",
+    )
+    return GitCase("duplicate-claim-repo", repository, base, head)
+
+
 @pytest.fixture(scope="session")
 def modify_delete_repo(tmp_path_factory: pytest.TempPathFactory) -> GitCase:
     repository = _case_root(tmp_path_factory, "modify-delete")
