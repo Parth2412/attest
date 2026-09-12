@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.0.4` |
+| Version | `1.1.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 ---
 
@@ -126,6 +126,14 @@ conformance checks first.
 In `sigstore` 4.5.0, one signing run uses one signer context with its default in-memory ephemeral
 key retention. Setting `cache=False` is forbidden because repeated private-key access within the
 flow produces different ephemeral keys; no private key may be written to disk.
+
+The v0.1 adapter is keyless-only and requires the caller to select production or staging
+explicitly. The locked library sets timeouts for ambient GitHub OIDC and timestamp-authority
+requests but not for Fulcio or Rekor, and it exposes no supported HTTP-timeout injection point.
+Signing therefore runs in an isolated child process with a default 120-second parent-enforced
+deadline. The parent terminates an expired worker, retries at most once before Rekor begins, and
+never retries after Rekor submission begins. Do not mutate Sigstore's private HTTP sessions or
+wrap an unbounded call in a worker thread (`ADR-037`).
 
 **`pygit2` over `GitPython` or subprocess.**
 `GitPython` shells out for many operations and is slow and fragile. Subprocess parsing of

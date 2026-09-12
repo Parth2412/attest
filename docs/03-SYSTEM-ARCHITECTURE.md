@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
 | Last updated | 2026-09-12 |
 
@@ -117,7 +117,7 @@ the environment, clock, package metadata, filesystem, or network (`ADR-036`).
 | Module | Responsibility |
 |---|---|
 | `dsse.py` | Convert exact canonical payload bytes into Sigstore's public DSSE Statement type; no PAE or envelope construction |
-| `sigstore_signer.py` | Sigstore-native keyless `sign_dsse`, ambient OIDC detection, Rekor submission, bundle output |
+| `sigstore_signer.py` | Process-isolated Sigstore-native keyless `sign_dsse`, ambient OIDC detection, Rekor submission, bounded bundle output |
 | `verifier.py` | The §8 verification pipeline, in order |
 | `trustroot.py` | Trust root management, offline trust bundle support |
 
@@ -172,10 +172,21 @@ and verification only for F-12 (`ADR-022`).
     └─12─ exit code           → 0 / 3 / 4 / 5
 ```
 
-**Step 10 is deliberate and NORMATIVE.** The signer always re-verifies its own output before
-reporting success. This catches canonicalisation bugs, schema drift, and clock problems at
-production time rather than at audit time — which is the only time that matters and the worst
-time to discover them.
+**Step 10 is deliberate and NORMATIVE.** The overall `attest run` operation always re-verifies
+the signer's output before reporting success. This catches canonicalisation bugs, schema drift,
+and clock problems at production time rather than at audit time — which is the only time that
+matters and the worst time to discover them.
+
+The wording above describes the overall `attest run` operation, not the F-06 `Signer.sign()`
+adapter method. The CLI composition root owns step 10 after F-08 is available; F-06 validates its
+bundle postconditions but does not import or partially implement the independent verifier. This
+keeps the F-06 → F-08 dependency acyclic and preserves verifier isolation (`ADR-037`).
+
+Sigstore 4.5.0 does not place explicit timeouts on its Fulcio and Rekor requests and exposes no
+supported timeout injection point. F-06 therefore executes each signing attempt in a terminable
+child process under a hard parent-enforced deadline. A pre-Rekor timeout may be attempted once
+more; a Rekor-stage timeout is never retried because log submission is non-idempotent. No private
+Sigstore HTTP client is imported or mutated (`ADR-037`).
 
 The builder performs structural JSON Schema validation before constructing the final runtime
 model. It then applies Pydantic semantic validation. `ERR-BUILD-210` contains only a safe public

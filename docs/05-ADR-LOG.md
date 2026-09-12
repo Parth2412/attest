@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.16.0` |
+| Version | `1.17.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-12 |
 
@@ -1326,6 +1326,84 @@ collection in `attest-collect`, without adding a package dependency. GitLab CI r
 untrusted in v0.1. Adding a trusted platform, changing collector identity, or changing the trust
 signals requires a new ADR. Tests must cover every trust signal independently, tied ordering,
 secret non-disclosure, both validation layers, and injected-clock failures.
+
+---
+
+## ADR-037 — Make the F-06 signing boundary fail-bounded and acyclic
+
+**Status:** Accepted · **Date:** 2026-09-12 · **Affects:** `ADR-005`, `ARCH-001`, `TECH-001`,
+`BRD-F06`, `F-06`, `F-08`, `F-10`
+
+**Context.** The F-06 pre-implementation audit found four contract defects. First,
+`REQ-F06-100` required the full F-08 verification pipeline before F-06 could report success even
+though F-08 depends on F-06. This created a circular completion dependency and contradicted the
+explicit signer, store, and verifier steps in `ARCH-001 §4`. Second, optional long-lived-key
+support in `REQ-F06-090` had a mandatory acceptance criterion and no verification-output data
+contract. Third, the result did not carry the explicitly configured signing environment, and
+"certificate issuer" did not distinguish the workload's OIDC issuer from the X.509 CA issuer.
+Fourth, no code covered trust-configuration failures before Fulcio.
+
+Source inspection and executable probes against the locked `sigstore==4.5.0` established an
+additional implementation constraint. Ambient GitHub OIDC retrieval and the timestamp-authority
+client set explicit request timeouts, but the Fulcio and Rekor clients do not. The library exposes
+no supported timeout injection point, and `SigningContext.from_trust_config()` is itself marked
+API-private despite being the documented construction path. The current Rekor v2 entry can also
+omit `integratedTime`; its RFC 3161 material supplies signed time instead. Requiring an integrated
+time would reject the already validated staging bundle.
+
+**Decision.** F-06 owns the keyless signing adapter and its output postconditions. It does not
+own the full independent F-08 verification pipeline. `attest run`, at the CLI composition root,
+continues to run that pipeline before the overall operation reports success as required by
+`ADR-005`. This clarification changes ownership, not the self-verification security property.
+
+The v0.1 signer supports keyless ambient OIDC only. It has no long-lived key, key-path, or manual
+token input. Supporting long-lived keys later requires a new ADR, a key-management contract, and
+an explicit verification-result representation.
+
+The signing environment is a required `production` or `staging` enum with no default and is
+included in the returned result. `certificate_identity` is the detected ambient identity and
+`certificate_issuer` is its effective OIDC issuer, not the Fulcio CA distinguished name. Before
+returning, the signer applies Sigstore's public `Identity` policy to the actual leaf certificate
+using those exact values. The Rekor log index is required. Integrated time remains optional
+because Rekor v2 may establish time through RFC 3161 timestamp material; the complete raw bundle
+retains whichever signed-time material Sigstore emitted.
+
+Each concrete signing attempt runs in an isolated child process. The parent enforces a hard
+120-second deadline by default and terminates a worker that exceeds it, so an upstream request
+without its own timeout cannot outlive the public operation. The timeout is injectable for tests
+and must be positive. A timeout before the Rekor stage permits at most one fresh attempt. Once the
+worker announces the Rekor stage, the operation is non-idempotent and must not be retried. A
+deadline failure maps to `ERR-SIGN-304`; no upstream exception text crosses the process boundary.
+Trust-root or signing-configuration initialization failures map to the new `ERR-SIGN-306`.
+
+After Sigstore returns, the adapter serialises through `Bundle.to_json()`, reparses through
+`Bundle.from_json()`, and inspects the standard bundle JSON only to assert the DSSE and required
+material postconditions and extract public log metadata. It does not construct or mutate PAE,
+the DSSE envelope, or verification material. A failed postcondition maps to `ERR-SIGN-305`.
+
+**Rationale.** Keeping self-verification at composition preserves independent signer and verifier
+code paths and makes the dependency graph executable. Keyless-only scope removes an unaudited
+key-management surface. Process isolation is the only fail-bounded mechanism available without
+depending on Sigstore private HTTP clients: a thread timeout cannot stop an abandoned Rekor
+submission, while overriding private sessions would bind security behavior to undocumented
+internals. Stage-aware retry rules avoid duplicate transparency-log submissions.
+
+**Rejected alternatives.** Implementing F-08 inside F-06 violates feature ownership and verifier
+isolation. Marking F-06 complete against a fake injected verifier does not execute the full
+pipeline. Shipping optional long-lived keys leaves key storage and verification output undefined.
+Accepting Sigstore's unbounded Fulcio/Rekor calls violates the repository-wide network rule.
+Mutating private requests sessions or reimplementing the Sigstore clients couples correctness to
+private APIs. Timing out a worker thread allows the network operation to continue after failure.
+Retrying the complete signing transaction can create duplicate log entries. Requiring Rekor v2
+`integratedTime` contradicts the executed staging evidence.
+
+**Consequences.** Signing incurs child-process startup cost and has a documented 120-second
+per-attempt ceiling. A pre-Rekor timeout can consume up to two attempts; a Rekor-stage timeout
+fails after the first attempt. F-10 must compose F-08 self-verification before reporting overall
+success. The returned result contains enough environment and identity metadata for safe user
+guidance without exposing the ambient token. Tests must prove worker termination, stage-aware
+retry limits, keyless-only input, certificate-policy validation, required bundle material, and
+secret-safe inter-process failures.
 
 ---
 
