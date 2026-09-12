@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.14.0` |
+| Version | `1.15.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -1141,6 +1141,111 @@ repository states.
 extra installation paths explicit. Release validation must prove a minimal installation without
 pygit2 and the full development installation with it. F-07 must provide subprocess behavior for
 its Git-ref store rather than relying exclusively on libgit2.
+
+---
+
+## ADR-035 — Complete the F-03 collector contracts
+
+**Status:** Accepted · **Date:** 2026-09-12 · **Affects:** `SPEC-001 §6.3`, `ARCH-001 §7`,
+`BRD-F03`, `F-03`
+
+**Context.** The F-03 BRD named four claim sources but did not define `CollectContext`, a way for
+collectors to return non-fatal diagnostics, source-specific reference and digest boundaries, or
+the exact syntax used by manual claims. The displayed `X-Attest-Claim` grammar omitted
+`claimId`, although `AC-F03-030` requires the same identifier to appear in a sidecar and a
+trailer. `Co-Authored-By` agent-pattern semantics were unspecified. The mode table did not cover
+manual-only claims or an empty ChangeSet. It also required canonical-path validation without
+assigning a public error code for invalid `changed_paths`.
+
+The Git-note source was described only as "Git AI interoperability." The current upstream Git AI
+standard is `authorship/3.0.0` under `refs/notes/ai`; it contains line-oriented path attestations
+plus `sessions`, legacy `prompts`, and known-human records. Mapping that format without naming a
+supported version and transformation would guess wire behavior. The upstream standard and parser
+were inspected at git-ai commit `0670e7ef27590af0e8ff5409267f3f4b09b8fcb4` on 2026-09-12.
+
+**Decision.** F-03 uses immutable `CollectContext`, `KnownAgentPattern`,
+`ClaimCollectorResult`, `AuthorshipWarning`, and `AuthorshipCollection` contracts defined in
+`BRD-F03 §4`. `CollectContext` carries the repository path, already-resolved full base and head
+commit OIDs, a notes ref defaulting to `refs/notes/ai`, and ordered known-agent patterns. A public
+collection validates repository readability and both commits before running optional collectors.
+An inability to read that Git boundary remains fatal under the existing F-02 codes; every claim
+source failure is represented as a non-fatal structured warning.
+
+Collectors return claims and warnings rather than mutating shared state. The supplied collector
+sequence defines duplicate precedence; the standard sequence is sidecar, trailer, Git note, then
+manual. Each built-in collector uses a deterministic source order. Duplicate identifiers retain
+the first claim. Final claims are sorted by `claimId`, and final warnings are sorted by code then
+reference. A source without a native identifier receives a newly generated standards-valid
+UUIDv7. UUID generation is not an ordering or trust input, and a supplied `claimedAt` is never
+used to generate or order identifiers.
+
+The accepted sidecar is the closed object defined in `ARCH-001 §7`. Its UTF-8 filename is exactly
+`<claimId>.json`, its `schemaVersion` is exactly `0.1.0`, and its filename identifier must equal
+the body identifier. A `prompt` property is the only input-only exception: it is removed before
+closed-object validation and produces `WARN-COLLECT-003`. Symlinks and non-regular directory
+entries are malformed sidecars. A missing claims directory means no sidecar claims; an existing
+directory that cannot be enumerated or read produces `ERR-COLLECT-112` as a warning.
+
+`X-Attest-Claim` and manual values use the closed, order-independent grammar in `BRD-F03 §4.2`.
+`agent` is required; every other key is optional. `claim-id` permits cross-source de-duplication,
+while an omitted identifier is generated as UUIDv7. Unknown or duplicate keys, empty values,
+invalid model pairs, invalid timestamps or digests, and non-canonical paths make only that input
+malformed. Commit traversal is the full `base..head` set, excluding base, with commit OIDs sorted
+ascending. A trailer source digest covers the exact raw commit-message bytes, not normalised
+trailer output. Manual source bytes are the exact UTF-8 flag value.
+
+Trailer-token matching is ASCII case-insensitive. References canonicalise the matched token to
+`x-attest-claim` or `co-authored-by`, with occurrences counted independently per token in raw
+commit-message order. Payload keys remain case-sensitive.
+
+Known-agent patterns use case-sensitive, whole-string shell globs against the complete
+`Co-Authored-By` value. Patterns are evaluated in configuration order and the first match supplies
+the `AgentRef`; unmatched identities are silent. This bounded grammar avoids treating a human
+co-author as an agent by inference and avoids executing user-provided regular expressions.
+
+Git AI support is pinned to `authorship/3.0.0` and the configured `refs/notes/*` ref. F-03 reads
+notes attached to the same sorted commit range, verifies the complete upstream structure, ignores
+known-human keys, and emits one claim per referenced AI session or legacy prompt. Repeated trace
+keys for one session are combined into one scope. `agent_id.tool` becomes `agent.name`, and
+`agent_id.id` becomes `sessionId`. `agent_id.model` becomes a `ModelRef` only when it explicitly
+has the `provider/name` shape; otherwise it is omitted because the provider may not be guessed.
+Scope paths use the upstream parser rule: a path surrounded by double quotes has only those outer
+quotes removed, with no unescaping. The claim-source digest covers the exact raw note-blob bytes.
+An absent optional notes ref is silent; unreadable, unsupported, or malformed notes produce
+`ERR-COLLECT-116` as warnings and do not abort other collectors.
+
+Source references and digest boundaries are fixed by `BRD-F03 §4.4`. Manual claims are recorded
+but remain ineligible for AI-mode coverage because `SPEC-001 §6.3` explicitly excludes `manual`.
+When claims exist but no eligible claim intersects a non-empty ChangeSet, or when the ChangeSet is
+empty and claims exist, mode is `unknown`. Scope absence covers the entire non-empty ChangeSet;
+scope coverage is evaluated per claim, never by unioning claims. The repository marker is an
+existing `.attest/` directory at the repository root and is consulted only when no claims exist.
+
+F-03 adds `ERR-COLLECT-115` through `ERR-COLLECT-118` and `WARN-COLLECT-003` through
+`WARN-COLLECT-004` with the exact meanings in its BRD. Invalid public `changed_paths` is fatal
+because a mode cannot be derived. Malformed individual source paths remain non-fatal under that
+source's code. Scope paths outside the ChangeSet are retained and produce `WARN-COLLECT-004`.
+
+**Rationale.** Authorship inputs are intentionally untrusted, but their collection must still be
+deterministic, traceable, and non-lossy. Explicit raw-byte boundaries make `source.digest`
+reproducible. Structured result diagnostics satisfy graceful degradation without hidden logging
+or mutable collector state. Pinning the external Git AI profile prevents a future incompatible
+format from being accepted accidentally. Omitting ambiguous model data preserves the normative
+rule that model values are never guessed.
+
+**Rejected alternatives.** Returning only `list[AuthorshipClaim]` cannot report a malformed file
+while retaining valid siblings. Treating all collector failures as fatal violates F-03. Regex
+agent patterns introduce unnecessary denial-of-service behavior and ambiguous partial matches.
+Deriving a model provider from a tool or model name would fabricate signed data. Parsing any Git
+note that resembles JSON would make compatibility versionless. Hashing normalised trailers or
+re-serialised notes would not bind the bytes actually found in Git. Treating manual-only or empty
+changes as AI-authored would overstate the available evidence.
+
+**Consequences.** F-03 requires a small secure Git signal reader in `attest-collect`, exact
+upstream Git AI fixtures, and source-specific malformed-input tests. Git AI model strings without
+an explicit provider are intentionally not copied into `ModelRef`. A future Git AI schema version,
+additional trailer key, or different pattern language requires a new ADR. CH-03 remains open:
+shipping hook examples does not establish their real-world claim rate.
 
 ---
 

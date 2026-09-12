@@ -6,7 +6,7 @@
 | Version | `0.1.0` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-12 |
 
 > This is the document that matters most. It is the asset. The CLI is an implementation of this
 > specification; the specification is not a description of the CLI. Write it as though a second,
@@ -390,15 +390,29 @@ Nested authorship objects have these fields:
 | `ClaimScope` | `paths` | — | Every item is a canonical Git path per §4.1 |
 | `ClaimSource` | `kind`, `reference`, `digest` | — | `kind` uses the closed enum above; `digest` is 64 lowercase hex |
 
+When a conforming collector receives a source that has no native `claimId`, it **MUST** generate
+a standards-valid UUIDv7 (`ADR-035`). The generated identifier is source identity only: it
+**MUST NOT** populate `claimedAt`, serve as evidence of source time, or affect a trust decision.
+Source-specific reference strings and raw digest boundaries are defined by the owning collector
+BRD.
+
 **Mode derivation (NORMATIVE).** The collector **MUST** derive `mode` as follows and **MUST NOT**
 apply any other heuristic:
 
 | Condition | `mode` |
 |---|---|
-| At least one claim with `source.kind` in {`trailer`,`sidecar`,`git-note`,`forge-api`} covering all changed paths | `ai-authored` |
-| At least one such claim covering some but not all changed paths | `ai-assisted` |
+| The ChangeSet is non-empty and at least one claim with `source.kind` in {`trailer`,`sidecar`,`git-note`,`forge-api`} independently covers all changed paths | `ai-authored` |
+| The ChangeSet is non-empty, the preceding row does not match, and at least one such claim independently covers a non-empty proper subset of changed paths | `ai-assisted` |
+| Claims are present but neither preceding coverage row matches, including manual-only claims and every claim-bearing empty ChangeSet | `unknown` |
 | No claims, and the repository has an `.attest/` marker indicating claim collection is active | `human-authored` |
 | No claims, and no marker | `unknown` |
+
+Scope absence covers the entire ChangeSet only when the ChangeSet is non-empty. Coverage is
+evaluated per claim over decoded raw path bytes; scopes from multiple claims **MUST NOT** be
+unioned to satisfy a coverage row. Paths outside the ChangeSet do not prevent a claim from
+covering all changed paths, but the collector retains and warns about those paths per
+`REQ-F03-070`. The marker is an existing `.attest/` directory at the repository root and is
+consulted only when no claims are present (`ADR-035`).
 
 ### 6.4 `review`
 
@@ -716,5 +730,6 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-10 | DSSE and bundle handling delegated to Sigstore-native APIs; bundle and atomic verification semantics corrected before first publication (`ADR-020`) |
 | 0.1.0 | 2026-09-10 | Structural JSON Schema and runtime semantic validation contracts separated before first publication (`ADR-021`) |
 | 0.1.0 | 2026-09-11 | Nested wire shapes, digest encoding, protocol-key exceptions, and schema-version handling completed before first implementation (`ADR-029`) |
+| 0.1.0 | 2026-09-12 | Collector-generated identifiers and complete authorship-mode edge cases defined before F-03 implementation (`ADR-035`) |
 
 [in-toto Statements]: https://in-toto.io/
