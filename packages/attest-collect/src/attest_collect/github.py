@@ -411,6 +411,7 @@ def collect_review(data: ForgeReviewData, change_author_ids: Set[str]) -> Review
                 identity_provider="github",
                 verdict=item.verdict,
                 submitted_at=item.submitted_at,
+                effective=item is latest_by_id[item.user_id],
                 is_change_author=item.user_id in author_ids,
                 evidence=ReviewEvidence(
                     kind="forge-api",

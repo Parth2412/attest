@@ -768,6 +768,18 @@
       "additionalProperties": false,
       "description": "Record one namespaced human reviewer and evidence (REQ-F01-010/070).",
       "properties": {
+        "effective": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective"
+        },
         "evidence": {
           "$ref": "#/$defs/ReviewEvidence"
         },

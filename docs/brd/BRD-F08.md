@@ -204,7 +204,7 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F08-*` implemented, all `AC-F08-*` green, including `REQ-F08-160`
+- [x] All `REQ-F08-*` implemented, all `AC-F08-*` green, including `REQ-F08-160`
 - [x] Full adversarial suite (§7) implemented and green
 - [x] Offline verification demonstrated in CI with network disabled
 - [x] Owner acceptance recorded on PR #18 under the `ADR-040` solo-maintainer exception; no

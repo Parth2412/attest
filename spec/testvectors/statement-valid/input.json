@@ -70,6 +70,7 @@
           "identityProvider": "github",
           "verdict": "approved",
           "submittedAt": "2026-09-11T06:05:00Z",
+          "effective": true,
           "isChangeAuthor": false,
           "evidence": {
             "kind": "forge-api",

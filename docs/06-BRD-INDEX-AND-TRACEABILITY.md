@@ -181,14 +181,14 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 
 | Feature | Status |
 |---|---|
-| `F-01` | In progress |
+| `F-01` | Done |
 | `F-02` | Done |
 | `F-03` | Done |
-| `F-04` | In progress |
-| `F-05` | In progress |
+| `F-04` | Done |
+| `F-05` | Done |
 | `F-06` | Done |
 | `F-07` | Planned |
-| `F-08` | In progress |
+| `F-08` | Done |
 | `F-09` | Planned |
 | `F-10` | Planned |
 | `F-11` | Planned |
@@ -219,6 +219,8 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F01-160` | `AC-F01-160` | `packages/attest-core/tests/test_vectors.py` | ✓ |
 | `REQ-F01-170` | `AC-F01-170` | `packages/attest-core/tests/test_models.py` | ✓ |
 | `REQ-F01-180` | `AC-F01-180` | `packages/attest-core/tests/test_path.py` | ✓ |
+| `REQ-F01-190` | `AC-F01-190` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-200` | `AC-F01-200` | `packages/attest-core/tests/test_identity.py` | ✓ |
 | `REQ-F02-010` | `AC-F02-010` | `packages/attest-collect/tests/test_backends.py` | ✓ |
 | `REQ-F02-020` | `AC-F02-020` | `packages/attest-collect/tests/test_backends.py` | ✓ |
 | `REQ-F02-030` | `AC-F02-030` | `packages/attest-collect/tests/test_backends.py` | ✓ |
@@ -276,6 +278,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F05-080` | `AC-F05-080` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-090` | `AC-F05-090` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-100` | `AC-F05-100` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-110` | `AC-F05-110` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F06-010` | `AC-F06-010` | `packages/attest-sign/tests/test_dsse.py`, `test_e2e_staging.py` | ✓ |
 | `REQ-F06-020` | `AC-F06-020` | `packages/attest-sign/tests/test_dsse.py` | ✓ |
 | `REQ-F06-030` | `AC-F06-030` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
@@ -304,6 +307,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F08-130` | `AC-F08-130` | `packages/attest-sign/tests/test_verifier_boundaries.py` | ✓ |
 | `REQ-F08-140` | `AC-F08-140` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 | `REQ-F08-150` | `AC-F08-150` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
+| `REQ-F08-160` | `AC-F08-160` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

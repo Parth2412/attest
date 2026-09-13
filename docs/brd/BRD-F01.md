@@ -169,7 +169,7 @@ semantic invariants. F-04 and the official builder require them on every newly e
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F01-*` implemented, all `AC-F01-*` green, including legacy-compatible
+- [x] All `REQ-F01-*` implemented, all `AC-F01-*` green, including legacy-compatible
   `Reviewer.effective` semantics
 - [ ] All four properties in §7 implemented in Hypothesis
 - [ ] All `SPEC-001 §12` vectors present and passing

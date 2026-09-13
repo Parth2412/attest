@@ -26,11 +26,15 @@ from attest_core.models.enums import (
     EnvironmentKind,
     EnvironmentKindValue,
     ReviewStateValue,
+    ReviewVerdict,
     ReviewVerdictValue,
 )
 
 _DUPLICATE_CLAIM_ID = "claimId values must be unique within a Statement"
 _TRUSTED_LOCAL_ENVIRONMENT = "local collection environments must set trusted to false"
+_MIXED_EFFECTIVE_MARKERS = "review effective markers must be all present or all absent"
+_INVALID_EFFECTIVE_CARDINALITY = "each immutable reviewer ID must have one effective record"
+_INVALID_HUMAN_APPROVAL_COUNT = "human approvals must equal effective approved reviewers"
 
 
 class AgentRef(WireModel):
@@ -104,6 +108,7 @@ class Reviewer(WireModel):
     identity_provider: NonEmptyString
     verdict: ReviewVerdictValue
     submitted_at: UtcTimestamp
+    effective: StrictBool | None = None
     is_change_author: StrictBool
     evidence: ReviewEvidence
 
@@ -126,6 +131,34 @@ class Review(WireModel):
     reviewers: tuple[Reviewer, ...]
     automated_reviews: tuple[AutomatedReview, ...] | None = None
     review_latency_seconds: NonNegativeInt | None = None
+
+    @model_validator(mode="after")
+    def _validate_effective_reviewers(self) -> Review:
+        if not self.reviewers:
+            return self
+        markers = tuple(reviewer.effective for reviewer in self.reviewers)
+        if all(marker is None for marker in markers):
+            return self
+        if any(marker is None for marker in markers):
+            raise ValueError(_MIXED_EFFECTIVE_MARKERS)
+
+        reviewers_by_id: dict[str, list[Reviewer]] = {}
+        for reviewer in self.reviewers:
+            immutable_id = reviewer.identity.split(":", maxsplit=2)[1]
+            reviewers_by_id.setdefault(immutable_id, []).append(reviewer)
+        if any(
+            sum(reviewer.effective is True for reviewer in reviewers) != 1
+            for reviewers in reviewers_by_id.values()
+        ):
+            raise ValueError(_INVALID_EFFECTIVE_CARDINALITY)
+
+        effective_approvals = sum(
+            reviewer.effective is True and reviewer.verdict is ReviewVerdict.APPROVED
+            for reviewer in self.reviewers
+        )
+        if self.human_approvals != effective_approvals:
+            raise ValueError(_INVALID_HUMAN_APPROVAL_COUNT)
+        return self
 
 
 class Check(WireModel):

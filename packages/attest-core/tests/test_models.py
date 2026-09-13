@@ -294,3 +294,49 @@ def test_authorship_mode_is_explicitly_unknown_without_evidence() -> None:
     assert authorship.mode.value == "unknown"
     with pytest.raises(ValidationError):
         Authorship.model_validate({"claims": [], "claimsPresent": False})
+
+
+@pytest.mark.ac("AC-F01-190")
+def test_review_accepts_legacy_unmarked_and_valid_effective_markers(
+    valid_statement_data: dict[str, Any],
+) -> None:
+    """REQ-F01-190: legacy omission remains readable and valid markers are enforced."""
+    marked = deepcopy(valid_statement_data["predicate"]["review"])
+    assert Review.model_validate(marked).reviewers[0].effective is True
+
+    legacy = deepcopy(marked)
+    legacy["reviewers"][0].pop("effective")
+    assert Review.model_validate(legacy).reviewers[0].effective is None
+
+
+@pytest.mark.ac("AC-F01-190")
+@pytest.mark.parametrize("case", ["mixed", "zero", "two", "count"])
+def test_review_rejects_invalid_effective_marker_semantics(
+    case: str,
+    valid_statement_data: dict[str, Any],
+) -> None:
+    """REQ-F01-190: marker presence, per-ID cardinality, and count are semantic invariants."""
+    review = deepcopy(valid_statement_data["predicate"]["review"])
+    second = deepcopy(review["reviewers"][0])
+    second["identity"] = "github:12345:reviewer-renamed"
+    second["submittedAt"] = "2026-09-11T06:06:00Z"
+    second["evidence"]["digest"] = "6" * 64
+    review["reviewers"].append(second)
+
+    if case == "mixed":
+        review["reviewers"][0].pop("effective")
+    elif case == "zero":
+        review["reviewers"][0]["effective"] = False
+        review["reviewers"][1]["effective"] = False
+        review["humanApprovals"] = 0
+    elif case == "two":
+        review["reviewers"][0]["effective"] = True
+        review["reviewers"][1]["effective"] = True
+        review["humanApprovals"] = 2
+    else:
+        review["reviewers"][0]["effective"] = False
+        review["reviewers"][1]["effective"] = True
+        review["humanApprovals"] = 0
+
+    with pytest.raises(ValidationError):
+        Review.model_validate(review)

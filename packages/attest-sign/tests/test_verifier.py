@@ -22,7 +22,7 @@ from attest_sign import (
     verify,
 )
 from attest_sign import verifier as module
-from attest_sign.verify_errors import VerifyError
+from attest_sign.verify_errors import VerifyError, VerifyErrorCode
 
 IDENTITY = "https://github.com/Org/Repo/.github/workflows/attest.yml@refs/heads/main"
 ISSUER = "https://token.actions.githubusercontent.com"
@@ -235,6 +235,10 @@ def test_exact_and_anchored_single_segment_glob_are_accepted(
     assert exact.status == "verified"
     assert globbed.status == "verified"
     assert _FakeIdentity.observed == [(IDENTITY, ISSUER), (IDENTITY, ISSUER)]
+    for result in (exact, globbed):
+        assert result.verified_identity == IDENTITY
+        assert result.verified_issuer == ISSUER
+        assert result.transparency_log_verified is True
 
 
 @pytest.mark.ac("AC-F08-050")
@@ -613,3 +617,28 @@ def test_repository_recomputation_error_or_match_has_exact_outcome(
         assert result.failure_code is None
         assert result.checks[-1].result == "passed"
         assert result.checks[-1].name == "changeset-recomputation"
+
+
+@pytest.mark.ac("AC-F08-160")
+@pytest.mark.parametrize(
+    ("name", "code"),
+    [
+        ("bundle-structure", "ERR-VERIFY-001"),
+        ("sigstore-dsse", "ERR-VERIFY-013"),
+        ("statement-payload", "ERR-VERIFY-007"),
+        ("structural-schema", "ERR-VERIFY-008"),
+        ("semantic-model", "ERR-VERIFY-009"),
+        ("changeset-recomputation", "ERR-VERIFY-010"),
+    ],
+)
+def test_every_failure_step_clears_verified_policy_evidence(
+    name: module.CheckName,
+    code: VerifyErrorCode,
+) -> None:
+    """REQ-F08-160: partial verification progress is never exposed as trusted evidence."""
+    result = module._failure([], name, code)
+
+    assert result.status == "failed"
+    assert result.verified_identity is None
+    assert result.verified_issuer is None
+    assert result.transparency_log_verified is False

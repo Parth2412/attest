@@ -4,6 +4,7 @@ from attest_core.builder import build_statement
 from attest_core.canonical import JsonValue, canonicalize
 from attest_core.digest import build_changeset_record, compute_changeset_digest
 from attest_core.errors import BuildError
+from attest_core.identity import identity_pattern_matches, validate_identity_pattern
 from attest_core.models import (
     AgentRef,
     Authorship,
@@ -77,5 +78,7 @@ __all__ = [
     "decode_git_path",
     "encode_git_path",
     "generate_json_schema",
+    "identity_pattern_matches",
+    "validate_identity_pattern",
     "validate_statement_structure",
 ]
