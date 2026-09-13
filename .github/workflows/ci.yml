@@ -54,7 +54,9 @@ jobs:
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
       - run: uv run python scripts/run_test_group.py adversarial F-08
-      - run: just verifier-coverage
+      - run: >-
+          uv run pytest packages/attest-sign/tests/test_verifier.py
+          --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
 
   schema-drift:
     runs-on: ubuntu-latest

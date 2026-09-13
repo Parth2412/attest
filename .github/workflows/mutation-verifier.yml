@@ -17,4 +17,9 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
-      - run: just mutation-verifier
+      - name: Require zero surviving verifier mutants
+        working-directory: packages/attest-sign
+        run: |
+          uv run mutmut run
+          uv run mutmut results
+          ! uv run mutmut results | grep -q ': survived$'
