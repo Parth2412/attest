@@ -190,7 +190,10 @@ def test_builder_totally_orders_every_input_array_including_ties(
 
     first_reviewer = review.reviewers[0]
     second_reviewer = first_reviewer.model_copy(
-        update={"evidence": first_reviewer.evidence.model_copy(update={"digest": "6" * 64})}
+        update={
+            "effective": False,
+            "evidence": first_reviewer.evidence.model_copy(update={"digest": "6" * 64}),
+        }
     )
     reviewers_forward = (first_reviewer, second_reviewer)
 
@@ -235,8 +238,8 @@ def test_builder_totally_orders_every_input_array_including_ties(
         first_claim.claim_id,
     ]
     assert [item["evidence"]["digest"] for item in predicate["review"]["reviewers"]] == [
-        "3" * 64,
         "6" * 64,
+        "3" * 64,
     ]
     assert [item["findingsDigest"] for item in predicate["review"]["automatedReviews"]] == [
         "4" * 64,
@@ -246,3 +249,33 @@ def test_builder_totally_orders_every_input_array_including_ties(
         "5" * 64,
         "8" * 64,
     ]
+
+
+@pytest.mark.ac("AC-F05-110")
+def test_builder_requires_effective_markers_on_every_new_reviewer(
+    valid_statement_data: dict[str, Any],
+) -> None:
+    """REQ-F05-110: new Statements cannot emit legacy-unmarked or mixed reviews."""
+    change_set, authorship, review, checks, collection = _inputs(valid_statement_data)
+    unmarked_reviewer = review.reviewers[0].model_copy(update={"effective": None})
+    unmarked = review.model_copy(update={"reviewers": (unmarked_reviewer,)})
+
+    with pytest.raises(BuildError) as unmarked_capture:
+        build_statement(change_set, authorship, unmarked, checks, collection)
+    assert unmarked_capture.value.code == "ERR-BUILD-210"
+
+    marked_reviewer = review.reviewers[0]
+    mixed = Review.model_construct(
+        required=review.required,
+        state=review.state,
+        human_approvals=review.human_approvals,
+        reviewers=(marked_reviewer, unmarked_reviewer),
+        automated_reviews=review.automated_reviews,
+        review_latency_seconds=review.review_latency_seconds,
+    )
+    with pytest.raises(BuildError) as mixed_capture:
+        build_statement(change_set, authorship, mixed, checks, collection)
+    assert mixed_capture.value.code == "ERR-BUILD-210"
+
+    built = build_statement(change_set, authorship, review, checks, collection)
+    assert all(item.effective is not None for item in built.predicate.review.reviewers)

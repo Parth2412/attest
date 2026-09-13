@@ -119,7 +119,7 @@ Signing (F-06), storage (F-07), policy (F-09).
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F05-*` implemented, all `AC-F05-*` green, including `REQ-F05-110`
+- [x] All `REQ-F05-*` implemented, all `AC-F05-*` green, including `REQ-F05-110`
 - [x] Golden-file test: a fixed input set produces a committed golden Statement, byte-compared
 - [x] Coverage ≥ 95% (`attest-core`: 99%; `environment.py`: 100%)
 - [x] Cross-cutting obligations satisfied

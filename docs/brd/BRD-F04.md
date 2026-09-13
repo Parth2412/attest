@@ -115,7 +115,7 @@ Warnings emitted without invalidating other collected evidence:
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F04-*` implemented, all `AC-F04-*` green, including effective-state marking
+- [x] All `REQ-F04-*` implemented, all `AC-F04-*` green, including effective-state marking
 - [x] Recorded HTTP fixtures for all paths; no live calls in the default test suite
 - [x] Nightly live smoke test against a real repository
 - [x] Token-leak test asserts absence across all output streams

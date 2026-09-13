@@ -24,6 +24,8 @@ from attest_core.models.predicate import Authorship, Check, Collection, Review
 from attest_core.models.statement import Statement
 from attest_core.schema import generate_json_schema
 
+_MISSING_EFFECTIVE_REVIEW_MARKERS = "new Statements require effective reviewer markers"
+
 
 def _wire(model: WireModel) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], model.model_dump(mode="json", by_alias=True))
@@ -63,6 +65,8 @@ def _assemble_wire(
     checks: tuple[Check, ...],
     collection: Collection,
 ) -> dict[str, JsonValue]:
+    if any(reviewer.effective is None for reviewer in review.reviewers):
+        raise ValueError(_MISSING_EFFECTIVE_REVIEW_MARKERS)
     authorship_wire = _wire(authorship)
     claim_items = cast(list[dict[str, JsonValue]], authorship_wire["claims"])
     claim_items.sort(key=lambda item: cast(str, item["claimId"]))

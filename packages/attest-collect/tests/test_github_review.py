@@ -147,6 +147,26 @@ def test_only_latest_human_verdict_counts_and_all_records_remain() -> None:
     assert result.state == "approved"
     assert result.human_approvals == 1
     assert [review.verdict for review in result.reviewers] == ["changes-requested", "approved"]
+    assert [review.effective for review in result.reviewers] == [False, True]
+
+
+@pytest.mark.ac("AC-F04-020")
+def test_equal_timestamp_uses_numeric_review_id_for_effective_verdict() -> None:
+    """REQ-F04-020: numeric review ID is the deterministic latest-state tiebreaker."""
+    timestamp = "2026-09-13T09:20:00Z"
+    approved = _review(review_id=1001, state="APPROVED", submitted_at=timestamp)
+    requested = _review(
+        review_id=1002,
+        login="bob-renamed",
+        state="CHANGES_REQUESTED",
+        submitted_at=timestamp,
+    )
+
+    result = collect_review(_data(requested, approved), set())
+
+    assert result.state == "changes-requested"
+    assert result.human_approvals == 0
+    assert [review.effective for review in result.reviewers] == [False, True]
 
 
 @pytest.mark.ac("AC-F04-020")

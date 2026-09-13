@@ -73,9 +73,9 @@ The 90-day count starts after Week 0.
 - [x] `CH-01` and `CH-02` closed in `CHALLENGE-001 §12` on 2026-09-10
 - [ ] A real GitHub Actions fixture produces a signed attestation logged to the transparency log
 - [ ] The F-08 API validates it on a clean container with no local state
-- [ ] Adversarial suite green
+- [x] Adversarial suite green
 - [ ] `SPEC-001` and test vectors public
-- [ ] Verified signer and transparency-log evidence are ready for policy consumption
+- [x] Verified signer and transparency-log evidence are ready for policy consumption
 
 ---
 

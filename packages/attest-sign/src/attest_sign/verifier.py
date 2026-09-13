@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from typing import Final, Literal, cast
 
@@ -11,7 +10,7 @@ from cryptography.x509 import SubjectAlternativeName, UniformResourceIdentifier
 from sigstore.models import Bundle as _SigstoreBundle
 from sigstore.verify.policy import Identity
 
-from attest_core import Statement
+from attest_core import Statement, identity_pattern_matches, validate_identity_pattern
 from attest_core import validate_statement_structure as _validate_statement_structure
 from attest_core.constants import DSSE_PAYLOAD_TYPE, PREDICATE_TYPE_V0_1
 from attest_sign.repository import (
@@ -40,10 +39,6 @@ _CHECK_NAMES: Final[tuple[CheckName, ...]] = (
     "semantic-model",
     "changeset-recomputation",
 )
-_GITHUB_WORKFLOW_GLOB = re.compile(
-    r"https://github\.com/[^/]+/[^/]+/\.github/workflows/[^/]+@refs/.+"
-)
-_INVALID_PATTERN_CHARACTERS: Final[tuple[str, ...]] = ("?", "[", "]")
 _PREDICATE_REGISTRY: dict[str, tuple[str, type[Statement]]] = {
     PREDICATE_TYPE_V0_1: ("0.1", Statement),
 }
@@ -61,20 +56,12 @@ class IdentityConstraint:
     issuer: str
 
     def __post_init__(self) -> None:
-        if (
-            not _is_nonempty_string(self.identity_pattern)
-            or not _is_nonempty_string(self.issuer)
-            or any(character in self.identity_pattern for character in _INVALID_PATTERN_CHARACTERS)
-            or "**" in self.identity_pattern
-        ):
+        if not _is_nonempty_string(self.issuer):
             raise verify_error("ERR-VERIFY-011")
-        if "*" not in self.identity_pattern:
-            return
-        if _GITHUB_WORKFLOW_GLOB.fullmatch(self.identity_pattern) is None:
-            raise verify_error("ERR-VERIFY-011")
-        prefix, separator, reference = self.identity_pattern.partition("@refs/")
-        if separator != "@refs/" or "*" in prefix or "*" not in reference:
-            raise verify_error("ERR-VERIFY-011")
+        try:
+            validate_identity_pattern(self.identity_pattern)
+        except ValueError:
+            raise verify_error("ERR-VERIFY-011") from None
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +81,9 @@ class VerificationResult:
     checks: list[CheckOutcome]
     statement: Statement | None
     failure_code: VerifyErrorCode | None
+    verified_identity: str | None
+    verified_issuer: str | None
+    transparency_log_verified: bool
 
 
 class _MalformedBundleError(ValueError):
@@ -128,6 +118,9 @@ def _failure(
         checks=[*checks, _failed(name, code)],
         statement=statement,
         failure_code=code,
+        verified_identity=None,
+        verified_issuer=None,
+        transparency_log_verified=False,
     )
 
 
@@ -150,10 +143,6 @@ def _parse_bundle(raw: bytes) -> _SigstoreBundle:
     return _SigstoreBundle.from_json(raw)
 
 
-def _glob_regex(pattern: str) -> re.Pattern[str]:
-    return re.compile(rf"{re.escape(pattern).replace(r'\*', r'[^/]+')}")
-
-
 def _exact_identity(bundle: _SigstoreBundle, constraint: IdentityConstraint) -> str:
     if "*" not in constraint.identity_pattern:
         return constraint.identity_pattern
@@ -161,8 +150,11 @@ def _exact_identity(bundle: _SigstoreBundle, constraint: IdentityConstraint) -> 
         SubjectAlternativeName
     )
     identities = extension.value.get_values_for_type(UniformResourceIdentifier)
-    matcher = _glob_regex(constraint.identity_pattern)
-    matches = [identity for identity in identities if matcher.fullmatch(identity) is not None]
+    matches = [
+        identity
+        for identity in identities
+        if identity_pattern_matches(constraint.identity_pattern, identity)
+    ]
     if len(matches) != 1:
         raise ValueError
     return matches[0]
@@ -262,4 +254,7 @@ def verify(
         checks=checks,
         statement=statement,
         failure_code=None,
+        verified_identity=exact_identity,
+        verified_issuer=constraint.issuer,
+        transparency_log_verified=True,
     )
