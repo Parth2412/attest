@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-04 GitHub review evidence collection with immutable reviewer identities,
+  exhaustive same-origin pagination, combined ruleset and classic-protection requirements,
+  complete check-suite/run collection, bounded rate-limit handling, secret-safe authentication,
+  deterministic evidence digests, and component-wise fail-open diagnostics.
 - Implemented the independent F-08 verification pipeline with mandatory identity and issuer
   constraints, explicit offline trust roots, Sigstore-native atomic verification, historical
   bundle support, hardened ChangeSet recomputation, stable fail-closed outcomes, real signed

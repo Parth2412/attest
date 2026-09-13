@@ -32,6 +32,9 @@ adversarial:
 verifier-coverage:
     uv run pytest packages/attest-sign/tests/test_verifier.py --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
 
+github-coverage:
+    uv run pytest packages/attest-collect/tests/test_github_review.py packages/attest-collect/tests/test_github_http.py packages/attest-collect/tests/test_github_checks.py --cov=attest_collect.github --cov=attest_collect._github_http --cov-report=term-missing --cov-fail-under=90
+
 mutation-core:
     cd packages/attest-core && uv run mutmut run
     cd packages/attest-core && uv run mutmut results
@@ -62,4 +65,4 @@ adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial verifier-coverage schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage github-coverage schema-check banned trace security

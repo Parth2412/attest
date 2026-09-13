@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1003,
+    "node_id": "PRR_test_1003",
+    "user": {
+      "login": "bob-renamed",
+      "id": 12345,
+      "node_id": "U_test_12345",
+      "type": "User",
+      "site_admin": false
+    },
+    "body": "Approved after the requested change.",
+    "state": "APPROVED",
+    "html_url": "https://github.com/acme/widgets/pull/7#pullrequestreview-1003",
+    "pull_request_url": "https://api.github.com/repos/acme/widgets/pulls/7",
+    "submitted_at": "2026-09-13T09:20:00Z",
+    "commit_id": "2222222222222222222222222222222222222222",
+    "author_association": "MEMBER"
+  }
+]

@@ -188,7 +188,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-01` | Done |
 | `F-02` | Done |
 | `F-03` | Done |
-| `F-04` | Planned |
+| `F-04` | Done |
 | `F-05` | Done |
 | `F-06` | Done |
 | `F-07` | Planned |
@@ -256,6 +256,20 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F03-120` | `AC-F03-120` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
 | `REQ-F03-130` | `AC-F03-130` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
 | `REQ-F03-140` | `AC-F03-140` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F04-010` | `AC-F04-010` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-020` | `AC-F04-020` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-030` | `AC-F04-030` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-040` | `AC-F04-040` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-050` | `AC-F04-050` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-060` | `AC-F04-060` | `packages/attest-collect/tests/test_github_review.py`, `test_github_checks.py` | ✓ |
+| `REQ-F04-070` | `AC-F04-070` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-080` | `AC-F04-080` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-090` | `AC-F04-090` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-100` | `AC-F04-100` | `packages/attest-collect/tests/test_github_review.py`, `test_github_checks.py` | ✓ |
+| `REQ-F04-110` | `AC-F04-110` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-120` | `AC-F04-120` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-130` | `AC-F04-130` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-140` | `AC-F04-140` | `packages/attest-collect/tests/test_github_checks.py` | ✓ |
 | `REQ-F05-010` | `AC-F05-010` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-020` | `AC-F05-020` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-030` | `AC-F05-030` | `packages/attest-core/tests/test_builder.py` | ✓ |
