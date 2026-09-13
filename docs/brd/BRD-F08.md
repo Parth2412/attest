@@ -50,7 +50,7 @@ type TrustRootSource = ServiceTrustRoot | SuppliedTrustRoot
 @dataclass(frozen=True)
 class IdentityConstraint:
     identity_pattern: str        # exact or the bounded glob grammar below
-    issuer: str                  # exact match
+    issuer: str                  # required non-empty exact match
 
 @dataclass(frozen=True)
 class RepositoryConstraint:
@@ -105,6 +105,11 @@ permitted. A glob match is resolved against the certificate's URI SAN and that o
 the exact issuer is supplied to Sigstore's public `Identity` policy. Zero or multiple matches fail
 closed with `ERR-VERIFY-013`.
 
+`identity_pattern` and `issuer` must each be a non-empty `str`. An empty or non-string issuer raises
+`ERR-VERIFY-011` during `IdentityConstraint` construction, before Sigstore's `Identity` policy is
+created. This is security-critical because Sigstore 4.5.0 interprets an empty issuer as omission of
+the issuer policy (`ADR-039`).
+
 `ServiceTrustRoot.offline` is deliberately required. `True` uses only the selected environment's
 packaged or cached TUF material; `False` explicitly permits Sigstore's bounded TUF refresh.
 `SuppliedTrustRoot` uses Sigstore's public client-trust-configuration JSON parser and performs no
@@ -119,7 +124,7 @@ network operation. A verifier never tries production and staging roots in sequen
 | `REQ-F08-030` | Sigstore-native verification **MUST** establish certificate validity using verified bundle time evidence, not the current wall clock. |
 | `REQ-F08-040` | **An identity constraint MUST be supplied to the Sigstore `Identity` policy. There MUST NOT be a default that accepts any identity, and there MUST NOT be any flag, environment variable, or configuration key that skips the policy while returning `status == "verified"`.** |
 | `REQ-F08-050` | Identity patterns **MUST** use the exact or bounded, case-sensitive, whole-string grammar in §4. Invalid or unbounded patterns **MUST** be rejected when `IdentityConstraint` is constructed with `ERR-VERIFY-011`. |
-| `REQ-F08-060` | Issuer **MUST** be matched exactly; no pattern matching on issuer. |
+| `REQ-F08-060` | Issuer **MUST** be a non-empty string and matched exactly; no pattern matching on issuer. An empty or non-string issuer **MUST** fail during `IdentityConstraint` construction with `ERR-VERIFY-011` and **MUST NOT** reach Sigstore's `Identity` policy. |
 | `REQ-F08-070` | Transparency log inclusion **MUST** be verified by `verify_dsse` from the inclusion proof embedded in the bundle, without contacting the log. Querying the log **MUST NOT** be offered as a substitute, and no option may make verification depend on log reachability. A bundle without an embedded proof **MUST** fail `ERR-VERIFY-013`. |
 | `REQ-F08-080` | Verification **MUST** be possible offline given a bundle and packaged, cached, or explicitly supplied trust material. Environment and offline/refresh behaviour **MUST** be explicit; network availability **MUST NOT** be required, and roots from different environments **MUST NOT** be tried automatically. |
 | `REQ-F08-090` | Unknown `predicateType` **MUST** fail with `ERR-VERIFY-007`; best-effort parsing is forbidden. |
@@ -139,7 +144,7 @@ network operation. A verifier never tries production and staging roots in sequen
 | `AC-F08-030` | A bundle signed with a since-expired certificate still verifies when the log timestamp falls in the validity window. |
 | `AC-F08-040` | **Static analysis test:** a test greps the entire codebase and CLI surface for any bypass of the identity check and fails if one exists. Additionally, a bundle signed by a different identity fails closed with `ERR-VERIFY-013` under every configuration permutation exercised. |
 | `AC-F08-050` | `identity_pattern = "*"`, a wildcard before `@refs/`, `**`, `?`, and bracket expressions are rejected at construction with `ERR-VERIFY-011`; an exact identity and a ref-segment glob are anchored and accepted. |
-| `AC-F08-060` | A near-miss issuer string fails. |
+| `AC-F08-060` | A near-miss issuer string fails cryptographic verification; an empty or non-string issuer fails constraint construction with `ERR-VERIFY-011`, and no issuer-omitting `Identity` policy is created. |
 | `AC-F08-070` | A tampered inclusion proof fails with `ERR-VERIFY-013`; a bundle with the proof removed also fails; both fail with all network access blocked. |
 | `AC-F08-080` | Verification succeeds with all network access blocked using both selected packaged/cached trust material and a supplied client trust configuration; a staging bundle fails under the production root. |
 | `AC-F08-090` | A bundle with `predicateType` `…/v9.9` fails with `ERR-VERIFY-007`. |
@@ -173,7 +178,7 @@ Per `SPEC-001 §8`, plus:
 
 | Code | Condition | Remediation |
 |---|---|---|
-| `ERR-VERIFY-011` | Invalid or unbounded identity pattern | Use an exact identity or anchor a single-segment glob to a GitHub workflow ref |
+| `ERR-VERIFY-011` | Invalid identity constraint, including an empty issuer or invalid/unbounded identity pattern | Supply a non-empty exact issuer and an exact identity or workflow-anchored single-segment glob |
 | `ERR-VERIFY-012` | Selected trust material is unavailable or invalid | Explicitly refresh the selected environment or supply a valid client trust configuration |
 | `ERR-VERIFY-013` | Sigstore-native cryptographic verification failed | Reject the bundle; inspect the sanitised diagnostic and signer/trust configuration |
 

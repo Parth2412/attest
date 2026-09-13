@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.7.0` |
+| Version | `1.8.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -35,7 +35,7 @@
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
 | GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
-| Specification | `SPEC-001` | — | 0.1.1 (document) | — | `F-01`, `F-08` | baselined, unpublished |
+| Specification | `SPEC-001` | — | 0.1.2 (document) | — | `F-01`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
 F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are

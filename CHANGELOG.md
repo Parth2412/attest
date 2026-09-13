@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Required non-empty verification issuers so Sigstore cannot interpret an empty value as omission
+  of the issuer policy.
 - Defined the explicit F-08 verification boundary: required trust-source selection, bounded
   identity patterns resolved through Sigstore's exact policy, stable ordered check outcomes, and
   caller-selected repository ChangeSet recomputation.

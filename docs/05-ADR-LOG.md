@@ -1498,6 +1498,42 @@ marked Done until an independent human has reviewed the six-check order.
 
 ---
 
+## ADR-039 — Reject empty verification issuers before policy construction
+
+**Status:** Accepted · **Date:** 2026-09-13 · **Affects:** `SPEC-001 §8.1`, `TECH-001`,
+`BRD-F08`, `F-08`
+
+**Context.** The post-ADR-038 executable API probe found a security-sensitive truthiness edge in
+the locked `sigstore==4.5.0` implementation. `Identity.__init__` creates its `OIDCIssuer` sub-policy
+only when `issuer` is truthy. Calling `Identity(identity=expected, issuer="")` therefore verifies
+the identity without checking any issuer. The call was executed against the expired CH-02 staging
+bundle and succeeded. F-08's typed data contract called the issuer an exact string but did not
+explicitly assign a coded construction failure to an empty or non-string runtime value.
+
+**Decision.** `IdentityConstraint` requires both `identity_pattern` and `issuer` to be non-empty
+instances of `str`. An empty or non-string value in either field raises the existing
+`ERR-VERIFY-011` invalid-constraint diagnostic during construction. No Sigstore bundle is parsed and
+no `Identity` policy is created after that failure. A valid non-empty issuer is passed unchanged to
+Sigstore's public `Identity` policy and is matched exactly. Wildcards and other pattern semantics
+remain forbidden for issuers.
+
+**Rationale.** Construction-time rejection closes the only observed path by which a syntactically
+present issuer value could disable Sigstore's issuer policy. Reusing `ERR-VERIFY-011` keeps all
+invalid identity-constraint configuration in one usage-error boundary and avoids misreporting a
+configuration defect as a cryptographic bundle failure.
+
+**Rejected alternatives.** Passing an empty issuer to Sigstore violates mandatory identity-and-
+issuer verification. Rechecking the issuer through custom certificate parsing duplicates Sigstore's
+security policy. Mapping the value to `ERR-VERIFY-013` would imply that bundle cryptography ran when
+the caller's constraint was invalid. Adding a new code solely for one invalid field fragments the
+already defined constraint-construction error without improving remediation.
+
+**Consequences.** F-08 tests must prove the empty-string and non-string cases fail with
+`ERR-VERIFY-011`, prove `Identity` is not constructed on either path, and retain a near-miss
+non-empty issuer test that reaches Sigstore and fails `ERR-VERIFY-013`.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

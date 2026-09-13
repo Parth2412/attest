@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -146,7 +146,9 @@ invokes Sigstore's private verification helpers.
 Sigstore 4.5.0's `Identity` policy is exact-only. The adapter therefore validates bounded GitHub
 workflow glob syntax itself, resolves exactly one matching URI SAN through the public certificate
 surface, and passes that resolved exact identity and the exact issuer to `Identity`. Issuer globs,
-ambiguous SAN matches, and root fallback are not supported.
+ambiguous SAN matches, and root fallback are not supported. Its constructor conditionally creates
+the issuer sub-policy only when the issuer string is truthy, so F-08 rejects an empty or non-string
+issuer before constructing `Identity` (`ADR-039`).
 
 **`pygit2` over `GitPython` or subprocess.**
 `GitPython` shells out for many operations and is slow and fragile. Subprocess parsing of

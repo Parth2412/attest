@@ -4,7 +4,7 @@
 
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, and F-06 are implemented; F-08 is in progress.
-- **Last Updated**: 2026-09-12
+- **Last Updated**: 2026-09-13
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -352,6 +352,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-13**: `ADR-039` closed Sigstore 4.5.0's empty-issuer truthiness edge by requiring
+  `IdentityConstraint` to reject empty or non-string issuers with `ERR-VERIFY-011` before policy
+  construction.
 - **2026-09-12**: Completed F-06 with exact Sigstore-native DSSE signing, explicit staging or
   production selection, ambient GitHub Actions OIDC, mandatory inclusion-proof postconditions,
   hard process deadlines, stage-aware retries, and live staging/offline verification. Began F-08
