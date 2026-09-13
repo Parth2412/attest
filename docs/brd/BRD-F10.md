@@ -4,10 +4,10 @@
 |---|---|
 | Document ID | `BRD-F10` |
 | Feature | `F-10` |
-| Milestone | M1 |
+| Milestone | M2 |
 | Package | `attest-cli` |
-| Depends on | `F-01`…`F-08` |
-| Status | Ready when F-01…F-08 are Done · no open question |
+| Depends on | `F-01`…`F-09` |
+| Status | Ready when F-01…F-09 are Done · governed by `ADR-042` |
 
 ---
 
@@ -16,6 +16,10 @@
 The composition root and the entire user-facing surface. Contains orchestration and presentation
 only — no business logic. Its contract with CI is the exit code table, which is effectively
 frozen from first release.
+
+F-09 is an explicit dependency because `attest gate` and `attest run` compose its policy Decision.
+The CLI owns policy-file I/O, complete ChangeSet context construction, and the distinction between
+absent and configured-but-unreadable policy; it does not reimplement policy semantics.
 
 ## 2. Scope trace
 
@@ -56,6 +60,7 @@ frozen from first release.
 | `REQ-F10-110` | `attest run` **MUST** be resumable in the sense that each stage's intermediate output can be produced and consumed independently. |
 | `REQ-F10-120` | `attest doctor` **MUST** report: git backend in use, ambient identity availability, CI environment detection, network reachability of signing endpoints, and resolved policy path — without performing a real signature. |
 | `REQ-F10-130` | No command **MUST** send telemetry. If telemetry is ever added it **MUST** be opt-in and documented; v1.0 has none. |
+| `REQ-F10-140` | `attest gate` and `attest run` **MUST** resolve one caller-selected base/head ChangeSet, supply those same revisions as a mandatory F-08 `RepositoryConstraint`, and build F-09 target-branch/complete-path context from that ChangeSet. Policy evaluation **MUST NOT** use the predicate's optional path summary or run before successful recomputation. |
 
 ## 5. Acceptance criteria
 
@@ -74,6 +79,7 @@ frozen from first release.
 | `AC-F10-110` | The staged pipeline produces the same final bundle as `attest run`. |
 | `AC-F10-120` | `attest doctor` in a clean container reports each item and creates no signature. |
 | `AC-F10-130` | A no-egress test confirms no network call outside signing, storage, and forge operations. |
+| `AC-F10-140` | Integration tests prove gate/run pass identical base/head revisions to collection and verification, use complete paths when the signed summary is missing/truncated, and stop with exit `4` before policy on a ChangeSet mismatch. |
 
 ## 6. Out of scope
 

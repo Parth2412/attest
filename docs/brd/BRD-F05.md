@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Packages | `attest-core`, `attest-collect` |
 | Depends on | `F-01`, `F-02`, `F-03` |
-| Status | Done · F-01, F-02, F-03 Done · governed by `ADR-036` |
+| Status | In progress · New-statement effective review evidence governed by `ADR-042` |
 
 ---
 
@@ -88,6 +88,7 @@ recorded. GitLab CI, other CI, and local results are always untrusted in v0.1.
 | `REQ-F05-080` | Optional fields with no data **MUST** be omitted from serialisation, never emitted as `null` or empty string. Empty optional `checks` and `automatedReviews` arrays are omitted; semantically distinct path arrays are preserved exactly as supplied. |
 | `REQ-F05-090` | The builder **MUST NOT** invent, infer, or default any value not supplied by a collector. The caller **MUST** supply an explicit `Review(state="unknown", ...)` when F-04 data is absent. |
 | `REQ-F05-100` | Arrays **MUST** have a total deterministic order: claims by unique `claimId`; reviewers by `submittedAt`, identity, then canonical object bytes; automated reviews by `submittedAt`, tool, then canonical object bytes; checks by name then canonical object bytes. |
+| `REQ-F05-110` | Every Reviewer in a newly built Statement **MUST** carry an explicit `effective` boolean. The builder **MUST** reject an unmarked or mixed Review with `ERR-BUILD-210`; accepting fully unmarked Reviews is limited to historical F-08 verification. |
 
 ## 6. Acceptance criteria
 
@@ -103,6 +104,7 @@ recorded. GitLab CI, other CI, and local results are always untrusted in v0.1.
 | `AC-F05-080` | Serialised output contains no `null` values or empty strings, omits empty optional checks and automated reviews, and preserves supplied empty path arrays. |
 | `AC-F05-090` | An explicitly supplied unknown review remains unknown; passing a missing required input raises `ERR-BUILD-211`; the builder never creates a review. |
 | `AC-F05-100` | Shuffling every input array, including arrays whose primary sort keys tie, yields identical canonical output. |
+| `AC-F05-110` | The golden Statement contains `effective` on every Reviewer; fully unmarked and mixed Review inputs both fail `ERR-BUILD-210` before signing. |
 
 ## 7. Error codes
 
@@ -117,7 +119,7 @@ Signing (F-06), storage (F-07), policy (F-09).
 
 ## 9. Definition of Done
 
-- [x] All `REQ-F05-*` implemented, all `AC-F05-*` green
+- [ ] All `REQ-F05-*` implemented, all `AC-F05-*` green, including `REQ-F05-110`
 - [x] Golden-file test: a fixed input set produces a committed golden Statement, byte-compared
 - [x] Coverage ≥ 95% (`attest-core`: 99%; `environment.py`: 100%)
 - [x] Cross-cutting obligations satisfied

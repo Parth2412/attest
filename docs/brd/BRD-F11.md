@@ -61,6 +61,7 @@ permissions:
 | `REQ-F11-080` | Versioning **MUST** follow the `v1` moving-major-tag convention plus immutable version tags. |
 | `REQ-F11-090` | The Action's own release **MUST** be attested by attest itself (dogfooding). |
 | `REQ-F11-100` | Cold start **MUST** be under 15 s p95 on a standard runner. |
+| `REQ-F11-110` | A real-repository release test **MUST** publish the gate as a required GitHub status check, pin it to the expected GitHub App where supported, and prove a blocking absence or violation prevents merge. Documentation **MUST** state that a non-required gate is advisory. |
 
 ## 5. Acceptance criteria
 
@@ -76,6 +77,7 @@ permissions:
 | `AC-F11-080` | `v1` resolves to the newest v1.x; immutable tags exist. |
 | `AC-F11-090` | The release workflow produces an attestation for the Action release, and it verifies. |
 | `AC-F11-100` | Timing measured across 20 runs meets the p95 target. |
+| `AC-F11-110` | In a dedicated real repository, a pull request with gate exit `5` or `3` is unmergeable while the expected App-pinned check is required, then becomes mergeable only after a successful gate result. |
 
 ## 6. Out of scope
 
@@ -87,4 +89,6 @@ specialisation.
 - [ ] All `REQ-F11-*` implemented, all `AC-F11-*` green
 - [ ] A copy-pasteable quickstart workflow in the README works unmodified on a fresh repository
 - [ ] Dogfooding release attestation verifies publicly
+- [ ] A real repository demonstrates blocked and successful merge states through the required,
+  expected-App-pinned gate check
 - [ ] Cross-cutting obligations satisfied

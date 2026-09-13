@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-06` |
-| Status | Done · owner-authorized solo-maintainer review waiver recorded by `ADR-040` |
+| Status | In progress · Verified policy-evidence result fields governed by `ADR-042` |
 
 ---
 
@@ -77,6 +77,9 @@ class VerificationResult:
     checks: list[CheckOutcome]     # one per SPEC-001 §8 step, in order
     statement: Statement | None
     failure_code: str | None
+    verified_identity: str | None
+    verified_issuer: str | None
+    transparency_log_verified: bool
 
 def verify(
     bundle: bytes,
@@ -110,10 +113,20 @@ closed with `ERR-VERIFY-013`.
 created. This is security-critical because Sigstore 4.5.0 interprets an empty issuer as omission of
 the issuer policy (`ADR-039`).
 
+F-08 uses `attest-core`'s pure identity-pattern validator/matcher, then remains solely responsible
+for resolving exactly one certificate URI SAN and supplying that exact identity plus issuer to
+Sigstore. Sharing string grammar does not share cryptographic verification code (`ADR-042`).
+
 `ServiceTrustRoot.offline` is deliberately required. `True` uses only the selected environment's
 packaged or cached TUF material; `False` explicitly permits Sigstore's bounded TUF refresh.
 `SuppliedTrustRoot` uses Sigstore's public client-trust-configuration JSON parser and performs no
 network operation. A verifier never tries production and staging roots in sequence.
+
+After all six checks succeed, `verified_identity` is the single exact certificate URI SAN resolved
+and supplied to Sigstore's `Identity` policy, `verified_issuer` is the exact issuer constraint that
+Sigstore verified, and `transparency_log_verified` is `True`. Every failed result sets those fields
+to `None`, `None`, and `False`; partial cryptographic progress is never exposed as trusted policy
+evidence (`ADR-042`).
 
 ## 5. Requirements
 
@@ -134,6 +147,7 @@ network operation. A verifier never tries production and staging roots in sequen
 | `REQ-F08-130` | Verification code **MUST NOT** share a code path with signing beyond `attest-core` pure functions. |
 | `REQ-F08-140` | Failure output **MUST** name the failing check and its code, and **MUST NOT** reveal internal cryptographic material. |
 | `REQ-F08-150` | attest **MUST** verify every predicate version it has ever emitted; verification code for old versions **MUST NOT** be removed. |
+| `REQ-F08-160` | A successful `VerificationResult` **MUST** expose the exact verified certificate identity, exact verified issuer, and affirmative transparency-log result for policy consumption. A failed result **MUST** expose `None`, `None`, and `False`; callers **MUST NOT** treat partial verification progress as policy evidence. |
 
 ## 6. Acceptance criteria
 
@@ -154,6 +168,7 @@ network operation. A verifier never tries production and staging roots in sequen
 | `AC-F08-130` | Import analysis shows no shared non-core module between signer and verifier. |
 | `AC-F08-140` | Failure messages contain a code and no key material. |
 | `AC-F08-150` | A stored historical bundle from the earliest supported version still verifies. |
+| `AC-F08-160` | Exact and bounded-pattern successes return the resolved exact SAN, exact issuer, and `transparency_log_verified == true`; every failure step returns no identity or issuer and `false`. |
 
 ## 7. Adversarial test suite (required)
 
@@ -189,7 +204,7 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 
 ## 10. Definition of Done
 
-- [x] All `REQ-F08-*` implemented, all `AC-F08-*` green
+- [ ] All `REQ-F08-*` implemented, all `AC-F08-*` green, including `REQ-F08-160`
 - [x] Full adversarial suite (§7) implemented and green
 - [x] Offline verification demonstrated in CI with network disabled
 - [x] Owner acceptance recorded on PR #18 under the `ADR-040` solo-maintainer exception; no

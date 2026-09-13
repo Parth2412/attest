@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.18.0` |
+| Version | `1.19.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-13 |
 
@@ -1710,6 +1710,191 @@ be absent until an upstream caller supplies an authentic push-time signal. GitHu
 support requires a later ADR covering origin trust and API-version compatibility. BRD-F04 gains a
 check-specific requirement and criterion, and F-10 must prove the CLI preserves fail-open status
 and never accepts a token value as an argument.
+
+---
+
+## ADR-042 — Define the F-09 policy evaluation contract
+
+**Status:** Accepted · **Date:** 2026-09-13 · **Affects:** `MPD-001`, `SPEC-001 §6.4`,
+`ARCH-001`, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F01`, `BRD-F04`, `BRD-F05`,
+`BRD-F08`, `BRD-F09`, `BRD-F10`, `BRD-F11`, `BOOT-001`, `ROADMAP-001`, `F-01`, `F-04`,
+`F-05`, `F-08`, `F-09`, `F-10`, `F-11`
+
+**Context.** The pre-implementation F-09 audit found that the policy example and closed
+vocabulary were not yet an executable contract. `REQ-F09-010` named only `Predicate`,
+`VerificationResult`, and `Policy`, although branch matching needs a caller-selected target branch
+and reliable path matching cannot use the optional, truncated `Predicate.changeSet.paths` summary.
+The package boundary forbids `attest-policy` from importing the peer `attest-sign` package, yet the
+named input type lives there. F-08 did not expose the exact certificate identity and issuer that
+Sigstore verified or an affirmative transparency-log result, so signer and log requirements could
+not be evaluated without repeating cryptographic work.
+
+The existing review wire data also retained superseded records without identifying which record
+was the latest effective state. `humanApprovals` was computed from latest states, but F-09 could
+not prove that those counted approvals excluded the change author. Canonical statement sorting
+deliberately removes forge response order, and equal-second GitHub timestamps make reconstructing
+the latest state from signed fields unsafe. Check evidence has the same history issue: F-04 retains
+every terminal rerun while `Check` carries no completion timestamp from which F-09 could establish
+GitHub's latest run. GitHub's
+[check-runs API documentation](https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference)
+defines its own `filter=latest` result by completion time, which cannot be reconstructed from the
+current signed fields.
+
+The documents additionally left YAML construction behavior and resource bounds, duplicate keys,
+schema generation, glob grammar, absent-versus-unreadable policy handling, multi-policy reduction,
+per-predicate reporting, source-digest boundaries, and conditional review behavior unspecified.
+`REQ-F09-030` unconditionally assigned exit `5` to a missing required attestation while
+`REQ-F09-070` required every warning-only violation to exit `0`. Finally, F-09's Definition of Done
+required a real blocked merge even though F-10 owns the command surface and F-11 owns the required
+GitHub status-check integration. GitHub's
+[protected-branch documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)
+makes required-check and expected-App selection a repository protection concern rather than a
+property of a local policy function.
+
+**Decision.** F-04 marks every retained human `Reviewer` in newly emitted Statements with a signed
+`effective` boolean. Exactly one supported submitted record per immutable reviewer ID is effective:
+the record with the greatest `(submittedAt, numeric GitHub review ID)` pair. `humanApprovals` is the
+number of effective human records whose verdict is `approved`. F-09 uses only effective records for
+separation of duties and compares the immutable numeric ID component, never the mutable login.
+
+The existing v0.1 predicate URI and schema version have already produced signed historical test
+bundles. To preserve F-08's permanent backward-verification requirement, the structural field is
+optional only for a Review whose records all omit it. F-01 rejects mixed presence; when markers are
+present, it rejects zero or multiple effective records per represented reviewer ID and an
+inconsistent `humanApprovals` count. F-05 rejects unmarked or mixed Reviews when building any new
+Statement. F-09 fails separation-of-duties policy closed when a verified legacy Review has no
+effective markers. This additive compatibility rule is required before F-09 begins.
+
+F-08 `VerificationResult` gains `verified_identity`, `verified_issuer`, and
+`transparency_log_verified`. They are populated only after the complete verification pipeline
+succeeds: the identity is the one exact certificate URI SAN resolved and supplied to Sigstore's
+`Identity` policy, the issuer is the exact verified issuer constraint, and the log flag is true
+only after Sigstore-native atomic verification establishes the embedded transparency-log evidence.
+A failed result exposes `None`, `None`, and `False`; F-09 never evaluates predicates after such a
+failure.
+
+`attest-policy` defines its own structural `VerificationView` protocol containing only the fields
+it consumes, including the successfully verified `Statement`; it does not import `attest-sign`.
+The exact/bounded GitHub workflow identity string validator and matcher move to a pure
+`attest-core.identity` utility used by both F-08 and F-09. That utility owns syntax only; F-08 alone
+extracts certificate SANs and performs identity, issuer, signature, and log verification.
+Pure evaluation has three inputs: an optional verification view, a strictly loaded policy document,
+and `PolicyContext`. The evaluator obtains the `Predicate` only from the verified Statement; it
+never accepts a separately supplied predicate that could be substituted after verification. The
+context contains the caller-selected target branch and the complete canonical paths from the same
+ChangeSet that the verifier recomputes. It must not be derived from the predicate's optional path
+summary. Context paths are unique and CSD-1 ordered; invalid context or an internally inconsistent
+verification view raises `ERR-POLICY-604` instead of becoming false absence. The top-level CLI owns
+file and repository I/O and constructs these inputs. `attest gate` and `attest run` must use one
+base/head pair for complete path collection and a mandatory F-08 `RepositoryConstraint`, then call
+policy only after recomputation succeeds.
+
+Policy configuration uses strict immutable Pydantic v2 models with unknown fields forbidden.
+`pydantic` is therefore a direct `attest-policy` dependency at the locked workspace baseline.
+Their generated Draft 2020-12 schema is committed as `spec/schemas/policy-v1.schema.json`; the
+schema task and drift gate generate and compare both published schemas. Runtime validators retain
+cross-field invariants that JSON Schema cannot express.
+
+The loader is pure and accepts raw bytes plus an optional display path. It computes the policy
+SHA-256 over the exact raw bytes before parsing. Input is limited to 1,048,576 bytes, strict UTF-8,
+one YAML document, and 32 nested collection levels with the root collection at depth one. Duplicate
+keys, anchors, aliases, merge keys, explicit tags/directives, multiple documents, floats,
+timestamps, non-standard scalar construction, and unknown fields are
+rejected with `ERR-POLICY-601`; diagnostics identify a field location but never echo a value.
+`version` is the strict integer `1`; another integer is `ERR-POLICY-602`, while a missing,
+non-integer, or boolean version is malformed and therefore `ERR-POLICY-601`. Policy IDs are unique
+non-empty strings. Match branch/path lists and check-name lists are non-empty and contain no
+duplicates. A signer requirement contains both a non-empty exact issuer and a non-empty identity
+pattern. `approverMustNotBeAuthor: true` requires `minHumanApprovals` of at least one. A configured
+nested predicate requires `attestation: true`. Boolean requirement values set to `false` are
+accepted as explicit no-ops and report `not-applicable`; they are never interpreted as inverse
+requirements.
+
+An omitted policy source is represented by no bytes and no path. A present empty or comment-only
+document retains its path and raw-byte digest but has no policies. Both cases yield exit `0` with an
+explicit reporting-only notice. A configured path that cannot be read is not absence: the CLI
+reports `ERR-POLICY-603` and exit `2`. The pure loader never reads that path.
+
+Glob matching is implemented by attest, not delegated to a platform library. Matches are
+case-sensitive and anchored to the entire branch or canonical Git path. `/` is the only segment
+separator. `*` matches zero or more characters within one branch segment or zero or more raw bytes
+within one path segment. `**` is valid only as a complete segment and matches zero or more complete
+segments; when followed by `/`, that separator belongs to the globstar and is omitted for a
+zero-segment match, while a preceding separator remains. `?`, bracket syntax,
+backslashes, `***`, and embedded `**` are invalid. Path pattern literals use the canonical
+percent-encoded representation from `SPEC-001 §4.1`; unescaped `*` is syntax, while a literal raw
+asterisk is `%2A`. Literal comparisons and ordering operate on decoded raw bytes. A policy matches
+only when at least one branch pattern and at least one changed path pattern match. An empty
+ChangeSet matches no policy.
+
+Every loaded policy is reported. Match predicates report `passed` or `failed`; every configured
+requirement under a matching policy reports `passed`, `failed`, or `not-applicable` with a stable
+reason code. Requirements under a nonmatching policy are `not-applicable`. Review `when` is absent
+for unconditional review enforcement; when present, review requirements apply only to a listed
+authorship mode. `minHumanApprovals` uses the signed aggregate unless separation of duties is
+active, in which case only distinct effective approved reviewers that are not change authors count.
+`checks.mustPass` uses an exact, case-sensitive name, requires at least one retained terminal record
+with that name, and requires every retained record with that name to have conclusion `success`.
+F-09 does not infer a latest check from run ID or array order. `claimsRequired` tests the signed
+`claimsPresent` value. Identity matching uses the same bounded identity-pattern grammar as F-08;
+issuer matching is exact. A transparency-log requirement tests only F-08's affirmative verified
+evidence.
+
+All matching policies are evaluated. A failed verification yields exit `4` before matching or
+predicate evaluation. Without that failure, a missing attestation yields exit `5` only when at
+least one violated matching policy is blocking; missing attestations under warning-only policies
+exit `0`. Any other blocking violation yields exit `3`. Warning-only violations exit `0`. The
+overall outcome is `deny` for a blocking violation, `warn` when violations are warning-only, and
+`allow` otherwise. Policy source path and raw-byte digest, policy ID, match result, every predicate
+status, stable reason, outcome, and exit code are carried in the `Decision`. Evaluation neither
+changes the predicate nor offers any path-exclusion mechanism.
+
+F-10 depends explicitly on F-09 because both `attest gate` and `attest run` compose policy
+evaluation. Its milestone moves from M1 to M2 after F-09; a complete CLI cannot precede one of its
+public commands' domain implementations. The real required-status-check blocked-merge
+demonstration moves to F-11: that feature
+owns the GitHub Action, check publication, branch-protection instructions, and real-repository
+proof. F-09 proves deterministic exit `0`, `3`, `4`, and `5` integration without claiming that a
+library alone can block a GitHub merge. Branch protection must pin the required check to the
+expected GitHub App where GitHub supports that control; F-09 check-name matching alone is not an
+app-identity assertion.
+
+**Rationale.** Explicit context keeps policy decisions bound to the caller's actual target and
+complete ChangeSet. A structural protocol preserves the peer-package boundary. Verified evidence
+fields prevent policy from parsing certificates or trusting unverified configuration. An effective
+review marker makes separation of duties auditable without reconstructing discarded GitHub IDs or
+depending on canonical array order. Conservative all-retained check semantics is the only sound
+choice with the current signed check fields. Strict bounded YAML and generated schemas make the
+configuration format safe, publishable, and drift-checked. Exit precedence removes the direct
+warn-versus-absence contradiction. Moving the live merge proof assigns it to the component that can
+actually publish a required status check.
+
+**Rejected alternatives.** Reading target branch or complete paths from the signed summary fails
+when paths are omitted or truncated. Importing `VerificationResult` from `attest-sign` violates the
+enforced dependency graph. Repeating certificate or Rekor verification in the policy package
+creates a second cryptographic authority. Inferring effective review state from timestamp or
+canonical order is ambiguous and can count a superseded self-approval. Treating the greatest check
+run ID as latest is not a documented GitHub API guarantee. Using `pathlib`, shell globs, or regular
+expressions leaves portability and complexity to implementation defaults. Permissive YAML loaders,
+duplicate-key last-write behavior, and aliases make a privileged CI input ambiguous or exploitable.
+Treating unreadable configured policy as absent silently disables enforcement. Making F-09 create a
+GitHub check would put I/O in a pure package and duplicate F-11.
+
+Making the field structurally required under the existing predicate URI was rejected because it
+would invalidate an already signed historical fixture and violate `REQ-F08-150`. Omitting the
+marker from new output leaves separation of duties unauditable. Assigning a new predicate URI only
+for this additive evidence would force a premature full-version migration.
+
+**Consequences.** F-01, F-04, F-05, and F-08 return to `In progress` until the compatibility marker,
+new-builder enforcement, and verified evidence fields are implemented and tested, then may return
+to `Done`. The v0.1 Statement schema gains an optional property and the new-output golden vector
+changes before public release; the existing signed historical bundle must remain unchanged and
+continue to verify. This is an intentional contract correction, not a regeneration to hide a test
+failure. Policy authors cannot use YAML conveniences such as anchors or
+implicit timestamps. A prior failed rerun with a required check name continues to violate policy;
+a later policy-version change may add signed completion/app identity fields and latest-run semantics.
+F-10 cannot begin before F-09 is Done, and the public CLI/container release moves to M2. F-11 must
+prove the actual GitHub required-check behavior and document that a non-required gate is advisory.
 
 ---
 

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -91,10 +91,11 @@ rejected (`REQ-F08-050`). A static-analysis test hunts for bypasses (`AC-F08-040
 
 The easiest attack is producing no attestation at all.
 
-**C-04:** The policy gate as a **required** status check makes absence a merge blocker
-(`REQ-F09-030`, exit code 5). Note the residual risk: this depends on branch protection, which
-attest does not control. Documentation must state that a gate which is not required is
-decorative.
+**C-04:** The policy decision assigns blocking absence exit `5` (`REQ-F09-030`), and the F-11
+Action publishes that result as a **required** status check (`REQ-F11-110`). Branch protection must
+pin the check to the expected GitHub App where supported. Residual risk remains because attest does
+not control branch protection and F-09's exact check-name predicate is not an app-identity claim.
+Documentation must state that a gate which is not required is advisory.
 
 ---
 
@@ -103,9 +104,10 @@ decorative.
 
 The gate runs in a job with `id-token: write`. Code execution there means forged attestations.
 
-**C-05:** Policy is a closed declarative vocabulary with no scripting (`ADR-008`). YAML is parsed
-with a safe loader; tags and anchors intended to trigger construction are rejected
-(`AC-F09-090`).
+**C-05:** Policy is a closed declarative vocabulary with no scripting (`ADR-008`). The pure loader
+enforces byte/depth bounds and rejects duplicate keys, tags, anchors, aliases, merges, extra
+documents, and non-standard scalar construction before strict Pydantic validation
+(`AC-F09-090`, `ADR-042`).
 
 ---
 
