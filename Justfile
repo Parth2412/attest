@@ -29,10 +29,18 @@ vectors:
 adversarial:
     uv run python scripts/run_test_group.py adversarial F-08
 
+verifier-coverage:
+    uv run pytest packages/attest-sign/tests/test_verifier.py --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
+
 mutation-core:
     cd packages/attest-core && uv run mutmut run
     cd packages/attest-core && uv run mutmut results
     cd packages/attest-core && ! uv run mutmut results | grep -q ': survived$'
+
+mutation-verifier:
+    cd packages/attest-sign && uv run mutmut run
+    cd packages/attest-sign && uv run mutmut results
+    cd packages/attest-sign && ! uv run mutmut results | grep -q ': survived$'
 
 schema:
     uv run python scripts/write_schema.py
@@ -54,4 +62,4 @@ adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage schema-check banned trace security

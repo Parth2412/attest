@@ -15,3 +15,9 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/attest_sign"]
+
+[tool.mutmut]
+source_paths = ["src/attest_sign"]
+only_mutate = ["src/attest_sign/verifier.py"]
+on_dependency_change = "rerun"
+pytest_add_cli_args_test_selection = ["tests/test_verifier.py"]

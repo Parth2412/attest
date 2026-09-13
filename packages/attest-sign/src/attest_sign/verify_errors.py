@@ -52,7 +52,7 @@ _ERROR_DETAILS: Final[dict[VerifyErrorCode, tuple[str, str]]] = {
 
 
 class VerifyError(ValueError):
-    """Represent a coded public verification configuration failure."""
+    """Represent a coded verification configuration failure (REQ-F08-050/060)."""
 
     code: VerifyErrorCode
     message: str

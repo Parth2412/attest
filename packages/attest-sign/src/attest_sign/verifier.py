@@ -55,7 +55,7 @@ def _is_nonempty_string(value: object) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class IdentityConstraint:
-    """Require one exact issuer and exact or bounded certificate identity."""
+    """Require an exact issuer and exact or bounded identity (REQ-F08-040/050/060)."""
 
     identity_pattern: str
     issuer: str
@@ -79,7 +79,7 @@ class IdentityConstraint:
 
 @dataclass(frozen=True, slots=True)
 class CheckOutcome:
-    """Record one attempted verification step."""
+    """Record one attempted verification step (REQ-F08-020)."""
 
     name: CheckName
     result: CheckResult
@@ -88,7 +88,7 @@ class CheckOutcome:
 
 @dataclass(frozen=True, slots=True)
 class VerificationResult:
-    """Return the ordered, sanitized F-08 verification decision."""
+    """Return an ordered, sanitized verification decision (REQ-F08-020/120/140)."""
 
     status: VerificationStatus
     checks: list[CheckOutcome]
@@ -135,7 +135,7 @@ def _parse_bundle(raw: bytes) -> _SigstoreBundle:
     decoded: object = json.loads(raw)
     if not isinstance(decoded, dict):
         raise _MalformedBundleError
-    wire = cast(dict[str, object], decoded)
+    wire = cast(dict[str, object], decoded)  # pragma: no mutate - cast is runtime-neutral
     envelope = wire.get("dsseEnvelope")
     material = wire.get("verificationMaterial")
     if not isinstance(envelope, dict) or not isinstance(material, dict):
@@ -174,7 +174,7 @@ def _statement_payload(payload_type: str, payload: bytes) -> tuple[dict[str, obj
     decoded: object = json.loads(payload)
     if not isinstance(decoded, dict):
         raise _InvalidStatementPayloadError
-    value = cast(dict[str, object], decoded)
+    value = cast(dict[str, object], decoded)  # pragma: no mutate - cast is runtime-neutral
     predicate_type = value.get("predicateType")
     if not isinstance(predicate_type, str) or predicate_type not in _PREDICATE_REGISTRY:
         raise _InvalidStatementPayloadError
@@ -187,7 +187,7 @@ def verify(
     trust_root: TrustRootSource,
     repository: RepositoryConstraint | None = None,
 ) -> VerificationResult:
-    """Run the six ordered F-08 checks and stop at the first failure."""
+    """Run six identity-bound checks and stop at first failure (REQ-F08-010 through 150)."""
     if not isinstance(constraint, IdentityConstraint):
         raise verify_error("ERR-VERIFY-011")
     checks: list[CheckOutcome] = []

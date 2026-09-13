@@ -60,7 +60,7 @@ exclude = ["(^|/)mutants/"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
-addopts = "-q --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants"
+addopts = "-q --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants --ignore=packages/attest-sign/mutants"
 markers = [
   "ac(id): the acceptance criterion this test satisfies, e.g. AC-F01-050",
   "vectors: normative test-vector conformance",

@@ -92,9 +92,12 @@ class _FakeVerifier:
         self._payload = payload
         self._failure = failure
         self.calls = 0
+        self.expected_bundle: object | None = None
+        self.observed_source: object | None = None
 
     def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
-        del bundle, policy
+        assert bundle is self.expected_bundle
+        assert isinstance(policy, _FakeIdentity)
         self.calls += 1
         if self._failure is not None:
             raise self._failure
@@ -110,8 +113,19 @@ def _install_boundary(
 ) -> _FakeVerifier:
     upstream = _FakeVerifier(payload, failure=crypto_failure)
     fake_bundle = _FakeBundle(identities)
-    monkeypatch.setattr("attest_sign.verifier._SigstoreBundle.from_json", lambda raw: fake_bundle)
-    monkeypatch.setattr(module, "load_verifier", lambda source: upstream)
+    upstream.expected_bundle = fake_bundle
+
+    def parse(raw: bytes) -> _FakeBundle:
+        assert raw == _bundle_wire()
+        return fake_bundle
+
+    def load(source: object) -> _FakeVerifier:
+        assert isinstance(source, ServiceTrustRoot)
+        upstream.observed_source = source
+        return upstream
+
+    monkeypatch.setattr("attest_sign.verifier._SigstoreBundle.from_json", parse)
+    monkeypatch.setattr(module, "load_verifier", load)
     monkeypatch.setattr(module, "Identity", _FakeIdentity)
     _FakeIdentity.observed = []
     return upstream
@@ -412,6 +426,88 @@ def test_malformed_preflight_shapes_fail_only_bundle_structure(wire: object) -> 
     ]
 
 
+@pytest.mark.ac("AC-F08-010")
+@pytest.mark.parametrize(
+    "wire",
+    [
+        {
+            "dsseEnvelope": [],
+            "verificationMaterial": {
+                "certificate": {},
+                "tlogEntries": [{"inclusionProof": {}}],
+            },
+        },
+        {"dsseEnvelope": {}, "verificationMaterial": []},
+        {
+            "dsseEnvelope": {},
+            "verificationMaterial": {"certificate": {}, "tlogEntries": {}},
+        },
+        {
+            "dsseEnvelope": {},
+            "verificationMaterial": {
+                "certificate": {},
+                "tlogEntries": [{"inclusionProof": {}}, {"inclusionProof": {}}],
+            },
+        },
+    ],
+)
+def test_preflight_rejects_each_malformed_member_before_sigstore(
+    monkeypatch: pytest.MonkeyPatch,
+    wire: object,
+) -> None:
+    """REQ-F08-010: a malformed member cannot be delegated as a parse attempt."""
+    parse_calls = 0
+
+    def parse(raw: bytes) -> object:
+        nonlocal parse_calls
+        del raw
+        parse_calls += 1
+        return object()
+
+    monkeypatch.setattr("attest_sign.verifier._SigstoreBundle.from_json", parse)
+
+    with pytest.raises(module._MalformedBundleError):
+        module._parse_bundle(json.dumps(wire).encode())
+    assert parse_calls == 0
+
+
+@pytest.mark.ac("AC-F08-150")
+def test_legacy_certificate_chain_shape_reaches_the_public_parser(
+    monkeypatch: pytest.MonkeyPatch,
+    valid_statement_data: dict[str, Any],
+) -> None:
+    """REQ-F08-150: preflight retains Sigstore's historical chain representation."""
+    payload = json.dumps(valid_statement_data).encode()
+    upstream = _FakeVerifier(payload)
+    fake_bundle = _FakeBundle()
+    upstream.expected_bundle = fake_bundle
+    raw = json.dumps(
+        {
+            "dsseEnvelope": {},
+            "verificationMaterial": {
+                "x509CertificateChain": {},
+                "tlogEntries": [{"inclusionProof": {}}],
+            },
+        }
+    ).encode()
+
+    def parse(candidate: bytes) -> _FakeBundle:
+        assert candidate == raw
+        return fake_bundle
+
+    monkeypatch.setattr("attest_sign.verifier._SigstoreBundle.from_json", parse)
+    monkeypatch.setattr(module, "load_verifier", lambda source: upstream)
+    monkeypatch.setattr(module, "Identity", _FakeIdentity)
+
+    result = verify(
+        raw,
+        IdentityConstraint(IDENTITY, ISSUER),
+        ServiceTrustRoot(VerificationEnvironment.STAGING, True),
+    )
+
+    assert result.status == "verified"
+
+
 @pytest.mark.ac("AC-F08-040")
 def test_explicit_null_identity_constraint_is_a_usage_error() -> None:
     """REQ-F08-040: a typed-call escape cannot become a verification result."""
@@ -482,26 +578,38 @@ def test_repository_recomputation_error_or_match_has_exact_outcome(
     _install_boundary(monkeypatch, payload)
 
     if mode == "error":
+        observed: list[RepositoryConstraint] = []
 
         def recompute(constraint: RepositoryConstraint) -> str:
-            del constraint
+            observed.append(constraint)
             raise RuntimeError
 
         monkeypatch.setattr(module, "recompute_changeset_digest", recompute)
     else:
-        monkeypatch.setattr(module, "recompute_changeset_digest", lambda constraint: "0" * 64)
+        observed = []
 
+        def recompute(constraint: RepositoryConstraint) -> str:
+            observed.append(constraint)
+            return "0" * 64
+
+        monkeypatch.setattr(module, "recompute_changeset_digest", recompute)
+
+    constraint = RepositoryConstraint(tmp_path, "a" * 40, "b" * 40)
     result = verify(
         _bundle_wire(),
         IdentityConstraint(IDENTITY, ISSUER),
         ServiceTrustRoot(VerificationEnvironment.STAGING, True),
-        RepositoryConstraint(tmp_path, "a" * 40, "b" * 40),
+        constraint,
     )
 
+    assert observed == [constraint]
     if mode == "error":
         assert result.failure_code == "ERR-VERIFY-010"
         assert result.checks[-1].result == "failed"
+        assert result.checks[-1].name == "changeset-recomputation"
+        assert isinstance(result.statement, Statement)
     else:
         assert result.status == "verified"
         assert result.failure_code is None
         assert result.checks[-1].result == "passed"
+        assert result.checks[-1].name == "changeset-recomputation"

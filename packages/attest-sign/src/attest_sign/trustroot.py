@@ -14,7 +14,7 @@ class _InvalidTrustRootError(ValueError):
 
 
 class VerificationEnvironment(StrEnum):
-    """Select exactly one Sigstore verification service environment."""
+    """Select exactly one Sigstore verification service environment (REQ-F08-080)."""
 
     PRODUCTION = "production"
     STAGING = "staging"
@@ -22,7 +22,7 @@ class VerificationEnvironment(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ServiceTrustRoot:
-    """Select service trust material and explicit TUF refresh behavior."""
+    """Select service trust material and explicit TUF refresh behavior (REQ-F08-080)."""
 
     environment: VerificationEnvironment
     offline: bool
@@ -30,7 +30,7 @@ class ServiceTrustRoot:
 
 @dataclass(frozen=True, slots=True)
 class SuppliedTrustRoot:
-    """Carry one complete Sigstore client trust configuration as JSON."""
+    """Carry a complete Sigstore client trust configuration as JSON (REQ-F08-080)."""
 
     client_trust_config_json: str
 

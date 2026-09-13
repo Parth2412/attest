@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.7.0` |
+| Version | `1.8.0` |
 | Status | Baselined |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -279,6 +279,21 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F08-010` | `AC-F08-010` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-020` | `AC-F08-020` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-030` | `AC-F08-030` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
+| `REQ-F08-040` | `AC-F08-040` | `packages/attest-sign/tests/test_verifier_boundaries.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-050` | `AC-F08-050` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-060` | `AC-F08-060` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-070` | `AC-F08-070` | `packages/attest-sign/tests/test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-080` | `AC-F08-080` | `packages/attest-sign/tests/test_verifier_offline.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-090` | `AC-F08-090` | `packages/attest-sign/tests/test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-100` | `AC-F08-100` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-110` | `AC-F08-110` | `packages/attest-sign/tests/test_repository.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-120` | `AC-F08-120` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-130` | `AC-F08-130` | `packages/attest-sign/tests/test_verifier_boundaries.py` | ✓ |
+| `REQ-F08-140` | `AC-F08-140` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-150` | `AC-F08-150` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

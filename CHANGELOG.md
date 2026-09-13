@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented the independent F-08 verification pipeline with mandatory identity and issuer
+  constraints, explicit offline trust roots, Sigstore-native atomic verification, historical
+  bundle support, hardened ChangeSet recomputation, stable fail-closed outcomes, real signed
+  adversarial fixtures, 100% verifier coverage, and zero surviving verifier mutants.
 - Required non-empty verification issuers so Sigstore cannot interpret an empty value as omission
   of the issuer policy.
 - Defined the explicit F-08 verification boundary: required trust-source selection, bounded

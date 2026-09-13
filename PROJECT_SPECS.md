@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, and F-06 are implemented; F-08 is in progress.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, and F-06 are complete; F-08 is implemented and awaiting independent human review.
 - **Last Updated**: 2026-09-13
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -26,23 +26,24 @@
 ## Current Project Status
 
 - **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01, F-02, F-03, F-05, and
-  F-06 are complete; F-08 is in progress and the other six features remain Planned in
-  `BRD-INDEX §7.1`.
+  F-06 are complete. F-08 is implemented but remains In progress until independent human review;
+  the other six features remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
   isolation, and secure filesystem tests. F-05 has 99% `attest-core`; F-06's signing module has
-  95% branch coverage. Before F-08 work began, 345 tests passed and one live staging test was
-  skipped locally.
+  95% branch coverage. F-08 has 100% verifier branch coverage, 94% across `attest-sign`, 15
+  mandatory adversarial tests, and 273 killed verifier mutants. The full local gate passes 405
+  tests with one intentionally skipped live staging test.
 - **Known Issues**:
   - F-04, F-07, and F-09 through F-12 remain unimplemented; their modules and delivery surfaces
-    stay scaffolded until their owning BRDs are completed. F-08 verification is in progress.
+    stay scaffolded until their owning BRDs are completed. F-08 awaits independent human review.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement `BRD-F08` independent Sigstore verification and its adversarial,
-  offline, historical-bundle, and repository-recomputation suites under `ADR-038`.
+- **Next Milestone**: Complete the required independent human review of `BRD-F08`, merge it, and
+  then proceed in normative build order.
 
 ---
 
@@ -352,6 +353,11 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-13**: Implemented F-08's six-step independent verifier with mandatory exact issuer and
+  bounded workflow identity, explicit offline trust sources, historical real-bundle evidence,
+  hardened caller-selected Git recomputation, fail-closed diagnostics, the complete adversarial
+  suite, 100% verifier coverage, and a zero-survivor mutation gate. Independent human review is
+  still required before F-08 can be marked Done.
 - **2026-09-13**: `ADR-039` closed Sigstore 4.5.0's empty-issuer truthiness edge by requiring
   `IdentityConstraint` to reject empty or non-string issuers with `ERR-VERIFY-011` before policy
   construction.

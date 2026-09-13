@@ -10,7 +10,19 @@ import pytest
 
 from attest_core import Statement
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+
+class FixtureRootError(RuntimeError):
+    """Signal an invalid source or mutation-test checkout layout."""
+
+
+def _repository_root() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "spec" / "testvectors").is_dir():
+            return parent
+    raise FixtureRootError
+
+
+REPOSITORY_ROOT = _repository_root()
 
 
 @pytest.fixture

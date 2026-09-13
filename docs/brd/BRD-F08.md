@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-06` |
-| Status | In progress · contract clarified by `ADR-038` |
+| Status | In progress · implementation complete, independent human review pending |
 
 ---
 
@@ -189,9 +189,9 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F08-*` implemented, all `AC-F08-*` green
-- [ ] Full adversarial suite (§7) implemented and green
+- [x] All `REQ-F08-*` implemented, all `AC-F08-*` green
+- [x] Full adversarial suite (§7) implemented and green
 - [ ] Offline verification demonstrated in CI with network disabled
 - [ ] Independent human review of the verification order by someone other than the author
-- [ ] Coverage ≥ 95% on the verifier module specifically
-- [ ] Cross-cutting obligations satisfied
+- [x] Coverage ≥ 95% on the verifier module specifically
+- [x] Cross-cutting obligations satisfied

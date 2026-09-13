@@ -32,7 +32,7 @@ _STATUS_MAP: Final[dict[bytes, ChangeType]] = {
 
 @dataclass(frozen=True, slots=True)
 class RepositoryConstraint:
-    """Identify one caller-selected committed ChangeSet."""
+    """Identify one caller-selected committed ChangeSet (REQ-F08-110)."""
 
     path: Path
     base_revision: str

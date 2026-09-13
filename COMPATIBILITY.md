@@ -40,7 +40,8 @@
 
 F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are
 active in `attest-collect`; F-06 signing is active in `attest-sign`, where F-08 verification is in
-progress. The F-04 collector and all later feature modules remain scaffolds.
+progress only because its implemented verifier still requires independent human review. The F-04
+collector and all later feature modules remain scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
