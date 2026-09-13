@@ -191,7 +191,7 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 
 - [x] All `REQ-F08-*` implemented, all `AC-F08-*` green
 - [x] Full adversarial suite (§7) implemented and green
-- [ ] Offline verification demonstrated in CI with network disabled
+- [x] Offline verification demonstrated in CI with network disabled
 - [ ] Independent human review of the verification order by someone other than the author
 - [x] Coverage ≥ 95% on the verifier module specifically
 - [x] Cross-cutting obligations satisfied
