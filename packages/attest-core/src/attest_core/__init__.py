@@ -36,7 +36,7 @@ from attest_core.models import (
     Subject,
 )
 from attest_core.path import decode_git_path, encode_git_path
-from attest_core.schema import generate_json_schema
+from attest_core.schema import generate_json_schema, validate_statement_structure
 
 __all__ = [
     "AgentRef",
@@ -77,4 +77,5 @@ __all__ = [
     "decode_git_path",
     "encode_git_path",
     "generate_json_schema",
+    "validate_statement_structure",
 ]

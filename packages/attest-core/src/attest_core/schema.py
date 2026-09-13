@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any, Final
 
+from jsonschema import (  # type: ignore[import-untyped]  # pinned package lacks typing metadata
+    Draft202012Validator,
+    FormatChecker,
+)
+
 from attest_core.errors import build_error
 from attest_core.models.statement import Statement
 
@@ -23,3 +28,10 @@ def generate_json_schema(predicate_version: str) -> dict[str, object]:
 def render_json_schema(predicate_version: str) -> str:
     """Render deterministic generated schema text for drift checks (REQ-F01-130)."""
     return json.dumps(generate_json_schema(predicate_version), indent=2, sort_keys=True) + "\n"
+
+
+def validate_statement_structure(value: object, predicate_version: str) -> None:
+    """Validate a Statement against one exact historical schema (REQ-F08-100/150)."""
+    schema = generate_json_schema(predicate_version)
+    Draft202012Validator.check_schema(schema)
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
