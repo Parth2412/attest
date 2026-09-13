@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ROADMAP-001` |
-| Version | `1.0.1` |
+| Version | `1.1.0` |
 | Status | Baselined |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -64,19 +64,18 @@ The 90-day count starts after Week 0.
 
 **Done when:** a Statement is signed in staging and a bundle is produced.
 
-### Week 4 — Verification, CLI, publish
+### Week 4 — Verification and public specification
 - `F-08` full pipeline plus the adversarial suite
-- `F-10` `init`, `run`, `verify`, `inspect`, `doctor`; exit codes frozen
 - Publish `SPEC-001` publicly; open an RFC issue inviting review
-- Ship `v0.1.0` to PyPI and GHCR, attested by itself
+- Prepare the verified library boundary for F-09 and the CLI composition root
 
 **M1 exit gate:**
 - [x] `CH-01` and `CH-02` closed in `CHALLENGE-001 §12` on 2026-09-10
-- [ ] Real GitHub Actions run produces a signed attestation logged to the transparency log
-- [ ] `attest verify` validates it on a clean container with no local state
+- [ ] A real GitHub Actions fixture produces a signed attestation logged to the transparency log
+- [ ] The F-08 API validates it on a clean container with no local state
 - [ ] Adversarial suite green
 - [ ] `SPEC-001` and test vectors public
-- [ ] The project attests its own release
+- [ ] Verified signer and transparency-log evidence are ready for policy consumption
 
 ---
 
@@ -93,6 +92,7 @@ The 90-day count starts after Week 0.
 ### Week 7 — Policy and gate
 - `F-09` policy schema, evaluator, decision reporting
 - Decision-table tests across every predicate
+- `F-10` `init`, `run`, `verify`, `inspect`, `doctor`, and `gate`; exit codes frozen
 
 ### Week 8 — Action and design partners
 - `F-11` container Action, job summary, quickstart
@@ -107,6 +107,7 @@ The 90-day count starts after Week 0.
 - [ ] Three external repositories running the Action in CI
 - [ ] Quickstart works unmodified on a fresh repository
 - [ ] Onboarding friction documented from real partner feedback
+- [ ] `v0.1.0` is published to PyPI and GHCR and attested by itself
 
 ---
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
 | Last updated | 2026-09-13 |
 
@@ -95,7 +95,7 @@ packages/
 
 | Package | Purpose | Package assignment |
 |---|---|---|
-| `pydantic` (v2.x) | Models, validation, JSON Schema generation, camelCase aliasing | `attest-core` |
+| `pydantic` (v2.x) | Models, validation, JSON Schema generation, camelCase aliasing | `attest-core`, `attest-policy` |
 | `rfc8785` | RFC 8785 JCS canonicalisation | `attest-core` |
 | `sigstore` | Keyless signing, native DSSE signing/verification, bundles, trust root | `attest-sign` |
 | `pygit2` | Optional libgit2 backend; pinned in development/CI for conformance | `attest-collect[pygit2]`, `attest-store[pygit2]`, root `dev` group |
@@ -106,6 +106,11 @@ packages/
 | `pyyaml` | Policy, export mapping, and config parsing | `attest-policy`, `attest-export`, `attest-cli` |
 | `oras` | OCI registry storage backend | `attest-store` |
 | `jsonschema` | Schema validation at verify time | `attest-core` |
+
+`attest-policy` uses the same locked Pydantic v2 baseline for its strict immutable configuration
+models and generates `spec/schemas/policy-v1.schema.json` from those models. PyYAML supplies only
+bounded tokenisation/parsing under the restrictions in `BRD-F09 §5.1`; library glob defaults and
+constructors are not part of the policy contract (`ADR-042`).
 
 The executed pre-bootstrap baselines are `pygit2==1.20.0`, `rfc8785==0.1.4`,
 `sigstore==4.5.0`, `pydantic==2.13.5`, and `jsonschema==4.26.0`. `BOOT-001 §4.1`

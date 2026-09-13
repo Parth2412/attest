@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | Done · F-01 Done · governed by ADR-041 |
+| Status | In progress · Effective review-state correction governed by `ADR-042` |
 
 ---
 
@@ -56,7 +56,7 @@ return partial pages; `collect_github` is the default fail-open boundary describ
 | ID | Requirement |
 |---|---|
 | `REQ-F04-010` | Reviewer identity **MUST** be `<provider>:<immutable-numeric-id>:<login>`. The numeric ID **MUST** be present; logins alone are insufficient because they are renameable. |
-| `REQ-F04-020` | Only the **latest** review state per immutable reviewer ID **MUST** count toward `humanApprovals`; latest is the greatest `(submittedAt, numeric review ID)` pair. Superseded supported submitted reviews are recorded in `reviewers` but not counted. Aggregate state precedence **MUST** be `changes-requested`, `approved`, `commented`, then `none` across latest human verdicts. |
+| `REQ-F04-020` | Only the **latest** review state per immutable reviewer ID **MUST** count toward `humanApprovals`; latest is the greatest `(submittedAt, numeric review ID)` pair. Every retained human record **MUST** carry `effective`; exactly one record per immutable reviewer ID is `true`, and all superseded records are `false`. Aggregate state precedence **MUST** be `changes-requested`, `approved`, `commented`, then `none` across effective human verdicts. |
 | `REQ-F04-030` | Dismissed reviews **MUST NOT** count toward `humanApprovals`. |
 | `REQ-F04-040` | GitHub `User` accounts **MUST** be classified as human and `Bot` accounts as `automatedReviews`; automated accounts **MUST NOT** count toward `humanApprovals`. Classification uses the forge account type, not name heuristics. Pending drafts are omitted with `WARN-COLLECT-006`; unsupported submitted account types degrade review collection to unknown. |
 | `REQ-F04-050` | `isChangeAuthor` **MUST** be computed by comparing reviewer immutable ID against the caller-resolved set of commit author and committer IDs in the ChangeSet; the collector **MUST NOT** infer a Git-to-GitHub identity mapping. |
@@ -75,7 +75,7 @@ return partial pages; `collect_github` is the default fail-open boundary describ
 | ID | Criterion |
 |---|---|
 | `AC-F04-010` | A recorded response produces `github:12345:bob`; renaming the login does not change the ID portion in a replayed fixture. |
-| `AC-F04-020` | A reviewer who requested changes then approved counts once, as approved. |
+| `AC-F04-020` | A reviewer who requested changes then approved counts once, as approved; the approval is `effective == true` and the superseded change request is `effective == false`, including an equal-timestamp case resolved by numeric review ID. |
 | `AC-F04-030` | A dismissed approval yields `humanApprovals == 0`. |
 | `AC-F04-040` | A `Bot`-type approving account appears in `automatedReviews` and yields `humanApprovals == 0`. |
 | `AC-F04-050` | A self-approval yields `isChangeAuthor == True`. |
@@ -115,7 +115,7 @@ Warnings emitted without invalidating other collected evidence:
 
 ## 9. Definition of Done
 
-- [x] All `REQ-F04-*` implemented, all `AC-F04-*` green
+- [ ] All `REQ-F04-*` implemented, all `AC-F04-*` green, including effective-state marking
 - [x] Recorded HTTP fixtures for all paths; no live calls in the default test suite
 - [x] Nightly live smoke test against a real repository
 - [x] Token-leak test asserts absence across all output streams

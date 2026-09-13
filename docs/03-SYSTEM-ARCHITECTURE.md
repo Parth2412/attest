@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.4.0` |
+| Version | `1.5.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -84,6 +84,7 @@ rather than merely discouraged.
 | `models/changeset.py` | `ChangeSetRecord`, `ChangeSetEntry` |
 | `canonical.py` | RFC 8785 canonicalisation |
 | `digest.py` | `CSD-1` implementation, operating on already-extracted entries |
+| `identity.py` | Pure shared validation/matching for the bounded GitHub workflow identity-pattern grammar |
 | `builder.py` | Pure deterministic assembly and validation of a supplied `Collection` and collector outputs |
 | `errors.py` | Error taxonomy with codes |
 | `schema.py` | JSON Schema generation and version-exact structural validation |
@@ -111,6 +112,10 @@ there is nothing to attest without it.
 installed distribution metadata only when the caller does not inject replacements, and accepts
 an injectable clock. `attest-core.builder` consumes the resulting `Collection` without reading
 the environment, clock, package metadata, filesystem, or network (`ADR-036`).
+
+`identity.py` is syntax only: it validates and matches the bounded string grammar shared by F-08
+and F-09. It does not parse certificates, select SANs, verify issuers, or perform cryptography.
+F-08 remains the sole owner of those security operations (`ADR-042`).
 
 ### 3.3 `attest-sign`
 
@@ -141,9 +146,21 @@ Implementations: `GitRefStore`, `FilesystemStore`, `OciStore`.
 
 ### 3.5 `attest-policy`
 
-Pure evaluation. Input: `Predicate` + `VerificationResult` + `Policy`. Output: `Decision`.
+Pure loading and evaluation. Input: optional structural `VerificationView` + `LoadedPolicy` +
+`PolicyContext`; output: `Decision`. The view includes the successfully verified Statement and
+verified signer/log evidence, so the evaluator never accepts a separately substitutable Predicate.
+The context carries the caller-selected target branch and complete canonical paths from the same
+ChangeSet used for verification. `attest-policy` imports `attest-core`, not peer `attest-sign`.
 
-No I/O whatsoever, so policies are exhaustively testable with fixtures.
+The loader receives raw policy bytes and a display path but performs no I/O. The CLI reads files,
+distinguishes unreadable configuration from absence, and supplies those bytes. This keeps parsing,
+source digesting, glob matching, and policy evaluation exhaustively testable with fixtures
+(`ADR-042`).
+
+For `attest gate` and `attest run`, the CLI resolves one base/head pair, derives the complete path
+context from it, and supplies that same pair as a mandatory F-08 `RepositoryConstraint`. Policy
+evaluation starts only after recomputation succeeds; the signed optional path summary is never an
+enforcement input.
 
 ### 3.6 `attest-cli`
 
@@ -169,8 +186,8 @@ and verification only for F-12 (`ADR-022`).
     ├─7─ runtime validation   → semantic invariants before signing                  [pure]
     ├─8─ sigstore_signer.py   → native sign_dsse → DSSE + Fulcio cert + Rekor entry → Bundle
     ├─9─ store.put()          → refs/attestations/<digest>
-    ├─10─ verifier.py         → re-verify what we just produced  ◀── deliberate
-    ├─11─ policy.evaluate()   → Decision
+    ├─10─ verifier.py         → re-verify exact identity, log, and ChangeSet  ◀── deliberate
+    ├─11─ policy.evaluate()   → Decision using same target + complete changed paths
     └─12─ exit code           → 0 / 3 / 4 / 5
 ```
 
@@ -229,6 +246,11 @@ read-only Git CLI implementation is deliberately independent of `attest-collect`
 `attest-core` ChangeSet construction and digest functions, and bounds every process invocation.
 This preserves peer-adapter isolation while preventing the verifier from guessing that the current
 `HEAD` is the ChangeSet the caller meant to check.
+
+A successful result exposes the exact resolved certificate URI SAN, exact verified issuer, and an
+affirmative transparency-log flag. Failed results expose no partial trusted evidence. F-09 consumes
+only these fields and the verified Statement through its structural protocol; it does not repeat
+certificate, signature, or transparency-log verification (`ADR-042`).
 
 ---
 

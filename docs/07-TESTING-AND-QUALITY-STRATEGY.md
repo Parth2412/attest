@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.0.4` |
+| Version | `1.1.0` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-13 |
 
 ---
 
@@ -88,13 +88,16 @@ Rules:
 
 CI job `schema-drift`:
 
-1. Regenerate the structural JSON Schema from Pydantic models.
-2. Compare against `spec/schemas/ai-authorship-v0.1.schema.json`.
+1. Regenerate the Statement and policy structural JSON Schemas from their Pydantic models.
+2. Compare against `spec/schemas/ai-authorship-v0.1.schema.json` and
+   `spec/schemas/policy-v1.schema.json` once each owning feature is `Done`.
 3. Fail on any difference.
 
 Because the schema is the published structural contract, an unnoticed representable model change
 is a breaking change to the specification. Cross-field and other non-representable invariants are
-covered separately by runtime and semantic-vector tests (`ADR-021`).
+covered separately by runtime and semantic-vector tests (`ADR-021`). Policy loader safety, YAML
+resource bounds, duplicate-key rejection, and policy cross-field invariants remain runtime tests
+because generated schema alone cannot prove them (`ADR-042`).
 
 ---
 
@@ -148,9 +151,10 @@ gate's owning features is `Done`; it must report the gate as not applicable. Any
 status propagates unchanged. Vector tests are owned by F-01 and F-02; adversarial tests are owned
 by F-08. Once any owner is `Done`, an empty selected suite is a failure.
 
-The CI schema-drift job reports not applicable while F-01 is not `Done`. Once F-01 is `Done`, it
-must generate and compare the schema on every run. The local release gate remains stricter before
-F-01 and stops cleanly at `schema-check`.
+The CI schema-drift job activates each schema independently: the Statement schema once F-01 is
+`Done`, and the policy schema once F-09 is `Done`. A not-yet-Done owner is reported as not
+applicable without disabling an already-active schema comparison. The local release gate remains
+stricter and generates every implemented schema before release.
 
 ---
 

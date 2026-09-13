@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BOOT-001` |
-| Version | `1.6.0` |
+| Version | `1.7.0` |
 | Status | **NORMATIVE** for repository scaffold, file contents, and tooling configuration |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-13 |
 
 > **Purpose.** This document is complete enough to generate the entire starting repository with
 > **zero invention**. Every file that must exist is listed. Every configuration file's content is
@@ -316,7 +316,7 @@ packages = ["src/attest_core"]
 | `attest-collect` | `attest-core`, `httpx`; optional `pygit2` extra |
 | `attest-sign` | `attest-core`, `sigstore` |
 | `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
-| `attest-policy` | `attest-core`, `pyyaml` |
+| `attest-policy` | `attest-core`, `pydantic`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
 | `attest-cli` | all six above, `typer`, `rich`, `structlog`, `pyyaml` |
 

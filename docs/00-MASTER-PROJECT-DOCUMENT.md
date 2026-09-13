@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Document ID | `MPD-001` |
-| Version | `1.0.1` |
+| Version | `1.1.0` |
 | Status | Baselined |
 | Owner | Parth (ZettaCore) |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-13 |
 | Supersedes | — |
 
 > **Read this first.** This document is the entry point. It is *descriptive*, not normative,
@@ -235,7 +235,7 @@ cold-start are harder in Python than in Go or Node. Mitigations are specified th
 | `F-07` | Storage and retrieval | `BRD-F07` | M2 |
 | `F-08` | Verification | `BRD-F08` | M1 |
 | `F-09` | Policy engine and CI gate | `BRD-F09` | M2 |
-| `F-10` | CLI | `BRD-F10` | M1 |
+| `F-10` | CLI | `BRD-F10` | M2 |
 | `F-11` | GitHub Action packaging | `BRD-F11` | M2 |
 | `F-12` | Evidence export and control mapping | `BRD-F12` | M3 |
 

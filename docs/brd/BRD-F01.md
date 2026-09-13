@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-core` |
 | Depends on | — |
-| Status | Ready — `CH-01` and `CH-02` closed (`CHALLENGE-001 §12`) |
+| Status | In progress · Reviewer effective-state wire correction governed by `ADR-042` |
 
 ---
 
@@ -75,6 +75,8 @@ def build_changeset_record(
     entries: Sequence[ChangeSetEntry]
 ) -> ChangeSetRecord: ...
 def generate_json_schema(predicate_version: str) -> dict[str, object]: ...
+def validate_identity_pattern(pattern: str) -> str: ...
+def identity_pattern_matches(pattern: str, exact_identity: str) -> bool: ...
 ```
 
 `compute_changeset_digest` takes an already-built record. It never reads a repository. Entry
@@ -82,6 +84,12 @@ extraction is `F-02`'s job.
 
 `predicate_version` is the exact string `0.1`. Other values raise `ERR-BUILD-205`. The generated
 schema describes a complete `Statement`, not the predicate object in isolation (`ADR-029`).
+
+`Reviewer.effective` is an optional boolean in the structural v0.1 model solely to keep historical
+signed bundles verifiable. It identifies the single latest supported submitted state per immutable
+reviewer ID. Markers are all-or-none; when present, their cardinality and `humanApprovals` count are
+semantic invariants. F-04 and the official builder require them on every newly emitted reviewer
+(`ADR-042`).
 
 ## 5. Requirements
 
@@ -105,6 +113,8 @@ schema describes a complete `Statement`, not the predicate object in isolation (
 | `REQ-F01-160` | Test vectors listed in `SPEC-001 §12` **MUST** exist under `spec/testvectors/` and be exercised by a parametrised test. |
 | `REQ-F01-170` | `AuthorshipMode` **MUST NOT** default to `human-authored`. Absence of authorship evidence maps to an explicitly supplied `unknown`; the required wire field **MUST NOT** have a model default. |
 | `REQ-F01-180` | Git path strings **MUST** use the canonical percent-encoded representation from `SPEC-001 §4.1`, round-trip byte-identically, and reject non-canonical spellings. |
+| `REQ-F01-190` | `Reviewer.effective` **MUST** be optional only for legacy v0.1 verification. Markers **MUST** be all present or all absent within a Review. When present, exactly one record per immutable numeric reviewer ID **MUST** be effective and `humanApprovals` **MUST** equal the effective approved count; mixed presence, invalid cardinality, or an invalid count **MUST** fail runtime semantic validation. |
+| `REQ-F01-200` | `attest-core` **MUST** provide the one pure validator/matcher for the exact or bounded GitHub workflow identity grammar in `BRD-F08 §4`. F-08 and F-09 **MUST** use it; it **MUST NOT** parse certificates, verify issuers, perform cryptography, or access I/O. |
 
 ## 6. Acceptance criteria
 
@@ -128,6 +138,8 @@ schema describes a complete `Statement`, not the predicate object in isolation (
 | `AC-F01-160` | Every vector directory in `SPEC-001 §12` is collected and passes. |
 | `AC-F01-170` | `Authorship(mode="unknown", claims=[], claims_present=False)` preserves `mode == "unknown"`; omitting `mode` raises `ValidationError`, and no construction path defaults it to `human-authored`. |
 | `AC-F01-180` | Raw path bytes containing valid multibyte UTF-8, `%`, and `0xFF` round-trip through canonical path encoding, model validation, and RFC 8785 canonicalisation; malformed or non-canonical encodings are rejected. |
+| `AC-F01-190` | An all-unmarked historical Review and a fully marked valid Review pass; mixed markers, zero or two effective records for one represented reviewer ID, and a mismatched marked `humanApprovals` count each raise `ValidationError`. |
+| `AC-F01-200` | Shared table tests prove exact identities and valid ref-segment globs match identically for F-08 and F-09; wildcard-before-ref, empty patterns, `**`, `?`, brackets, and non-GitHub wildcard shapes are rejected, while `*` never matches a zero-length ref segment. |
 
 ## 7. Property-based tests (required)
 
@@ -157,7 +169,8 @@ schema describes a complete `Statement`, not the predicate object in isolation (
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F01-*` implemented, all `AC-F01-*` green
+- [ ] All `REQ-F01-*` implemented, all `AC-F01-*` green, including legacy-compatible
+  `Reviewer.effective` semantics
 - [ ] All four properties in §7 implemented in Hypothesis
 - [ ] All `SPEC-001 §12` vectors present and passing
 - [ ] Coverage ≥ 95% on `attest-core`

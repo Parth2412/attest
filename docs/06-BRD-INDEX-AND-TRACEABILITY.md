@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `1.9.0` |
+| Version | `2.0.0` |
 | Status | Baselined |
 | Last updated | 2026-09-13 |
 
@@ -40,12 +40,11 @@ M1 ─────────────────────────�
   F-05  Attestation builder                       (F-01, F-02, F-03)
   F-06  Sigstore signing                          (F-01, F-05)
   F-08  Verification                              (F-01, F-06)
-  F-10  CLI                                       (F-01…F-08)
-
 M2 ─────────────────────────────────────────────────────────────
   F-04  Review record collector (GitHub)          (F-01)
   F-07  Storage and retrieval                     (F-01, F-06)
   F-09  Policy engine and CI gate                 (F-01, F-04, F-08)
+  F-10  CLI                                       (F-01…F-09)
   F-11  GitHub Action packaging                   (F-06, F-07, F-09, F-10)
 
 M3 ─────────────────────────────────────────────────────────────
@@ -55,18 +54,15 @@ M3 ─────────────────────────�
 ### 2.1 Dependency graph
 
 ```
-                     F-01 (core)
-        ┌──────┬───────┼───────┬────────┬────────┐
-        │      │       │       │        │        │
-      F-02   F-03    F-04    F-06     F-07     F-09
-        │      │       │       │        │        │
-        └──┬───┘       │       │        │        │
-           ▼           │       ▼        │        │
-         F-05 ─────────┼───▶ F-06 ──▶ F-08 ──────┘
-                       │                │
-                       └────────────────┴──▶ F-10 ──▶ F-11
-                                             │
-                                             └──▶ F-12
+F-01 ─┬─▶ F-02 ─┐
+      ├─▶ F-03 ─┴─▶ F-05 ─▶ F-06 ─▶ F-08 ─┬─▶ F-09 ─▶ F-10 ─▶ F-11
+      ├─▶ F-04 ────────────────────────────┘      ▲       ▲
+      └─▶ F-07 ──────────────────────────────────┼───────┘
+                                                 │
+F-01 through F-08 ───────────────────────────────┘
+
+F-07 + F-08 ─▶ F-12
+F-06 + F-07 + F-09 + F-10 ─▶ F-11
 ```
 
 ---
@@ -84,7 +80,7 @@ M3 ─────────────────────────�
 | `F-07` | Storage and retrieval | M2 | F-01, F-06 | `attest-store` |
 | `F-08` | Verification | M1 | F-01, F-06 · gated by `CH-02` | `attest-sign` |
 | `F-09` | Policy engine and CI gate | M2 | F-01, F-04, F-08 | `attest-policy` |
-| `F-10` | CLI | M1 | F-01…F-08 | `attest-cli` |
+| `F-10` | CLI | M2 | F-01…F-09 | `attest-cli` |
 | `F-11` | GitHub Action packaging | M2 | F-06, F-07, F-09, F-10 | `action/` |
 | `F-12` | Evidence export and control mapping | M3 | F-07, F-08 · DoD gated by `CH-04` | `attest-export` |
 
@@ -185,14 +181,14 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 
 | Feature | Status |
 |---|---|
-| `F-01` | Done |
+| `F-01` | In progress |
 | `F-02` | Done |
 | `F-03` | Done |
-| `F-04` | Done |
-| `F-05` | Done |
+| `F-04` | In progress |
+| `F-05` | In progress |
 | `F-06` | Done |
 | `F-07` | Planned |
-| `F-08` | Done |
+| `F-08` | In progress |
 | `F-09` | Planned |
 | `F-10` | Planned |
 | `F-11` | Planned |

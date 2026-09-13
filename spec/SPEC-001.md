@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `SPEC-001` |
-| Version | `0.1.2` (draft for public RFC) |
+| Version | `0.1.3` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
 | Last updated | 2026-09-13 |
@@ -427,6 +427,7 @@ consulted only when no claims are present (`ADR-035`).
       "identityProvider": "github",
       "verdict": "approved",
       "submittedAt": "2026-07-20T11:02:44Z",
+      "effective": true,
       "isChangeAuthor": false,
       "evidence": { "kind": "forge-api", "digest": "<64 lowercase hex characters>" }
     }
@@ -447,9 +448,10 @@ consulted only when no claims are present (`ADR-035`).
 |---|---|---|
 | `required` | yes | Boolean or the literal string `unknown`; whether the forge required review for this merge |
 | `state` | yes | Enum: `approved`, `changes-requested`, `commented`, `none`, `unknown` |
-| `humanApprovals` | yes | Integer count of distinct human approvers |
+| `humanApprovals` | yes | Integer count of distinct latest human approvals; when effective markers are present, must equal the number of effective records whose verdict is `approved` |
 | `reviewers` | yes | Array of `Reviewer`, possibly empty |
 | `reviewers[].identity` | yes | Stable, namespaced identity: `<provider>:<immutable-id>:<login>`. The immutable numeric ID **MUST** be included — logins are renameable and are insufficient for audit. |
+| `reviewers[].effective` | conditional | Whether this is the latest supported submitted record for the immutable reviewer ID. It **MUST** be present on every Reviewer in newly emitted Statements. Its absence on every Reviewer is accepted only for legacy v0.1 Statements emitted before `ADR-042`. |
 | `reviewers[].isChangeAuthor` | yes | Whether this reviewer also authored the change. Enables separation-of-duties policy. |
 | `reviewers[].evidence.digest` | yes | Digest of the forge API response that established this record, so the claim is traceable |
 | `automatedReviews` | no | Bot reviews. **MUST NOT** be counted in `humanApprovals`. |
@@ -459,9 +461,16 @@ Nested review objects have these fields:
 
 | Object | Required fields | Optional fields | Constraints |
 |---|---|---|---|
-| `Reviewer` | `identity`, `identityProvider`, `verdict`, `submittedAt`, `isChangeAuthor`, `evidence` | — | `submittedAt` is a timestamp; `verdict` is `ReviewVerdict` |
+| `Reviewer` | `identity`, `identityProvider`, `verdict`, `submittedAt`, `isChangeAuthor`, `evidence` | `effective` only for legacy input compatibility | `submittedAt` is a timestamp; when present, `effective` is boolean and exactly one record per immutable reviewer ID is effective; `isChangeAuthor` is boolean; `verdict` is `ReviewVerdict` |
 | `ReviewEvidence` | `kind`, `digest` | — | `kind` is the literal `forge-api`; `digest` is 64 lowercase hex |
 | `AutomatedReview` | `tool`, `verdict`, `findingsDigest`, `submittedAt` | — | `findingsDigest` is 64 lowercase hex; `submittedAt` is a timestamp |
+
+Effective markers are all-or-none within a Review. Mixed marked/unmarked records are invalid. When
+markers are present, runtime semantic validation rejects zero or multiple effective records for a
+represented immutable reviewer ID and rejects a `humanApprovals` count that differs from the
+effective approved-record count. The generated structural schema keeps `effective` optional only
+so historical signed v0.1 bundles remain verifiable; the official builder rejects its omission on
+new output (`ADR-042`).
 
 > **Design note.** Separating `humanApprovals` from `automatedReviews` is deliberate and is the
 > field an auditor will care about most. A bot approving a bot's code is the exact failure mode
@@ -510,6 +519,19 @@ required `kind` and `trusted` fields and optional `runId`, `runAttempt`, `workfl
 and `eventName` fields. `runAttempt`, when present, is an integer of at least one. An environment
 whose `kind` is `local` **MUST** have `trusted: false`; this is enforced as a runtime semantic
 invariant as well as during collection.
+
+`environment.trusted` is producer context, not independent proof of trust. A producer **MUST NOT**
+set it to `true` unless it recognises the CI platform and a workload-identity credential is
+available for the recorded run. A verifier **MUST NOT** rely on `trusted: true` until the
+attestation signature has been verified against the caller's expected workload identity and
+issuer. Environment-variable presence alone is not a verifier trust anchor because a local
+process can reproduce those variables.
+
+The Python v0.1 reference implementation recognises only GitHub Actions on `github.com` as a
+trusted environment. It requires the exact signals and records the exact non-secret metadata in
+`ADR-036`; GitLab CI and every other CI environment remain untrusted until a workload-identity
+contract is specified for that platform. OIDC request credentials **MUST NOT** be copied into the
+predicate or diagnostics.
 
 > **Critical.** An attestation produced on a developer laptop is not worthless — it is a
 > developer-asserted record. But it must be distinguishable from one produced by a CI job whose
@@ -765,5 +787,7 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-10 | Structural JSON Schema and runtime semantic validation contracts separated before first publication (`ADR-021`) |
 | 0.1.0 | 2026-09-11 | Nested wire shapes, digest encoding, protocol-key exceptions, and schema-version handling completed before first implementation (`ADR-029`) |
 | 0.1.0 | 2026-09-12 | Collector-generated identifiers and complete authorship-mode edge cases defined before F-03 implementation (`ADR-035`) |
+| 0.1.0 | 2026-09-12 | Builder purity, environment trust classification, and total array ordering completed before F-05 implementation (`ADR-036`) |
+| 0.1.3 | 2026-09-13 | Effective human-review state made mandatory for new output and optional only for historical v0.1 verification so policy can enforce separation of duties without breaking signed bundles (`ADR-042`) |
 
 [in-toto Statements]: https://in-toto.io/
