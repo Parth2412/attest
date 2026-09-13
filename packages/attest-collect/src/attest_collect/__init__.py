@@ -1,5 +1,6 @@
 """Git and provenance-signal collection adapters for attest."""
 
+from attest_collect._github_http import GitHubHttpClient, GitHubToken, load_github_token
 from attest_collect.authorship import (
     AuthorshipCollection,
     AuthorshipDiagnosticCode,
@@ -21,6 +22,19 @@ from attest_collect.environment import collect_environment
 from attest_collect.errors import CollectError
 from attest_collect.git_pygit2 import Pygit2Backend
 from attest_collect.git_subprocess import SubprocessBackend
+from attest_collect.github import (
+    ForgeAdapter,
+    ForgeCheckData,
+    ForgeReviewData,
+    GitHubCollection,
+    GitHubForgeAdapter,
+    GitHubReviewContext,
+    GitHubWarning,
+    ReviewContextKind,
+    ReviewRequirementData,
+    collect_github,
+    collect_review,
+)
 from attest_collect.gitnotes import GitNoteCollector
 from attest_collect.protocols import BackendName, BackendOverride, GitBackend
 from attest_collect.sidecar import SidecarCollector
@@ -39,16 +53,30 @@ __all__ = [
     "CollectError",
     "CollectionDiagnostics",
     "CollectionWarning",
+    "ForgeAdapter",
+    "ForgeCheckData",
+    "ForgeReviewData",
     "GitBackend",
+    "GitHubCollection",
+    "GitHubForgeAdapter",
+    "GitHubHttpClient",
+    "GitHubReviewContext",
+    "GitHubToken",
+    "GitHubWarning",
     "GitNoteCollector",
     "KnownAgentPattern",
     "ManualClaimCollector",
     "Pygit2Backend",
+    "ReviewContextKind",
+    "ReviewRequirementData",
     "SidecarCollector",
     "SubprocessBackend",
     "TrailerCollector",
     "collect_authorship",
     "collect_changeset",
     "collect_environment",
+    "collect_github",
+    "collect_review",
+    "load_github_token",
     "standard_collectors",
 ]

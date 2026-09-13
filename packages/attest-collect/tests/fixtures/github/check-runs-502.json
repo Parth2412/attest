@@ -1,0 +1,44 @@
+{
+  "total_count": 3,
+  "check_runs": [
+    {
+      "id": 9003,
+      "node_id": "CR_test_9003",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "name": "security",
+      "status": "completed",
+      "conclusion": "action_required",
+      "started_at": "2026-09-13T09:13:00Z",
+      "completed_at": "2026-09-13T09:14:00Z",
+      "output": {"title": "Security", "summary": "Action required", "text": ""},
+      "check_suite": {"id": 502},
+      "app": {"id": 15368, "slug": "github-actions"}
+    },
+    {
+      "id": 9004,
+      "node_id": "CR_test_9004",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "name": "lint",
+      "status": "completed",
+      "conclusion": "stale",
+      "started_at": "2026-09-13T09:14:00Z",
+      "completed_at": "2026-09-13T09:15:00Z",
+      "output": {"title": "Lint", "summary": "Stale", "text": ""},
+      "check_suite": {"id": 502},
+      "app": {"id": 15368, "slug": "github-actions"}
+    },
+    {
+      "id": 9005,
+      "node_id": "CR_test_9005",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "name": "security",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-13T09:16:00Z",
+      "completed_at": "2026-09-13T09:18:00Z",
+      "output": {"title": "Security", "summary": "Passed on rerun", "text": ""},
+      "check_suite": {"id": 502},
+      "app": {"id": 15368, "slug": "github-actions"}
+    }
+  ]
+}

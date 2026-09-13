@@ -1,4 +1,4 @@
-"""Stable public collector diagnostics governed by BRD-F02, BRD-F03, and their ADRs."""
+"""Stable public collector diagnostics governed by BRD-F02, BRD-F03, and BRD-F04."""
 
 from __future__ import annotations
 
@@ -12,6 +12,11 @@ CollectErrorCode = Literal[
     "ERR-COLLECT-105",
     "ERR-COLLECT-106",
     "ERR-COLLECT-115",
+    "ERR-COLLECT-121",
+    "ERR-COLLECT-122",
+    "ERR-COLLECT-123",
+    "ERR-COLLECT-124",
+    "ERR-COLLECT-125",
 ]
 
 CollectDiagnosticCode = Literal[
@@ -29,6 +34,11 @@ CollectDiagnosticCode = Literal[
     "ERR-COLLECT-116",
     "ERR-COLLECT-117",
     "ERR-COLLECT-118",
+    "ERR-COLLECT-121",
+    "ERR-COLLECT-122",
+    "ERR-COLLECT-123",
+    "ERR-COLLECT-124",
+    "ERR-COLLECT-125",
 ]
 
 _ERROR_DETAILS: Final[dict[CollectDiagnosticCode, tuple[str, str]]] = {
@@ -89,11 +99,31 @@ _ERROR_DETAILS: Final[dict[CollectDiagnosticCode, tuple[str, str]]] = {
         "A claim collector failed unexpectedly",
         "Check the named collector and retry",
     ),
+    "ERR-COLLECT-121": (
+        "GitHub authentication failed or is ambiguously configured",
+        "Configure exactly one token source with pull-request, checks, and metadata read access",
+    ),
+    "ERR-COLLECT-122": (
+        "GitHub pagination is incomplete or internally inconsistent",
+        "Retry the collection and report the response sequence if the failure persists",
+    ),
+    "ERR-COLLECT-123": (
+        "The GitHub rate-limit deadline was exceeded",
+        "Increase the collection deadline or reduce request frequency",
+    ),
+    "ERR-COLLECT-124": (
+        "Pull-request context is missing or inconsistent",
+        "Supply an explicit pull-request number or direct-push context",
+    ),
+    "ERR-COLLECT-125": (
+        "GitHub request failed or returned an invalid response",
+        "Check GitHub availability and the documented response contract, then retry",
+    ),
 }
 
 
 class CollectError(RuntimeError):
-    """Represent a stable BRD-F02 public-operation failure (REQ-F02-190)."""
+    """Represent a stable collector public-operation failure."""
 
     code: CollectErrorCode
     message: str
@@ -107,7 +137,7 @@ class CollectError(RuntimeError):
 
 
 def collect_error(code: CollectErrorCode) -> CollectError:
-    """Create the BRD-F02 error identified by ``code`` (REQ-F02-190)."""
+    """Create the stable collector error identified by ``code``."""
     message, remediation = _ERROR_DETAILS[code]
     return CollectError(code=code, message=message, remediation=remediation)
 

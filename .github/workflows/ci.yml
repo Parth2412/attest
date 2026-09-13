@@ -58,6 +58,22 @@ jobs:
           uv run pytest packages/attest-sign/tests/test_verifier.py
           --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
 
+  github-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-04 collector coverage
+        run: >-
+          uv run pytest packages/attest-collect/tests/test_github_review.py
+          packages/attest-collect/tests/test_github_http.py
+          packages/attest-collect/tests/test_github_checks.py
+          --cov=attest_collect.github --cov=attest_collect._github_http
+          --cov-report=term-missing --cov-fail-under=90
+
   schema-drift:
     runs-on: ubuntu-latest
     steps:

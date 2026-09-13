@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | Ready when F-01 Done · no open question |
+| Status | Done · F-01 Done · governed by ADR-041 |
 
 ---
 
@@ -28,8 +28,9 @@ whether a human — a specific, identifiable, non-author human — approved the 
 
 ```python
 class ForgeAdapter(Protocol):
-    def fetch_reviews(self, repo: str, pr_number: int) -> ForgeReviewData: ...
-    def fetch_checks(self, repo: str, head_sha: str) -> list[Check]: ...
+    def fetch_reviews(self, repo: str, pr_number: int) -> tuple[JsonObject, ...]: ...
+    def fetch_review_requirement(self, repo: str, base_branch: str) -> ReviewRequirementData: ...
+    def fetch_checks(self, repo: str, head_sha: str) -> ForgeCheckData: ...
 
 def collect_review(data: ForgeReviewData, change_author_ids: set[str]) -> Review: ...
 
@@ -42,11 +43,13 @@ immutable commit author and committer IDs; optional positive PR number; and opti
 last-push timestamp. Pull-request context requires a PR number, direct-push context forbids one,
 and undetermined or inconsistent context is `ERR-COLLECT-124`.
 
-`ForgeReviewData` carries the complete supported submitted-review responses, the independently
-resolved review-required value, and the optional last-push timestamp. `GitHubCollection` carries a
-`Review`, successful checks as a tuple or unavailable checks as `None`, and stable warnings. Strict
-adapter methods raise coded failures and never return partial pages; `collect_github` is the
-default fail-open boundary described by `REQ-F04-130` and `ADR-041`.
+`ForgeReviewData` carries the complete fetched review-response objects, the independently resolved
+review-required value, and the optional last-push timestamp. `ReviewRequirementData` carries a
+boolean or `unknown` result plus source-specific warnings. `ForgeCheckData` carries normalized
+checks plus non-fatal warnings. `GitHubCollection` carries a `Review`, successful checks as a tuple
+or unavailable checks as `None`, and stable warnings. Strict fetch and pagination failures never
+return partial pages; `collect_github` is the default fail-open boundary described by
+`REQ-F04-130` and `ADR-041`.
 
 ## 5. Requirements
 
@@ -112,9 +115,9 @@ Warnings emitted without invalidating other collected evidence:
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F04-*` implemented, all `AC-F04-*` green
-- [ ] Recorded HTTP fixtures for all paths; no live calls in the default test suite
-- [ ] Nightly live smoke test against a real repository
-- [ ] Token-leak test asserts absence across all output streams
-- [ ] Coverage ≥ 90%
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F04-*` implemented, all `AC-F04-*` green
+- [x] Recorded HTTP fixtures for all paths; no live calls in the default test suite
+- [x] Nightly live smoke test against a real repository
+- [x] Token-leak test asserts absence across all output streams
+- [x] Coverage ≥ 90%
+- [x] Cross-cutting obligations satisfied
