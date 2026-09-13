@@ -1,0 +1,35 @@
+{
+  "files": {
+    "client-trust-config.json": {
+      "predicate": "not-applicable",
+      "sha256": "033f383e19e197561fa6cdbdafa3c30ebb7d4d011ff6605962b356fec05159b0"
+    },
+    "historical-v0.1-trusted.sigstore.json": {
+      "predicate": "https://parth2412.github.io/attest/ai-authorship/v0.1",
+      "sha256": "5605637fb6f41a0eb539a39d0d9977a6bfc331fd4e730b0453adf51fdd2e1122"
+    },
+    "historical-v0.1-untrusted.sigstore.json": {
+      "predicate": "https://parth2412.github.io/attest/ai-authorship/v0.1",
+      "sha256": "f21d66766dc4ce2fea6096959b2eab5d575b61d93a7dde339d5230f6ca30d27d"
+    },
+    "semantic-digest-mismatch.sigstore.json": {
+      "predicate": "https://parth2412.github.io/attest/ai-authorship/v0.1",
+      "sha256": "25c7f689cd29eda5654266953402fbe91bba41c3313bab2ac5e45474b80ddfdc"
+    },
+    "structural-extra-field.sigstore.json": {
+      "predicate": "https://parth2412.github.io/attest/ai-authorship/v0.1",
+      "sha256": "4308a6f49305ee4233eeda4ef89c2ade35a6c7d782490924a3b06c3f93c1f156"
+    },
+    "unknown-predicate.sigstore.json": {
+      "predicate": "https://parth2412.github.io/attest/ai-authorship/v9.9",
+      "sha256": "3c257026a13eb4bf8b7c528662f07ea801ce916795ad178f0d5751531a2742c5"
+    }
+  },
+  "generatedAt": "2026-09-13T05:34:26.680434+00:00",
+  "identity": "https://github.com/Parth2412/attest/.github/workflows/e2e-sign.yml@refs/heads/feature/f08-independent-verification",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "sigstoreVersion": "4.5.0",
+  "sourceCommit": "e5c45d9cbb43956e3e98cbe54636d35c34881009",
+  "sourceRun": "https://github.com/Parth2412/attest/actions/runs/34740606629",
+  "workflowRef": "Parth2412/attest/.github/workflows/e2e-sign.yml@refs/heads/feature/f08-independent-verification"
+}

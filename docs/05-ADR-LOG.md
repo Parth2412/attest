@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.17.0` |
+| Version | `1.18.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -1531,6 +1531,42 @@ already defined constraint-construction error without improving remediation.
 **Consequences.** F-08 tests must prove the empty-string and non-string cases fail with
 `ERR-VERIFY-011`, prove `Identity` is not constructed on either path, and retain a near-miss
 non-empty issuer test that reaches Sigstore and fails `ERR-VERIFY-013`.
+
+---
+
+## ADR-040 — Permit an explicit solo-maintainer review waiver for F-08
+
+**Status:** Accepted · **Date:** 2026-09-13 · **Affects:** `ADR-038`, `BRD-F08`, `F-08`
+
+**Context.** `ADR-038` and `BRD-F08` require an independent human to review the six-check
+verification order before F-08 is marked Done. For implementation PR #18, the repository owner
+and change author, `Parth2412`, is the repository's only collaborator. GitHub does not permit an
+author to approve their own pull request, and no other human GitHub identity is available. The
+owner explicitly directed that only the existing owner identity be used.
+
+**Decision.** For F-08 implementation PR #18 only, the repository owner may waive the independent
+human-review completion gate by recording owner acceptance on the pull request. The waiver is
+valid only after every automated F-08 acceptance criterion, the mandatory adversarial suite,
+offline historical-bundle verification, the cross-platform CI matrix, security audits, verifier
+coverage, and zero-survivor mutation testing pass. The completion record must state that this was
+an owner-authorized solo-maintainer waiver and must not claim that an independent review occurred.
+The verification behavior and mandatory identity policy are unchanged.
+
+**Rationale.** A narrow and visible exception avoids deadlocking a single-maintainer pre-alpha
+repository while retaining stronger executable evidence than ordinary line coverage alone. An
+append-only decision and public PR record make the lack of reviewer independence discoverable to
+future maintainers and auditors.
+
+**Rejected alternatives.** Recording a self-approval as independent review is false and cannot be
+performed through GitHub. Treating an automated or AI review as human review misstates the
+evidence. Leaving F-08 permanently In progress prevents dependency-valid work despite every
+executable criterion passing. Removing the review gate generally would weaken future feature
+governance beyond the owner's stated exception.
+
+**Consequences.** F-08 may be marked Done and PR #18 may merge after the owner-acceptance comment
+is recorded. The implementation has not received independent human review, so correlated design
+and implementation blind spots remain a residual risk. A future independent review is recommended
+when another qualified maintainer becomes available, but it is not a completion gate for PR #18.
 
 ---
 
