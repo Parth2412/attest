@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Document ID | `SPEC-001` |
-| Version | `0.1.1` (draft for public RFC) |
+| Version | `0.1.2` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
 > This is the document that matters most. It is the asset. The CLI is an implementation of this
 > specification; the specification is not a description of the CLI. Write it as though a second,
@@ -591,6 +591,10 @@ The identity policy inside step 2 is what makes this product meaningful, and it 
 that is easiest to omit.
 
 - The caller **MUST** supply an expected identity pattern and an expected OIDC issuer.
+- The identity pattern and issuer **MUST** each be a non-empty string. The reference implementation
+  rejects an empty or non-string issuer during constraint construction with `ERR-VERIFY-011`, before
+  constructing Sigstore's policy; Sigstore 4.5.0 otherwise treats an empty issuer as no issuer
+  policy (`ADR-039`).
 - Implementations **MUST NOT** provide a default that accepts any identity.
 - Implementations **MUST NOT** offer a flag that skips the identity policy while still reporting
   success.
