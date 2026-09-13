@@ -1570,6 +1570,149 @@ when another qualified maintainer becomes available, but it is not a completion 
 
 ---
 
+## ADR-041 — Define the F-04 GitHub evidence boundary
+
+**Status:** Accepted · **Date:** 2026-09-13 · **Affects:** `SPEC-001 §6.4–§6.5`,
+`ARCH-001`, `TECH-001`, `SEC-001`, `BRD-F04`, `F-04`, `F-10`
+
+**Context.** The F-04 pre-implementation audit found that the normative documents define the
+meaning of human review evidence but leave several adapter decisions open. They do not define the
+GitHub API version and endpoint set, pull-request/direct-push context representation, aggregate
+review-state precedence, evidence digest boundary, exact branch-rule sources, GitHub check
+conclusion mapping, or the boundary between strict adapter errors and default fail-open behavior.
+The BRD also scopes `SPEC-001 §6.5` checks without a check-specific requirement or acceptance
+criterion, and its 500-response criterion refers to a process exit code even though F-04 is a
+library feature and F-10 owns the CLI.
+
+Current API validation resolved the upstream constraints. GitHub's
+[version registry](https://docs.github.com/en/rest/about-the-rest-api/api-versions) supports REST
+API versions `2026-03-10` and `2022-11-28`; live schema introspection confirmed the current GraphQL
+`Commit` type exposes authored and committed dates but no push date. Active repository rulesets are
+returned by the [branch-rules endpoint](https://docs.github.com/en/rest/repos/rules#get-rules-for-a-branch),
+while classic branch protection remains a separate endpoint. The
+[check-runs documentation](https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference)
+states that the direct check-runs-for-ref endpoint is limited to the 1,000 most recent check suites
+and directs exhaustive clients to enumerate check suites and then the runs in each suite.
+Installed-source inspection and executable probes confirmed `httpx==0.28.1` supports injected
+transports, per-request timeouts, disabled redirects, parsed link headers, and the public
+request/timeout exception hierarchy needed by the adapter.
+
+**Decision.** The Python v0.1 adapter supports `github.com` through HTTPS REST API version
+`2026-03-10`. Production requests use the fixed `https://api.github.com` origin, disable automatic
+redirects and environment-derived transport configuration, and send GitHub's recommended JSON
+media type. Recorded tests inject an `httpx` transport; arbitrary production API origins and GitHub
+Enterprise Server are not part of v0.1.
+
+The public collection context explicitly distinguishes `pull-request`, `direct-push`, and
+`undetermined`. It carries a validated `owner/repository`, head commit SHA, base branch, the set of
+resolved immutable commit author and committer IDs, an optional positive pull-request number, and
+an optional timezone-aware last-push timestamp. Pull-request context requires a number;
+direct-push context forbids one; undetermined or inconsistent context is `ERR-COLLECT-124`. F-04
+consumes the resolved author-ID set defined by its existing data contract; it does not invent a
+mapping from Git identities to GitHub identities. The last-push timestamp is accepted only as an
+explicit upstream signal. Authored dates, committed dates, repository `pushed_at`, workflow start
+time, and other approximations must not substitute for it.
+
+For pull requests, every supported submitted review is retained. `User` is the only human GitHub
+account type and `Bot` is the only automated type in v0.1; classification uses the response type,
+never the login. An unsupported account type or malformed submitted review invalidates the review
+collection and therefore degrades it to unknown. A `PENDING` draft has no submitted review verdict
+and is omitted with `WARN-COLLECT-006`. Human reviews are grouped by immutable numeric user ID, so
+a renamed login remains the same reviewer for latest-state and approval counting. Latest means the
+greatest `(submitted_at, numeric_review_id)` pair. All historical supported records remain in
+`reviewers`; only a distinct human whose latest verdict is approved contributes to
+`humanApprovals`. Aggregate state is `changes-requested` if any latest human verdict requests
+changes, otherwise `approved` if any is approved, otherwise `commented` if any is commented,
+otherwise `none`. Dismissed and automated reviews never contribute to those calculations.
+Automated records use the exact GitHub login as `tool`.
+
+`Review.required` is evaluated against both active rulesets and classic branch protection. A
+source requires review when its effective pull-request-review configuration has a positive
+approval count, requires a code-owner review, requires last-push approval, or has a required
+reviewer with positive minimum approvals. A rule that only requires changes to arrive through a
+pull request does not by itself require review. A positive result from either source establishes
+`true`; `false` requires both sources to be determinately negative; an inaccessible or invalid
+source otherwise produces `unknown` and a warning. A classic-protection 404 is negative only after
+the repository and target branch context have already been validated.
+
+The full JSON object for each review or check run is canonicalised with the existing RFC 8785
+implementation and hashed with SHA-256. That per-object digest becomes `evidence.digest`,
+`findingsDigest`, or `detailsDigest`. Raw response objects and review bodies are not retained or
+logged. Review latency uses the earliest submitted time among humans whose latest verdict is an
+approval, minus the explicit last-push timestamp. It is emitted only when both values exist and the
+approval is not earlier than the push; otherwise it is omitted.
+
+Checks are enumerated by paginating all check suites for the head SHA and then paginating all runs
+in every suite with `filter=all`, avoiding the ref endpoint's 1,000-suite limit. Every distinct
+terminal run is recorded, including reruns. Exact GitHub conclusions map directly where the
+predicate enum has the same value; `action_required` and `stale` conservatively map to `failure`.
+An observed nonterminal run has no representable `Check.conclusion` and is omitted with
+`WARN-COLLECT-005`. The exact GitHub check name is retained and the numeric run ID is rendered as a
+decimal string. Repeated suite or run IDs across pages invalidate pagination rather than silently
+deduplicating evidence.
+
+Pagination follows GitHub `Link` relations with `per_page=100`. Once a response establishes a last
+page, every next page through that page is mandatory. For count-bearing responses, the number of
+unique collected records must equal `total_count`. Missing expected links, malformed relations,
+cycles, duplicate record IDs, count disagreement, redirects, and any next link whose HTTPS origin,
+path, or fixed query differs from the initiating operation are `ERR-COLLECT-122`. This is
+exhaustiveness relative to GitHub's documented pagination signals; an API that supplies neither a
+next relation nor a count cannot be made self-proving by a client.
+
+Authentication accepts exactly one configured source: `ATTEST_GITHUB_TOKEN`, `GITHUB_TOKEN`, or a
+file named by `ATTEST_GITHUB_TOKEN_FILE`. A token is a non-empty single value without whitespace.
+Ambiguous, unreadable, or invalid sources are `ERR-COLLECT-121`. Secret-bearing objects have a
+redacted representation. Tokens, authorization headers, response bodies, and upstream exception
+text never enter logs, warning references, public messages, or remediation text. F-04 adds no CLI
+option; F-10 must preserve this source-only boundary.
+
+Every request receives an explicit positive `httpx.Timeout`, further bounded by a positive
+operation deadline. Rate-limit responses are 429, or 403 with `Retry-After` or
+`X-RateLimit-Remaining: 0`. Retries honor a valid `Retry-After`; primary-limit retries honor the
+UTC epoch in `X-RateLimit-Reset`; secondary responses without either usable delay wait at least 60
+seconds. The selected delay is never shorter than exponential backoff beginning at one second and
+capped at 60 seconds. Wall and monotonic clocks plus sleep are injectable. A malformed mandatory
+rate-limit header or a delay/retry that would exceed the deadline raises `ERR-COLLECT-123`.
+
+Strict HTTP and pagination methods raise `ERR-COLLECT-121` through `ERR-COLLECT-125` and never
+return partial data. The public F-04 orchestration boundary catches those diagnostics independently.
+A review-fetch or review-contract failure returns `Review(state="unknown", required="unknown",
+humanApprovals=0, reviewers=[])` plus a warning. A branch-rule-only failure preserves collected
+review state but sets `required="unknown"`. A checks failure omits checks and adds a warning. A
+known direct push always returns review state `none`; protection failure changes only `required` to
+unknown. Successful empty checks and unavailable checks remain distinguishable inside the
+collection result. `ERR-COLLECT-125` covers bounded transport failures, non-rate-limit server
+failures, invalid JSON, and response-contract violations. The public collection call returns
+normally by default; F-10 later maps that result to CLI output and exit status.
+
+**Rationale.** Numeric-ID grouping preserves reviewer identity across login changes. Latest-state
+counting and conservative aggregate precedence prevent stale approvals from masking an active
+change request. Querying both rule systems avoids a false negative as GitHub migrates protection
+configuration to rulesets. Suite-first check enumeration avoids a documented truncation boundary.
+Explicit push-time input preserves the meaning of latency instead of manufacturing a precise-looking
+number from a different timestamp. Component-level fail-open behavior retains valid evidence while
+making every missing source visible to policy.
+
+**Rejected alternatives.** GraphQL cannot supply the required push timestamp. Commit authored or
+committed time describes repository metadata, not when GitHub received the push. The direct
+check-runs-for-ref endpoint can silently exclude older suites. Querying only classic protection or
+only rulesets misses an active protection mechanism. Treating every pull-request rule as a review
+requirement confuses requiring a PR with requiring approval. Name heuristics can misclassify humans
+and bots. Following arbitrary pagination links risks sending credentials outside the intended
+operation. Returning partial pages under-reports evidence. Aborting the whole attestation on forge
+availability contradicts F-04's explicit degradation contract.
+
+**Consequences.** F-04 gains a private bounded HTTP layer, explicit context and credential types,
+structured degradation warnings, an additional stable error code, recorded pagination fixtures,
+and a nightly read-only live smoke workflow. Check histories may contain multiple terminal reruns
+with the same display name; run IDs and evidence digests preserve their distinction. Latency will
+be absent until an upstream caller supplies an authentic push-time signal. GitHub Enterprise
+support requires a later ADR covering origin trust and API-version compatibility. BRD-F04 gains a
+check-specific requirement and criterion, and F-10 must prove the CLI preserves fail-open status
+and never accepts a token value as an argument.
+
+---
+
 ## Template for new ADRs
 
 ```markdown
