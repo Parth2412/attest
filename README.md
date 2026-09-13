@@ -7,8 +7,8 @@ Statement with a CI workload identity.
 
 > **Development status:** pre-alpha. The deterministic core, Git ChangeSet and four-source
 > authorship collectors, environment metadata adapter, schema-valid Statement builder, and
-> keyless Sigstore signing adapter are implemented. Independent verification is implemented and
-> awaiting its required human security review; no CLI or production release exists yet.
+> keyless Sigstore signing and independent verification adapters are implemented. No CLI or
+> production release exists yet.
 
 ## What attest establishes
 

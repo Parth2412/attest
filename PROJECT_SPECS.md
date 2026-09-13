@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, and F-06 are complete; F-08 is implemented and awaiting independent human review.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, F-06, and F-08 are complete.
 - **Last Updated**: 2026-09-13
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -25,9 +25,8 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01, F-02, F-03, F-05, and
-  F-06 are complete. F-08 is implemented but remains In progress until independent human review;
-  the other six features remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01, F-02, F-03, F-05, F-06,
+  and F-08 are complete; the other six features remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -39,11 +38,11 @@
   tests with one intentionally skipped live staging test.
 - **Known Issues**:
   - F-04, F-07, and F-09 through F-12 remain unimplemented; their modules and delivery surfaces
-    stay scaffolded until their owning BRDs are completed. F-08 awaits independent human review.
+    stay scaffolded until their owning BRDs are completed.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Complete the required independent human review of `BRD-F08`, merge it, and
-  then proceed in normative build order.
+- **Next Milestone**: Begin the next dependency-valid Planned feature after F-08 merges; F-04 and
+  F-07 are currently unblocked.
 
 ---
 
@@ -135,7 +134,7 @@ out of order means inventing those contracts.
 | `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ✓ done |
 | `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ☐ not started |
-| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ◐ in progress |
+| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ☐ not started |
 | `F-10` | CLI | `attest-cli` | M1 | F-01…F-08 | — | Pixel | ☐ not started |
 | `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ☐ not started |
@@ -356,8 +355,8 @@ be added to that table without a corresponding ADR.
 - **2026-09-13**: Implemented F-08's six-step independent verifier with mandatory exact issuer and
   bounded workflow identity, explicit offline trust sources, historical real-bundle evidence,
   hardened caller-selected Git recomputation, fail-closed diagnostics, the complete adversarial
-  suite, 100% verifier coverage, and a zero-survivor mutation gate. Independent human review is
-  still required before F-08 can be marked Done.
+  suite, 100% verifier coverage, and a zero-survivor mutation gate. F-08 completed under the
+  owner-authorized `ADR-040` solo-maintainer exception; no independent human review is claimed.
 - **2026-09-13**: `ADR-039` closed Sigstore 4.5.0's empty-issuer truthiness edge by requiring
   `IdentityConstraint` to reject empty or non-string issuers with `ERR-VERIFY-011` before policy
   construction.
@@ -417,9 +416,9 @@ be added to that table without a corresponding ADR.
 - **Agent team**: defined in `CLAUDE.md §4` — Lambda (coordination), Atlas (core/spec), Sage
   (collectors/storage), Cipher (sign/verify/security), Pixel (policy/CLI), Forge (DevOps),
   Quill (docs/compliance), Nexus (quality review), Arbiter (release)
-- **Code reviewers**: Nexus and Cipher provide internal quality/security review. F-08 additionally
-  requires an independent human reviewer, using a GitHub identity other than the change author,
-  before its implementation PR may merge.
+- **Code reviewers**: Nexus and Cipher provide internal quality/security review. F-08 completed
+  under the owner-authorized `ADR-040` solo-maintainer exception because no separate human
+  collaborator was available; no independent human review is claimed.
 - **Charters**: `agents/<name>/AGENT.md` for all nine, indexed at `agents/README.md`.
 
 ---
