@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.6.0` |
+| Version | `1.7.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
 | Last updated | 2026-09-14 |
 
@@ -164,8 +164,8 @@ The application uses `put_with_fallback` with an explicit `FilesystemStore`. Pri
 remains visible as a coded `StoreError` whose `fallback_path` lets the CLI report the preserved
 local bytes. Every network or subprocess operation has a hard deadline; ORAS operations run in a
 terminable worker because the locked client has no supported request-timeout parameter. Exact
-formats, ordering, collision behavior, errors, and concurrency rules are governed by `ADR-043`
-and `BRD-F07`.
+formats, ordering, collision behavior, errors, and concurrency rules are governed by `ADR-043`,
+the sibling-ref correction in `ADR-044`, and `BRD-F07`.
 
 ### 3.5 `attest-policy`
 

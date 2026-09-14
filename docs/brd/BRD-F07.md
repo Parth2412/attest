@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-store` |
 | Depends on | `F-01`, `F-06` |
-| Status | Ready when F-01, F-06 are Done · governed by `ADR-043` |
+| Status | Done · governed by `ADR-043`, `ADR-044` |
 
 ---
 
@@ -89,7 +89,7 @@ caller-configurable deadline enforced outside ORAS's unbounded request surface.
 |---|---|
 | `REQ-F07-010` | The store **MUST** support multiple exact Bundle byte strings per ChangeSet Digest; `get` returns all once each in deterministic Bundle-digest order and raises `ERR-STORE-403` only when none exist. |
 | `REQ-F07-020` | `put` **MUST** be content-idempotent: identical Bundle bytes under one ChangeSet Digest yield the same logical entry and exactly one value from `get` and `list`, including after concurrent calls. |
-| `REQ-F07-030` | `GitRefStore` **MUST** write one ref per Bundle under `refs/attestations/<digest>`. The first uses that exact ref. Additional refs use `/<log-index>` when a unique non-negative Rekor `logIndex` can be read without verification, `/<log-index>-<bundle-digest>` when that index collides, and `/sha256-<bundle-digest>` when no usable index exists. Refs point to attest metadata tag objects whose targets are exact Bundle blobs. No branch, tag ref, notes ref, index, or working-tree state may change. |
+| `REQ-F07-030` | `GitRefStore` **MUST** write one sibling ref per Bundle under `refs/attestations/`. The first uses `refs/attestations/<digest>`. Additional refs use `<digest>-<log-index>` when a unique non-negative Rekor `logIndex` can be read without verification, `<digest>-<log-index>-<bundle-digest>` when that index collides, and `<digest>-sha256-<bundle-digest>` when no usable index exists. A slash **MUST NOT** follow `<digest>` because Git forbids a ref and a child ref beneath the same path (`ADR-044`). Refs point to attest metadata tag objects whose targets are exact Bundle blobs. No branch, tag ref, notes ref, index, or working-tree state may change. |
 | `REQ-F07-040` | `GitRefStore.put` **MUST** perform no network operation. Pushing one returned attestation ref is an explicit, separately invoked, non-force operation. |
 | `REQ-F07-050` | A push rejected for authentication, authorisation, or ref policy **MUST** raise `ERR-STORE-401` with remediation naming `contents: write` for `refs/attestations/*`; reachability and deadline failures raise `ERR-STORE-402`. Diagnostics **MUST NOT** expose credentials or raw remote output. |
 | `REQ-F07-060` | `FilesystemStore` **MUST** write exact Bundle bytes as `<digest>.sigstore.json`, then `<digest>.1.sigstore.json`, `<digest>.2.sigstore.json`, and so on after content comparison. Each Bundle file has closed, hash-bound `<bundle-filename>.store.json` metadata in the same configured directory. Publication is atomic to cooperating operations and never overwrites an existing entry. |
@@ -105,7 +105,7 @@ caller-configurable deadline enforced outside ORAS's unbounded request surface.
 |---|---|
 | `AC-F07-010` | Every backend returns two distinct Bundle byte strings for one digest exactly once and in Bundle-digest order; an absent digest raises `ERR-STORE-403`. |
 | `AC-F07-020` | Sequential and concurrent duplicate writes yield one logical `StoreRef`, one listed entry, and one returned Bundle. |
-| `AC-F07-030` | Both Git implementations create the exact base and collision refs with hash-bound metadata and Bundle blobs while branch, tag, notes, index, HEAD, and working tree snapshots remain unchanged. |
+| `AC-F07-030` | Both Git implementations create the exact base and sibling collision refs without a file/directory conflict, with hash-bound metadata and Bundle blobs, while branch, tag, notes, index, HEAD, and working tree snapshots remain unchanged. |
 | `AC-F07-040` | A socket-denial guard proves both Git `put` implementations perform no egress; only an explicit `push` contacts the configured remote. |
 | `AC-F07-050` | A fixture remote rejection raises sanitised `ERR-STORE-401`, names `contents: write` and `refs/attestations/*`, and reports the preserved fallback path; unreachable and expired pushes raise `ERR-STORE-402`. |
 | `AC-F07-060` | Distinct bytes produce the exact base and `.1` Bundle filenames plus valid metadata; duplicate bytes do not create `.2`; no existing file is overwritten. |
@@ -132,7 +132,7 @@ Hosted store (`OOS-01`, v1.1), retention policy enforcement, cross-repository se
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F07-*` implemented, all `AC-F07-*` green
-- [ ] All three backends pass the identical store conformance suite
-- [ ] Coverage ≥ 90%
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F07-*` implemented, all `AC-F07-*` green
+- [x] All three backends pass the identical store conformance suite
+- [x] Coverage ≥ 90%
+- [x] Cross-cutting obligations satisfied

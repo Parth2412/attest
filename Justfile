@@ -38,6 +38,9 @@ github-coverage:
 policy-coverage:
     uv run pytest packages/attest-policy/tests --cov=attest_policy --cov-report=term-missing --cov-fail-under=95
 
+store-coverage:
+    uv run pytest packages/attest-store/tests --cov=attest_store --cov-report=term-missing --cov-fail-under=90
+
 mutation-core:
     cd packages/attest-core && uv run mutmut run
     cd packages/attest-core && uv run mutmut results
@@ -68,4 +71,4 @@ adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage schema-check banned trace security

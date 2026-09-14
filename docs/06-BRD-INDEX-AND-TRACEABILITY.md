@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.0.0` |
+| Version | `2.1.0` |
 | Status | Baselined |
 | Last updated | 2026-09-14 |
 
@@ -187,7 +187,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-04` | Done |
 | `F-05` | Done |
 | `F-06` | Done |
-| `F-07` | Planned |
+| `F-07` | Done |
 | `F-08` | Done |
 | `F-09` | Done |
 | `F-10` | Planned |

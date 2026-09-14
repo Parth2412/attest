@@ -3,8 +3,8 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01, F-02, F-03, F-05, F-06, and F-08 are complete.
-- **Last Updated**: 2026-09-13
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-09 are complete.
+- **Last Updated**: 2026-09-14
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -25,8 +25,8 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01, F-02, F-03, F-05, F-06,
-  and F-08 are complete; the other six features remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-09 are
+  complete; F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -34,15 +34,16 @@
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
   isolation, and secure filesystem tests. F-05 has 99% `attest-core`; F-06's signing module has
   95% branch coverage. F-08 has 100% verifier branch coverage, 94% across `attest-sign`, 15
-  mandatory adversarial tests, and 273 killed verifier mutants. The full local gate passes 405
-  tests with one intentionally skipped live staging test.
+  mandatory adversarial tests, and 273 killed verifier mutants. F-04 and F-09 enforce their 90%
+  and 95% package gates. F-07 has 91.07% branch coverage across filesystem, Git CLI, optional
+  pygit2, and OCI Referrers conformance. The full local gate passes 789 tests with two intentional
+  environment-dependent skips.
 - **Known Issues**:
-  - F-04, F-07, and F-09 through F-12 remain unimplemented; their modules and delivery surfaces
-    stay scaffolded until their owning BRDs are completed.
+  - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
+    until their owning BRDs are completed.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Begin the next dependency-valid Planned feature after F-08 merges; F-04 and
-  F-07 are currently unblocked.
+- **Next Milestone**: Implement F-10, whose F-01 through F-08 dependencies are complete.
 
 ---
 
@@ -113,7 +114,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01/F-02/F-03/F-05 active, others scaffolded
+├── packages/               seven distributions; F-01 through F-09 active, F-10–F-12 scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -130,12 +131,12 @@ out of order means inventing those contracts.
 | `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ✓ done |
 | `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ✓ done |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ✓ done |
-| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ☐ not started |
+| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ✓ done |
 | `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ✓ done |
-| `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ☐ not started |
+| `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ✓ done |
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
-| `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ☐ not started |
+| `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M1 | F-01…F-08 | — | Pixel | ☐ not started |
 | `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ☐ not started |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
@@ -192,7 +193,7 @@ Full matrix in `COMPATIBILITY.md §2`. Headlines:
 | Statement type | `https://in-toto.io/Statement/v1` | external |
 | DSSE payload type | `application/vnd.in-toto+json` | external |
 | Subject | `name = "changeset"`, digest = ChangeSet Digest — **not** the commit SHA (`ADR-002`) | frozen by design |
-| Storage | `refs/attestations/<digest>` (`ADR-014`) | git notes are **not** used for storage |
+| Storage | `refs/attestations/<digest>[-<locator>]` (`ADR-014`, `ADR-044`) | git notes are **not** used for storage |
 | Exit codes | `GLOSS-001 §7` | frozen from first release |
 | JSON Schema | structural schema generated from Pydantic; CI fails on drift (`ADR-010`, `ADR-021`) | never hand-edited; semantic invariants remain runtime checks |
 

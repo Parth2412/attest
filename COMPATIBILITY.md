@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.9.0` |
+| Version | `1.11.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-14 |
 
@@ -29,19 +29,20 @@
 | Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
 | Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04`, `F-05` | active |
 | Signing & verification | `attest-sign` | `attest_sign` | 0.1.0 | Python 3.12+ | `F-06`, `F-08` | active |
-| Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | scaffold |
-| Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | scaffold |
+| Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | active |
+| Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
 | GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
-| Specification | `SPEC-001` | — | 0.1.4 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
+| Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
-F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are
-active in `attest-collect`; F-06 signing is active in `attest-sign`, where F-08 verification is in
-active and complete under the `ADR-040` solo-maintainer review exception. The F-04 collector and
-all later feature modules remain scaffolds.
+F-01 and F-05 are active in `attest-core`; F-02, F-03, F-04, and the F-05 environment adapter are
+active in `attest-collect`; F-06 signing and F-08 verification are active in `attest-sign`; F-07
+storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
+F-08 is complete under the `ADR-040` solo-maintainer review exception. Remaining feature modules
+are scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -62,7 +63,7 @@ anyone verifying an attestation years from now.
 | Claim sidecar schema | `schemaVersion` field | `0.1.0` | SemVer | `ARCH-001 §7`, `BRD-F03` |
 | Statement type | `https://in-toto.io/Statement/v1` | v1 | upstream | External — in-toto |
 | DSSE payload type | `application/vnd.in-toto+json` | — | upstream | External — DSSE |
-| Attestation ref namespace | `refs/attestations/<changeset-digest>` | — | — | Multiple Bundles use the log-index and Bundle-digest collision locators defined by `ADR-043`; `ADR-014` |
+| Attestation ref namespace | `refs/attestations/<changeset-digest>` | — | — | Multiple Bundles use sibling `-<log-index>` and Bundle-digest collision locators; `ADR-014`, `ADR-044` |
 | Store metadata | Canonical JSON version `1` | 1 | integer | Exact ChangeSet Digest, Bundle digest, size, and storage-time binding; `ADR-043` |
 | CLI exit codes | `GLOSS-001 §7` | frozen | table | **Effectively frozen from first release.** Any change is a major version bump of the CLI. `REQ-F10-010` |
 | CLI `--json` output | committed output schema | 0.1.0 | SemVer | Drift-checked in CI. `REQ-F10-020` |
@@ -226,6 +227,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-14**: Activated F-07 in `attest-store`; filesystem, Git CLI, optional pygit2, and OCI
+  Referrers storage pass exact-byte, create-only concurrency, corruption, containment, fallback,
+  pagination, and hard-deadline conformance above the 90% package coverage gate.
 - **2026-09-12**: Activated F-05 across `attest-core` and `attest-collect`; deterministic
   Statement assembly, two-layer validation, golden canonical bytes, and conservative GitHub
   Actions environment trust metadata are covered at 99% core and 100% environment-module branch

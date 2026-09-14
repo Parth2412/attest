@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.20.0` |
+| Version | `1.21.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-09-14 |
 
@@ -2042,6 +2042,47 @@ filesystem metadata and Git tag objects are permanent v1 storage formats and req
 tests. F-07 CI must exercise both Git implementations, a local OCI 1.1 fixture registry, process
 concurrency, a base installation without pygit2, at least 90% package coverage, and every
 filesystem/network containment assertion before the feature can be marked Done.
+
+---
+
+## ADR-044 — Use sibling refs for additional Git attestations
+
+**Status:** Accepted · **Date:** 2026-09-14 · **Supersedes:** the Git child-ref locator clauses
+of `ADR-014` and `ADR-043` · **Affects:** `SPEC-001 §9`, `ARCH-001`, `BRD-F07`, `F-07`
+
+**Context.** Executable acceptance tests against the supported Git plumbing model and locked
+`pygit2==1.20.0` exposed a filesystem-level ref conflict before F-07 shipped. After creating
+`refs/attestations/<digest>`, neither implementation can create
+`refs/attestations/<digest>/<log-index>`: the base is a ref file while the additional locator
+requires that same path to be a directory. The inverse creation order fails for the same reason.
+Packed refs do not make the two names a valid coexisting ref set, and migrating the base ref when a
+second Bundle arrives would invalidate an already returned `StoreRef` and race with explicit push.
+
+**Decision.** The first Bundle retains `refs/attestations/<digest>`. Every additional Bundle is a
+sibling ref, not a child: `refs/attestations/<digest>-<log-index>` when one usable log index exists,
+`refs/attestations/<digest>-<log-index>-<bundle-digest>` when that locator already names different
+bytes, and `refs/attestations/<digest>-sha256-<bundle-digest>` when no usable log index exists.
+Discovery matches the exact 64-character ChangeSet Digest and only these closed suffix forms; it
+does not use an unconstrained textual prefix. Tag names remain their complete ref names with only
+the leading `refs/` removed. All other object, metadata, idempotency, concurrency, push, fallback,
+and containment decisions in `ADR-043` remain unchanged.
+
+**Rationale.** A hyphen makes every additional locator a sibling filesystem path, so the original
+base ref remains valid and pushable for its lifetime. The format preserves the compact human Rekor
+index, retains the Bundle digest only where needed for collision or missing-index identity, and is
+the smallest pre-release correction to the approved namespace.
+
+**Rejected alternatives.** Giving every Bundle a child such as `<digest>/base` discards the
+approved base locator and would make the namespace incompatible before its first release. Moving
+the base to a child only when a second Bundle arrives makes `StoreRef.location` unstable and cannot
+be atomic with callers that push concurrently. Manually combining packed and loose conflicting
+refs relies on an invalid ref set that Git transactions reject. A separate second-attestation
+namespace fragments discovery without solving any additional requirement.
+
+**Consequences.** F-07 tests must prove the exact sibling names with both Git implementations and
+must reject child-shaped or otherwise malformed locators. Any forge permission rule must cover
+`refs/attestations/*`, which already includes the base and sibling forms. No data migration is
+required because F-07 has not shipped and no production attestation refs exist.
 
 ---
 
