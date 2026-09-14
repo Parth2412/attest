@@ -110,13 +110,11 @@ def _failure(
     checks: list[CheckOutcome],
     name: CheckName,
     code: VerifyErrorCode,
-    *,
-    statement: Statement | None = None,
 ) -> VerificationResult:
     return VerificationResult(
         status="failed",
         checks=[*checks, _failed(name, code)],
-        statement=statement,
+        statement=None,
         failure_code=code,
         verified_identity=None,
         verified_issuer=None,
@@ -229,19 +227,9 @@ def verify(
         try:
             digest = recompute_changeset_digest(repository)
         except Exception:
-            return _failure(
-                checks,
-                _CHECK_NAMES[5],
-                "ERR-VERIFY-010",
-                statement=statement,
-            )
+            return _failure(checks, _CHECK_NAMES[5], "ERR-VERIFY-010")
         if digest != statement.predicate.change_set.digest:
-            return _failure(
-                checks,
-                _CHECK_NAMES[5],
-                "ERR-VERIFY-010",
-                statement=statement,
-            )
+            return _failure(checks, _CHECK_NAMES[5], "ERR-VERIFY-010")
         checks.append(_passed(_CHECK_NAMES[5]))
 
     status: VerificationStatus = (
