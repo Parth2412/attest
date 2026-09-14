@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.4.0` |
+| Version | `1.5.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 ---
 
@@ -169,6 +169,17 @@ Git CLI when a compatible wheel is unavailable. The exact `pygit2` baseline rema
 the root development group so CI exercises both backends. `attest-store` follows the same optional
 native-backend rule and keeps its Git-ref backend usable through the Git CLI. Recorded as
 `ADR-007` and `ADR-034`.
+
+**ORAS registry boundary.**
+The committed lock resolves `oras==0.2.43`. Its public push surface accepts an OCI subject, but it
+does not expose a high-level Referrers API and its underlying Requests calls expose no supported
+request-timeout argument. `OciStore` therefore keeps ORAS as the registry and authentication
+implementation, uses the OCI 1.1 Referrers endpoint through the authenticated client surface, and
+runs each complete operation in a terminable worker under a hard caller-configurable deadline.
+The adapter **MUST NOT** mutate ORAS private sessions, implement a second unauthenticated registry
+client, resolve mutable subject tags implicitly, or write staging material outside its explicit
+directory (`ADR-043`). Any ORAS upgrade requires the subject, referrers, authentication, digest,
+and deadline probes to be repeated against the installed source before implementation changes.
 
 **`rfc8785` for canonicalisation.**
 Do not hand-roll canonicalisation with `json.dumps(sort_keys=True)`. It is *not* RFC 8785: it
