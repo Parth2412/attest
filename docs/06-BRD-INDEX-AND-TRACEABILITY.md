@@ -5,7 +5,7 @@
 | Document ID | `BRD-INDEX` |
 | Version | `2.0.0` |
 | Status | Baselined |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 ---
 
@@ -189,7 +189,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-06` | Done |
 | `F-07` | Planned |
 | `F-08` | Done |
-| `F-09` | Planned |
+| `F-09` | Done |
 | `F-10` | Planned |
 | `F-11` | Planned |
 | `F-12` | Planned |
@@ -308,6 +308,24 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F08-140` | `AC-F08-140` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 | `REQ-F08-150` | `AC-F08-150` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
 | `REQ-F08-160` | `AC-F08-160` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F09-010` | `AC-F09-010` | `packages/attest-policy/tests/test_boundaries.py` | ✓ |
+| `REQ-F09-020` | `AC-F09-020` | `packages/attest-policy/tests/test_models.py`, `test_schema.py` | ✓ |
+| `REQ-F09-030` | `AC-F09-030` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-040` | `AC-F09-040` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-050` | `AC-F09-050` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-060` | `AC-F09-060` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-070` | `AC-F09-070` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-080` | `AC-F09-080` | `packages/attest-policy/tests/test_glob.py` | ✓ |
+| `REQ-F09-090` | `AC-F09-090` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-100` | `AC-F09-100` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-110` | `AC-F09-110` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-120` | `AC-F09-120` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-130` | `AC-F09-130` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-140` | `AC-F09-140` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-150` | `AC-F09-150` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-160` | `AC-F09-160` | `packages/attest-policy/tests/test_boundaries.py`, `test_evaluate.py` | ✓ |
+| `REQ-F09-170` | `AC-F09-170` | `packages/attest-policy/tests/test_models.py` | ✓ |
+| `REQ-F09-180` | `AC-F09-180` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

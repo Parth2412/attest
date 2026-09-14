@@ -210,12 +210,14 @@ version = "0.1.0"
 source = { editable = "packages/attest-policy" }
 dependencies = [
     { name = "attest-core" },
+    { name = "pydantic" },
     { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "attest-core", editable = "packages/attest-core" },
+    { name = "pydantic", specifier = "==2.13.5" },
     { name = "pyyaml" },
 ]
 

@@ -1,0 +1,260 @@
+{
+  "$defs": {
+    "AuthorshipRequirement": {
+      "additionalProperties": false,
+      "description": "Require the signed authorship claims-presence flag.",
+      "properties": {
+        "claimsRequired": {
+          "title": "Claimsrequired",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "claimsRequired"
+      ],
+      "title": "AuthorshipRequirement",
+      "type": "object"
+    },
+    "ChecksRequirement": {
+      "additionalProperties": false,
+      "description": "Require exact named retained check records to all pass.",
+      "properties": {
+        "mustPass": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Mustpass",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mustPass"
+      ],
+      "title": "ChecksRequirement",
+      "type": "object"
+    },
+    "EnvironmentRequirement": {
+      "additionalProperties": false,
+      "description": "Require the signed producer environment to be trusted.",
+      "properties": {
+        "trusted": {
+          "title": "Trusted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "trusted"
+      ],
+      "title": "EnvironmentRequirement",
+      "type": "object"
+    },
+    "Policy": {
+      "additionalProperties": false,
+      "description": "Represent one ordered version 1 policy rule (REQ-F09-020/170).",
+      "properties": {
+        "description": {
+          "default": null,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/$defs/PolicyMatch"
+        },
+        "onViolation": {
+          "enum": [
+            "block",
+            "warn"
+          ],
+          "title": "Onviolation",
+          "type": "string"
+        },
+        "require": {
+          "$ref": "#/$defs/PolicyRequirements"
+        }
+      },
+      "required": [
+        "id",
+        "match",
+        "require",
+        "onViolation"
+      ],
+      "title": "Policy",
+      "type": "object"
+    },
+    "PolicyMatch": {
+      "additionalProperties": false,
+      "description": "Select a policy by target branch and complete changed paths.",
+      "properties": {
+        "branches": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Branches",
+          "type": "array"
+        },
+        "paths": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "required": [
+        "branches",
+        "paths"
+      ],
+      "title": "PolicyMatch",
+      "type": "object"
+    },
+    "PolicyRequirements": {
+      "additionalProperties": false,
+      "description": "Hold the closed set of configurable policy predicates.",
+      "properties": {
+        "attestation": {
+          "default": null,
+          "title": "Attestation",
+          "type": "boolean"
+        },
+        "authorship": {
+          "$ref": "#/$defs/AuthorshipRequirement",
+          "default": null,
+          "title": "Authorship"
+        },
+        "checks": {
+          "$ref": "#/$defs/ChecksRequirement",
+          "default": null,
+          "title": "Checks"
+        },
+        "environment": {
+          "$ref": "#/$defs/EnvironmentRequirement",
+          "default": null,
+          "title": "Environment"
+        },
+        "review": {
+          "$ref": "#/$defs/ReviewRequirement",
+          "default": null,
+          "title": "Review"
+        },
+        "signer": {
+          "$ref": "#/$defs/SignerRequirement",
+          "default": null,
+          "title": "Signer"
+        },
+        "transparencyLog": {
+          "default": null,
+          "title": "Transparencylog",
+          "type": "boolean"
+        }
+      },
+      "title": "PolicyRequirements",
+      "type": "object"
+    },
+    "ReviewRequirement": {
+      "additionalProperties": false,
+      "description": "Configure conditional approval and separation predicates.",
+      "properties": {
+        "approverMustNotBeAuthor": {
+          "default": null,
+          "title": "Approvermustnotbeauthor",
+          "type": "boolean"
+        },
+        "minHumanApprovals": {
+          "default": null,
+          "minimum": 0,
+          "title": "Minhumanapprovals",
+          "type": "integer"
+        },
+        "when": {
+          "$ref": "#/$defs/ReviewWhen",
+          "default": null,
+          "title": "When"
+        }
+      },
+      "title": "ReviewRequirement",
+      "type": "object"
+    },
+    "ReviewWhen": {
+      "additionalProperties": false,
+      "description": "Condition review requirements on signed authorship mode.",
+      "properties": {
+        "authorshipMode": {
+          "items": {
+            "enum": [
+              "human-authored",
+              "ai-assisted",
+              "ai-authored",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Authorshipmode",
+          "type": "array"
+        }
+      },
+      "required": [
+        "authorshipMode"
+      ],
+      "title": "ReviewWhen",
+      "type": "object"
+    },
+    "SignerRequirement": {
+      "additionalProperties": false,
+      "description": "Require F-08 verified exact issuer and bounded identity evidence.",
+      "properties": {
+        "identity": {
+          "minLength": 1,
+          "title": "Identity",
+          "type": "string"
+        },
+        "issuer": {
+          "minLength": 1,
+          "title": "Issuer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "issuer",
+        "identity"
+      ],
+      "title": "SignerRequirement",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Represent the strict public policy version 1 document (REQ-F09-020/170).",
+  "properties": {
+    "policies": {
+      "items": {
+        "$ref": "#/$defs/Policy"
+      },
+      "title": "Policies",
+      "type": "array"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "policies"
+  ],
+  "title": "PolicyDocument",
+  "type": "object"
+}

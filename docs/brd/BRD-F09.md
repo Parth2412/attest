@@ -423,12 +423,12 @@ policy-controlled ChangeSet exclusions, GitHub check publication, and branch-pro
 
 ## 10. Definition of Done
 
-- [ ] All `REQ-F09-*` implemented and all `AC-F09-*` green
-- [ ] Decision-table tests cover every predicate, status, violation mode, and exit `0`/`3`/`4`/`5`
-- [ ] Generated policy schema is committed and drift-checked
-- [ ] Safe-YAML, no-I/O, import-boundary, and no-egress tests are green
-- [ ] Coverage ≥ 95% for the pure package
-- [ ] Cross-cutting obligations satisfied
+- [x] All `REQ-F09-*` implemented and all `AC-F09-*` green
+- [x] Decision-table tests cover every predicate, status, violation mode, and exit `0`/`3`/`4`/`5`
+- [x] Generated policy schema is committed and drift-checked
+- [x] Safe-YAML, no-I/O, import-boundary, and no-egress tests are green
+- [x] Coverage ≥ 95% for the pure package
+- [x] Cross-cutting obligations satisfied
 
 The real required-status-check blocked-merge demonstration is an F-11 completion gate, because
 F-11 owns the GitHub Action and status-check integration (`ADR-042`).

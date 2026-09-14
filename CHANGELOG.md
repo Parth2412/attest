@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-09 strict bounded policy loading, generated policy schema, raw-byte glob matching,
+  pure deterministic evaluation, complete predicate reporting, and fail-closed decision precedence.
 - Implemented F-04 GitHub review evidence collection with immutable reviewer identities,
   exhaustive same-origin pagination, combined ruleset and classic-protection requirements,
   complete check-suite/run collection, bounded rate-limit handling, secret-safe authentication,
