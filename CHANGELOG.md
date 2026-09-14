@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-07 exact-byte storage through filesystem, Git CLI, optional pygit2, and OCI 1.1
+  Referrers backends with deterministic multi-attestation retrieval, create-only concurrency,
+  integrity validation, explicit fallback, bounded egress, and containment-safe staging.
 - Defined the complete F-07 Git-ref, filesystem, OCI Referrers, concurrency, integrity,
   deadline, and local-fallback storage contract in ADR-043.
+- Corrected additional F-07 Git locators to sibling refs so the base and multiple attestations can
+  coexist without Git file/directory conflicts in ADR-044.
 - Cleared parsed Statements from failed F-08 verification results so repository recomputation
   failures remain valid fail-closed policy inputs.
 - Implemented F-09 strict bounded policy loading, generated policy schema, raw-byte glob matching,

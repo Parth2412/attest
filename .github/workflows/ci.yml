@@ -87,6 +87,53 @@ jobs:
           uv run pytest packages/attest-policy/tests --cov=attest_policy
           --cov-report=term-missing --cov-fail-under=95
 
+  storage-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-07 storage coverage
+        run: >-
+          uv run pytest packages/attest-store/tests --cov=attest_store
+          --cov-report=term-missing --cov-fail-under=90
+
+  storage-base-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --package attest-store --no-dev
+      - name: Verify base-install Git CLI backend
+        run: |
+          uv run --no-sync python - <<'PY'
+          import importlib.util
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          from attest_store import GitRefStore
+
+          assert importlib.util.find_spec("pygit2") is None
+          version = subprocess.run(
+              ["git", "version"], check=True, capture_output=True, text=True
+          ).stdout.split()[2]
+          assert tuple(int(part) for part in version.split(".")[:2]) >= (2, 40)
+          with tempfile.TemporaryDirectory() as directory:
+              repository = Path(directory) / "repository.git"
+              subprocess.run(
+                  ["git", "init", "--bare", str(repository)], check=True, capture_output=True
+              )
+              store = GitRefStore(repository)
+              reference = store.put("a" * 64, b"base-install")
+              assert store.backend == "subprocess"
+              assert store.get(reference.digest) == [b"base-install"]
+          PY
+
   schema-drift:
     runs-on: ubuntu-latest
     steps:

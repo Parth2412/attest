@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `SPEC-001` |
-| Version | `0.1.4` (draft for public RFC) |
+| Version | `0.1.5` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
 | Last updated | 2026-09-14 |
@@ -675,10 +675,11 @@ checks are absent (`ADR-038`).
 | Filesystem | `<dir>/<changeset-digest>.sigstore.json` | Always available |
 | Hosted store | HTTP API | v1.1 |
 
-**Git ref namespace (NORMATIVE, `ADR-014`).** Storage uses one ref per attestation under
+**Git ref namespace (NORMATIVE, `ADR-014`, `ADR-044`).** Storage uses one ref per attestation under
 `refs/attestations/`. Git notes **MUST NOT** be used for storage, because a single notes ref
 produces merge conflicts under concurrent CI writes. Where more than one attestation exists for a
-digest, refs are suffixed: `refs/attestations/<digest>/<log-index>`.
+digest, refs are sibling names: `refs/attestations/<digest>-<log-index>`. A ref named
+`refs/attestations/<digest>` and a child beneath `<digest>/` cannot coexist in Git.
 
 Reading git notes as a *claim source* is unrelated and remains supported (`SPEC-001 §6.3`,
 `BRD-F03`).
@@ -696,8 +697,8 @@ The metadata is RFC 8785 canonical JSON containing exactly `version` with intege
 `<bundle-filename>.store.json`; Git uses the same canonical bytes followed by LF as its tag message.
 
 Git attestation refs point to metadata tag objects whose targets are exact Bundle blobs. The first
-Bundle uses the base ref. Additional Bundles use `/<log-index>` when available, add the Bundle
-digest when that locator collides, or use `/sha256-<bundle-digest>` when no usable log index exists.
+Bundle uses the base ref. Additional Bundles use `-<log-index>` when available, add the Bundle
+digest when that locator collides, or use `-sha256-<bundle-digest>` when no usable log index exists.
 No `refs/tags/`, notes, branch, index, HEAD, or working-tree state is modified. Publishing a ref to
 a remote is an explicit non-force operation and is never part of local storage.
 
@@ -815,5 +816,6 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-12 | Builder purity, environment trust classification, and total array ordering completed before F-05 implementation (`ADR-036`) |
 | 0.1.3 | 2026-09-13 | Effective human-review state made mandatory for new output and optional only for historical v0.1 verification so policy can enforce separation of duties without breaking signed bundles (`ADR-042`) |
 | 0.1.4 | 2026-09-14 | Git, filesystem, and OCI storage formats, metadata binding, discovery, and verification separation completed before F-07 implementation (`ADR-043`) |
+| 0.1.5 | 2026-09-14 | Additional Git attestation locators changed from impossible child refs to coexisting sibling refs after executable Git and libgit2 probes (`ADR-044`) |
 
 [in-toto Statements]: https://in-toto.io/
