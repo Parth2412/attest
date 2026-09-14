@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Defined the complete F-07 Git-ref, filesystem, OCI Referrers, concurrency, integrity,
+  deadline, and local-fallback storage contract in ADR-043.
 - Cleared parsed Statements from failed F-08 verification results so repository recomputation
   failures remain valid fail-closed policy inputs.
 - Implemented F-09 strict bounded policy loading, generated policy schema, raw-byte glob matching,

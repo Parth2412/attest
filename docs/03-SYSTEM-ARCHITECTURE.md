@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.5.0` |
+| Version | `1.6.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 ---
 
@@ -136,6 +136,14 @@ result, so the order is auditable in code review and testable step-by-step.
 Uniform interface:
 
 ```python
+@dataclass(frozen=True, slots=True)
+class StoreRef:
+    backend: Literal["git-ref", "filesystem", "oci"]
+    digest: str
+    bundle_digest: str
+    location: str
+    stored_at: datetime
+
 class AttestationStore(Protocol):
     def put(self, digest: str, bundle: bytes) -> StoreRef: ...
     def get(self, digest: str) -> list[bytes]: ...
@@ -143,6 +151,21 @@ class AttestationStore(Protocol):
 ```
 
 Implementations: `GitRefStore`, `FilesystemStore`, `OciStore`.
+
+All backends preserve exact Bundle bytes and expose content-idempotent, create-only behavior.
+`get` and `list` validate storage integrity but never perform F-08 verification. Git storage uses
+hash-bound metadata tag objects and writes only its object database plus `refs/attestations/`;
+network push is a separate non-force operation. Filesystem storage uses atomically published
+Bundle files plus closed companion metadata inside one configured directory. OCI storage attaches
+a one-layer Sigstore Bundle manifest to one explicitly configured immutable subject descriptor and
+discovers it through the OCI 1.1 Referrers API.
+
+The application uses `put_with_fallback` with an explicit `FilesystemStore`. Primary failure
+remains visible as a coded `StoreError` whose `fallback_path` lets the CLI report the preserved
+local bytes. Every network or subprocess operation has a hard deadline; ORAS operations run in a
+terminable worker because the locked client has no supported request-timeout parameter. Exact
+formats, ordering, collision behavior, errors, and concurrency rules are governed by `ADR-043`
+and `BRD-F07`.
 
 ### 3.5 `attest-policy`
 

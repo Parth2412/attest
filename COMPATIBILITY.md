@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.8.0` |
+| Version | `1.9.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -35,7 +35,7 @@
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
 | GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
-| Specification | `SPEC-001` | — | 0.1.2 (document) | — | `F-01`, `F-08` | baselined, unpublished |
+| Specification | `SPEC-001` | — | 0.1.4 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
 F-01 and F-05 are active in `attest-core`; F-02, F-03, and the F-05 environment adapter are
@@ -62,7 +62,8 @@ anyone verifying an attestation years from now.
 | Claim sidecar schema | `schemaVersion` field | `0.1.0` | SemVer | `ARCH-001 §7`, `BRD-F03` |
 | Statement type | `https://in-toto.io/Statement/v1` | v1 | upstream | External — in-toto |
 | DSSE payload type | `application/vnd.in-toto+json` | — | upstream | External — DSSE |
-| Attestation ref namespace | `refs/attestations/<changeset-digest>` | — | — | Multiple attestations per digest suffix with `/<log-index>`. `ADR-014` |
+| Attestation ref namespace | `refs/attestations/<changeset-digest>` | — | — | Multiple Bundles use the log-index and Bundle-digest collision locators defined by `ADR-043`; `ADR-014` |
+| Store metadata | Canonical JSON version `1` | 1 | integer | Exact ChangeSet Digest, Bundle digest, size, and storage-time binding; `ADR-043` |
 | CLI exit codes | `GLOSS-001 §7` | frozen | table | **Effectively frozen from first release.** Any change is a major version bump of the CLI. `REQ-F10-010` |
 | CLI `--json` output | committed output schema | 0.1.0 | SemVer | Drift-checked in CI. `REQ-F10-020` |
 | Policy schema | `version:` integer field | `1` | integer | Increment on breaking change; old versions still evaluated. `GLOSS-001 §5` |

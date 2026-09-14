@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Document ID | `SPEC-001` |
-| Version | `0.1.3` (draft for public RFC) |
+| Version | `0.1.4` (draft for public RFC) |
 | Status | **NORMATIVE** for attestation format, digests, canonicalisation, and verification |
 | Predicate type URI | `https://parth2412.github.io/attest/ai-authorship/v0.1` — see §3.1 and `ADR-013` |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 > This is the document that matters most. It is the asset. The CLI is an implementation of this
 > specification; the specification is not a description of the CLI. Write it as though a second,
@@ -687,6 +687,31 @@ Discovery is by ChangeSet Digest. Implementations **MUST** support retrieving al
 for a given digest, since multiple attestations for one ChangeSet are legitimate (e.g. one at PR
 time, one at merge time).
 
+Stored Bundle bytes are opaque to this layer and **MUST** be returned unchanged even when they are
+not a valid Bundle. Storage metadata **MUST** bind the ChangeSet Digest, SHA-256 of the exact Bundle
+bytes, byte size, and UTC storage time. Retrieval validates that storage binding but **MUST NOT**
+perform signature, identity, transparency-log, structural, semantic, or ChangeSet verification.
+The metadata is RFC 8785 canonical JSON containing exactly `version` with integer value `1`,
+`changeSetDigest`, `bundleDigest`, `size`, and `storedAt`. Filesystem metadata uses
+`<bundle-filename>.store.json`; Git uses the same canonical bytes followed by LF as its tag message.
+
+Git attestation refs point to metadata tag objects whose targets are exact Bundle blobs. The first
+Bundle uses the base ref. Additional Bundles use `/<log-index>` when available, add the Bundle
+digest when that locator collides, or use `/sha256-<bundle-digest>` when no usable log index exists.
+No `refs/tags/`, notes, branch, index, HEAD, or working-tree state is modified. Publishing a ref to
+a remote is an explicit non-force operation and is never part of local storage.
+
+Filesystem storage writes exact Bundle files as `<digest>.sigstore.json` and then
+`<digest>.<n>.sigstore.json`, with hash-bound companion metadata in the same configured directory.
+Bundle and metadata publication is create-only and atomic to cooperating store operations.
+
+OCI storage requires an explicitly supplied immutable subject descriptor containing media type,
+manifest digest, and byte size. It attaches an OCI image manifest using the OCI 1.1 subject and
+Referrers API. The artifact type and sole Bundle layer media type are
+`application/vnd.dev.sigstore.bundle.v0.3+json`. Manifest annotations bind the ChangeSet Digest,
+Bundle digest, and storage time as defined by `ADR-043`. Mutable subject tags **MUST NOT** be
+resolved implicitly.
+
 ---
 
 ## 10. Error codes
@@ -789,5 +814,6 @@ Full treatment in `SEC-001`. Summary:
 | 0.1.0 | 2026-09-12 | Collector-generated identifiers and complete authorship-mode edge cases defined before F-03 implementation (`ADR-035`) |
 | 0.1.0 | 2026-09-12 | Builder purity, environment trust classification, and total array ordering completed before F-05 implementation (`ADR-036`) |
 | 0.1.3 | 2026-09-13 | Effective human-review state made mandatory for new output and optional only for historical v0.1 verification so policy can enforce separation of duties without breaking signed bundles (`ADR-042`) |
+| 0.1.4 | 2026-09-14 | Git, filesystem, and OCI storage formats, metadata binding, discovery, and verification separation completed before F-07 implementation (`ADR-043`) |
 
 [in-toto Statements]: https://in-toto.io/

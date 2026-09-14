@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.19.0` |
+| Version | `1.20.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -1895,6 +1895,153 @@ implicit timestamps. A prior failed rerun with a required check name continues t
 a later policy-version change may add signed completion/app identity fields and latest-run semantics.
 F-10 cannot begin before F-09 is Done, and the public CLI/container release moves to M2. F-11 must
 prove the actual GitHub required-check behavior and document that a non-required gate is advisory.
+
+---
+
+## ADR-043 — Define the F-07 storage and retrieval contract
+
+**Status:** Accepted · **Date:** 2026-09-14 · **Affects:** `SPEC-001 §9`, `ARCH-001`,
+`TECH-001`, `QA-001`, `BRD-F07`, `F-07`
+
+**Context.** The pre-implementation F-07 audit found that the storage protocol named an undefined
+`StoreRef`, gave `list(since)` no timestamp or ordering semantics, and did not say whether a missing
+digest returns an empty list or raises the documented `ERR-STORE-403`. The Bundle bytes and
+ChangeSet Digest enter public filesystem paths, Git refs, and registry metadata without an input
+error code. The fallback requirement said that a path must be printed even though `attest-store`
+is an adapter package and `attest-cli` exclusively owns presentation.
+
+The Git contract did not define the object to which an attestation ref points, the atomic update
+rule, a collision when two transparency logs use the same numeric index, or a locator for an
+invalid Bundle that intentionally remains retrievable. It also named an explicit push requirement
+without defining the operation, remote behavior, deadline, or distinction between permission
+rejection and reachability failure. The filesystem contract did not define its numeric suffix or
+how timestamp and content-integrity metadata survive listing.
+
+The OCI contract was not executable from the protocol signature. The `digest` argument is a
+ChangeSet Digest, while OCI 1.1 requires the subject to be a descriptor of an existing manifest,
+including its media type, content digest, and byte size. Discovery is a request to
+`/v2/<name>/referrers/<subject-digest>`. The locked `oras==0.2.43` can place a supplied subject on a
+push but has no high-level Referrers API, and its Requests calls expose no timeout argument. Using
+it directly would violate `ARCH-001`'s no-hidden-network principle and the repository rule that no
+network call may be unbounded.
+
+**Decision.** `StoreRef` is a frozen, slotted value with `backend`, `digest`, `bundle_digest`,
+`location`, and `stored_at`. The backend is exactly `git-ref`, `filesystem`, or `oci`; both digests
+are 64 lowercase hexadecimal characters; location is an opaque credential-free backend locator;
+and storage time is injected, UTC, and persisted at second precision. Storage time is operational
+metadata, not transparency or evidence time. `get` returns exact Bundle bytes once each, ordered by
+their SHA-256 digest, and raises `ERR-STORE-403` when none exist. `list` is ordered by
+`(stored_at, digest, bundle_digest, location)`, and an aware `since` is inclusive after UTC
+normalisation. Retrieval validates only storage metadata, content digests, sizes, and readability.
+It never performs Bundle, signature, identity, or transparency verification.
+
+All public inputs are validated before I/O. An invalid digest, bytes value, timestamp, backend,
+path, repository, ref, OCI subject, or positive deadline raises `ERR-STORE-405`. Backends translate
+operational failures into the closed F-07 error table and retain raw exceptions only as private
+causes. Error text and `StoreRef.location` never contain credentials or unsanitised remote output.
+
+The filesystem format stores Bundle bytes in `<digest>.sigstore.json`, followed by
+`<digest>.1.sigstore.json`, `<digest>.2.sigstore.json`, and the first free numeric suffix. Each file
+has companion `<bundle-filename>.store.json` metadata in the same configured directory. The closed
+metadata is RFC 8785 canonical JSON with exactly `version` (integer `1`), `changeSetDigest`,
+`bundleDigest`, `size`, and `storedAt`. A create-only temporary write plus locked atomic publication
+makes a complete Bundle and metadata visible together to cooperating store operations. Existing
+entries are compared by content before allocating a suffix; none is overwritten. Symlinks and
+irregular files fail closed. Every temporary, lock, metadata, and Bundle write stays inside the
+explicitly configured directory.
+
+The Git format writes the exact Bundle as a blob and creates an annotated metadata tag object
+targeting that blob. The tag message contains the same canonical metadata bytes as the filesystem
+format followed by LF. Its tag name is the attestation ref with the leading `refs/` removed; its
+fixed tagger is `attest <attest@invalid>` and its UTC tagger time equals `storedAt`. Only a ref
+under `refs/attestations/` points to that tag object; no `refs/tags/` ref is
+created. The first Bundle uses `refs/attestations/<digest>`. A later Bundle uses
+`/<log-index>` when bounded standard-JSON inspection finds one unique non-negative Rekor
+`logIndex`; if the index locator already names different bytes it uses
+`/<log-index>-<bundle-digest>`; when no usable index exists it uses
+`/sha256-<bundle-digest>`. The inspection is locator extraction only and conveys no verification.
+Refs are published with create-only compare-and-swap. Branches, tag refs, notes, HEAD, index, and
+working tree state remain untouched; unreachable race-lost objects are permissible.
+
+`GitRefStore` accepts `auto`, `pygit2`, and `subprocess`. Auto mode prefers the exact optional
+pygit2 baseline and falls back to the supported Git CLI only when pygit2 is unavailable, never
+after an operational error. Both implementations share the same metadata bytes, locators, public
+errors, and conformance suite. Subprocesses use a sanitised environment, no shell, captured output,
+and a hard positive deadline.
+
+Git egress exists only on `GitRefStore.push(reference, remote, fallback)`. It pushes exactly the
+returned local ref to the same remote ref without force. Authentication, authorisation, or ref
+policy rejection raises `ERR-STORE-401` with remediation naming `contents: write` for
+`refs/attestations/*`; reachability and deadline failures raise `ERR-STORE-402`. A rejected push
+never removes the local ref.
+
+`OciStore` is constructed with one registry repository and a complete immutable subject
+descriptor. Tags are not resolved implicitly. It attaches an OCI image manifest whose `subject`
+is that descriptor, whose `artifactType` and sole Bundle layer media type are
+`application/vnd.dev.sigstore.bundle.v0.3+json`, and whose empty configuration uses the OCI empty
+JSON descriptor. Manifest annotations are `io.github.parth2412.attest.changeset-digest`,
+`io.github.parth2412.attest.bundle-digest`, and `org.opencontainers.image.created`. Discovery uses
+the OCI 1.1 Referrers API for the configured subject, filters the exact artifact type and attest
+annotations, then verifies manifest subject, layer digest and size before returning the layer
+bytes. Duplicate manifests are deduplicated by `(ChangeSet Digest, Bundle digest)` at the public
+contract because registries do not provide an atomic uniqueness constraint for concurrent
+attachments.
+
+ORAS remains the required registry and authentication implementation. Because its request surface
+is not time-bounded, each complete OCI operation runs in a terminable worker under a hard positive
+deadline, using only an explicit Docker-compatible auth config path or an injected test client.
+TLS verification is the default; plaintext transport is explicit. Temporary Bundle material is
+written only in an explicit staging directory. An unavailable Referrers API, registry transport
+failure, authentication failure, or deadline is `ERR-STORE-402`; malformed descriptors,
+manifests, metadata, or returned content are `ERR-STORE-404`.
+
+`put_with_fallback(primary, fallback, digest, bundle)` is the production write composition. Its
+fallback is an explicitly configured `FilesystemStore`. When a primary `StoreError` occurs, the
+exact input bytes are written to the fallback and the original coded error is re-raised with an
+exact `fallback_path`; the storage package does not print. Git push applies the same rule to the
+Bundle named by its `StoreRef`. If both primary and fallback writes fail, `ERR-STORE-406` reports
+that no durable copy was made and privately chains the primary failure. The caller still owns the
+input bytes and can retry after restoring storage.
+
+All backends use create-only publication and content comparison. Concurrent operations may leave
+unreachable Git objects or OCI manifests, but public `get` and `list` expose every distinct,
+complete Bundle once and never expose partial content. Filesystem writes remain within the
+configured directory, Git writes remain within the configured repository object database and
+attestation namespace, and OCI/staging writes remain within their two explicit locations.
+
+**Rationale.** Exact public models make discovery and fallback reporting composable by F-10 and
+F-12 without violating the package graph. Hash-bound metadata supplies deterministic listing and
+corruption detection while preserving Bundle bytes exactly. Create-only publication makes
+idempotency and concurrency properties rather than timing assumptions. An explicit OCI subject
+keeps the ChangeSet Digest separate from the artifact digest and prevents tag movement from
+silently changing attachment scope. A process deadline contains the locked ORAS client's
+unbounded network behavior without adding a second registry implementation or mutating private
+client internals.
+
+**Rejected alternatives.** Returning an empty list for absence discards the documented
+`ERR-STORE-403` boundary. Parsing or verifying Bundles in `get` merges F-07 with F-08 and prevents
+recovery of invalid evidence. Pointing Git refs directly at blobs provides no persistent list
+timestamp or metadata hash. Using reflogs fails after fetch because reflogs are local. Commits
+would manufacture history and require author/committer identities. Force-pushing refs hides races
+and can discard another CI job's Bundle. A Bundle hash in place of a colliding log index would
+abandon the established human locator; it is used only as the bounded collision suffix.
+
+Storing filesystem metadata in extended attributes is not portable across the supported Linux and
+macOS matrix. Writing metadata outside the configured directory violates `REQ-F07-110`. Inferring
+an OCI subject from the ChangeSet Digest confuses unrelated digest domains. Resolving a mutable tag
+implicitly makes attachment nondeterministic. Hand-writing an unauthenticated registry client
+duplicates ORAS and mishandles token challenges; calling ORAS in-process leaves network operations
+unbounded. Silently returning a fallback success hides loss of the configured primary store.
+Printing inside `attest-store` violates the architecture's presentation boundary.
+
+**Consequences.** F-07 gains two stable error codes, persistent backend metadata, an explicit
+fallback composition, a Git push surface, a complete OCI subject type, and injected clock and
+deadline inputs. OCI callers must know the immutable subject descriptor and provide a writable
+staging directory. Git collision refs are longer when a log index is absent or reused. Companion
+filesystem metadata and Git tag objects are permanent v1 storage formats and require compatibility
+tests. F-07 CI must exercise both Git implementations, a local OCI 1.1 fixture registry, process
+concurrency, a base installation without pygit2, at least 90% package coverage, and every
+filesystem/network containment assertion before the feature can be marked Done.
 
 ---
 

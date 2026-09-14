@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-14 |
 
 ---
 
@@ -55,6 +55,7 @@ under `packages/*/src/` (`ADR-026`).
 | `attest-core` | 95% | Everything depends on it |
 | `attest-sign` (verifier module) | 95% | Security-critical |
 | `attest-policy` | 95% | Pure, no excuse |
+| `attest-store` | 90% | Persistent evidence must remain complete and retrievable |
 | All other packages | 90% | — |
 
 Coverage is a floor, not a goal. 100% coverage with weak assertions is worse than 90% with
@@ -184,6 +185,8 @@ one byte anywhere, assert verification never succeeds.
 | Forge tests use recorded HTTP fixtures by default; live calls only in a nightly job |
 | Sigstore tests target **staging only** — never write test data to the production transparency log |
 | A guard test fails the suite if a production Sigstore endpoint is configured in test settings |
+| Storage conformance runs against filesystem, OCI fixture, Git CLI, and pygit2 implementations; OCI fixture traffic remains local |
+| Storage concurrency uses processes, not only threads, and asserts exact-byte completeness plus containment |
 | No test may depend on the current wall clock; clocks are injected |
 | No test may depend on network availability except the explicitly-marked nightly jobs |
 
@@ -203,6 +206,7 @@ A release **MUST NOT** ship unless:
 
 - [ ] All CI jobs green on the release commit
 - [ ] All test vectors pass on both git backends
+- [ ] All storage conformance tests pass on filesystem, OCI fixture, Git CLI, and pygit2 backends
 - [ ] Adversarial suite green
 - [ ] Schema drift check green
 - [ ] Banned-language check green
