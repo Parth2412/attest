@@ -566,7 +566,7 @@ def test_repository_digest_mismatch_is_the_final_check(
     assert result.failure_code == "ERR-VERIFY-010"
     assert [check.name for check in result.checks] == CHECK_NAMES
     assert result.checks[-1].result == "failed"
-    assert isinstance(result.statement, Statement)
+    assert result.statement is None
 
 
 @pytest.mark.ac("AC-F08-110")
@@ -611,7 +611,7 @@ def test_repository_recomputation_error_or_match_has_exact_outcome(
         assert result.failure_code == "ERR-VERIFY-010"
         assert result.checks[-1].result == "failed"
         assert result.checks[-1].name == "changeset-recomputation"
-        assert isinstance(result.statement, Statement)
+        assert result.statement is None
     else:
         assert result.status == "verified"
         assert result.failure_code is None
@@ -639,6 +639,7 @@ def test_every_failure_step_clears_verified_policy_evidence(
     result = module._failure([], name, code)
 
     assert result.status == "failed"
+    assert result.statement is None
     assert result.verified_identity is None
     assert result.verified_issuer is None
     assert result.transparency_log_verified is False

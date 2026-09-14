@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Cleared parsed Statements from failed F-08 verification results so repository recomputation
+  failures remain valid fail-closed policy inputs.
 - Implemented F-09 strict bounded policy loading, generated policy schema, raw-byte glob matching,
   pure deterministic evaluation, complete predicate reporting, and fail-closed decision precedence.
 - Implemented F-04 GitHub review evidence collection with immutable reviewer identities,
