@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.11.0` |
+| Version | `1.12.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-09-14 |
+| Last updated | 2026-09-15 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -33,16 +33,17 @@
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
-| GitHub Action | `<org>/attest-action` | — | — | Container | `F-11` | scaffold |
-| Container image | `ghcr.io/<org>/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
+| GitHub Action | `Parth2412/attest/action` | — | — | Container | `F-11` | scaffold |
+| Container image | `ghcr.io/parth2412/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
 F-01 and F-05 are active in `attest-core`; F-02, F-03, F-04, and the F-05 environment adapter are
 active in `attest-collect`; F-06 signing and F-08 verification are active in `attest-sign`; F-07
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
-F-08 is complete under the `ADR-040` solo-maintainer review exception. Remaining feature modules
-are scaffolds.
+The implemented F-04/F-08 surfaces remain active, while their new `REQ-F04-150` context resolver
+and `REQ-F08-170` inspection operation are in progress under `ADR-045`. F-10 through F-12 remain
+scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -66,7 +67,9 @@ anyone verifying an attestation years from now.
 | Attestation ref namespace | `refs/attestations/<changeset-digest>` | — | — | Multiple Bundles use sibling `-<log-index>` and Bundle-digest collision locators; `ADR-014`, `ADR-044` |
 | Store metadata | Canonical JSON version `1` | 1 | integer | Exact ChangeSet Digest, Bundle digest, size, and storage-time binding; `ADR-043` |
 | CLI exit codes | `GLOSS-001 §7` | frozen | table | **Effectively frozen from first release.** Any change is a major version bump of the CLI. `REQ-F10-010` |
-| CLI `--json` output | committed output schema | 0.1.0 | SemVer | Drift-checked in CI. `REQ-F10-020` |
+| CLI config | `spec/schemas/cli-config-v1.schema.json` | 1 | integer | Closed safe-YAML model; generated and drift-checked. `REQ-F10-050`, `REQ-F10-200` |
+| CLI Collection Artifact | `spec/schemas/cli-collection-v0.1.schema.json` | 0.1.0 | SemVer | Closed staged-pipeline input; generated and drift-checked. `REQ-F10-110`, `REQ-F10-200` |
+| CLI `--json` output | `spec/schemas/cli-output-v0.1.schema.json` | 0.1.0 | SemVer | Closed command-discriminated union; generated and drift-checked. `REQ-F10-020`, `REQ-F10-200` |
 | Policy schema | `version:` integer field | `1` | integer | Increment on breaking change; old versions still evaluated. `GLOSS-001 §5` |
 | Generated structural JSON Schema | `spec/schemas/ai-authorship-v0.1.schema.json` | tracks predicate | generated | **Generated only — never hand-authored or hand-edited.** CI fails on drift; non-representable semantic invariants remain mandatory runtime checks. `ADR-010`, `ADR-021` |
 
@@ -123,7 +126,7 @@ hand-write a version from memory.
 | `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
-| `attest-cli` | all six above, `typer`, `rich`, `structlog`, `pyyaml` |
+| `attest-cli` | all six above, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml` |
 
 **`attest-core` MUST NOT gain any dependency with I/O capability.** Adding one requires an ADR
 (`BOOT-001 §4.1`, `REQ-F01-140`). Enforced by the `core-is-pure` import-linter contract, not by
@@ -174,7 +177,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | Sigstore Fulcio | Keyless certificate issuance | public good instance | Production for real runs |
 | Sigstore Rekor | Transparency log | public good instance | **Public by default.** Anything in an attestation is effectively published (`SEC-001 T-06`). Private Rekor is the documented mitigation |
 | Sigstore staging | All test signing | staging instance | **Hard rule** — never write test data to the production log (`TECH-001 §6`, `QA-001 §10`). A guard test fails the suite if a production endpoint is configured in test settings |
-| GitHub REST/GraphQL | Review records, check runs | v3 / v4 | `F-04`. GitLab and Bitbucket are `OOS-02`, deferred to v1.1 |
+| GitHub REST/GraphQL | PR record/Compare context, review records, check runs | v3 / v4 | F-04 rejects PR-field drift and incomplete/capped Compare identity context; GitLab/Bitbucket are `OOS-02`, v1.1 |
 | Git AI note format | Cross-tool authorship claims | `authorship/3.0.0` at upstream commit `0670e7ef` | Exact read-only profile; a different schema version requires an ADR (`ADR-035`) |
 | Agent hook examples | Experimental sidecar emission | Claude Code and Codex `PostToolUse`, checked 2026-09-12 | Covers only documented file-edit/apply-patch events; `CH-03` remains open |
 | OCI registry | Optional attestation storage | OCI distribution spec | `F-07` via `oras` |
@@ -187,8 +190,8 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | `ghcr.io/<org>/attest:<version>` slim container | **Primary** CI channel | `F-11` |
-| GitHub Action | `<org>/attest-action@v1` | Most users — hides Python entirely | `F-11` |
+| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — generated workflows pin a commit | `F-11` |
 | PyPI | `attest-cli` wheel | Python-native teams | `F-10` |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
@@ -227,6 +230,8 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-15**: Accepted the F-10 v0.1 CLI/config/artifact/output contracts in `ADR-045`, with
+  F-04 exact GitHub Compare context and F-08 labelled parse-only inspection as prerequisites.
 - **2026-09-14**: Activated F-07 in `attest-store`; filesystem, Git CLI, optional pygit2, and OCI
   Referrers storage pass exact-byte, create-only concurrency, corruption, containment, fallback,
   pagination, and hard-deadline conformance above the 90% package coverage gate.

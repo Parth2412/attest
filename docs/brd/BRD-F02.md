@@ -153,7 +153,7 @@ Construct programmatically in `tmp_path`, never committed as binary repos:
 | Code | Condition | Remediation |
 |---|---|---|
 | `ERR-COLLECT-101` | Commit not present (shallow clone) | Set `fetch-depth: 0` in checkout |
-| `ERR-COLLECT-102` | Not a git repository | Run inside a repository or pass `--repo` |
+| `ERR-COLLECT-102` | Not a git repository | Run inside a repository or pass `--repository` |
 | `ERR-COLLECT-103` | Revision cannot be resolved | Check the ref exists and is fetched |
 | `ERR-COLLECT-104` | Backend selector is unknown or no selected backend is usable | Select `auto`, `pygit2`, or `subprocess`; install `attest-collect[pygit2]` or ensure `git` is on PATH |
 | `ERR-COLLECT-105` | Repository identity is unavailable or non-normalisable | Supply a canonical HTTPS or supported Git remote URL explicitly |

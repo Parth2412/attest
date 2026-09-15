@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Packages | `attest-core`, `attest-collect` |
 | Depends on | `F-01`, `F-02`, `F-03` |
-| Status | In progress · New-statement effective review evidence governed by `ADR-042` |
+| Status | Done · completion reconciled by `ADR-045` |
 
 ---
 

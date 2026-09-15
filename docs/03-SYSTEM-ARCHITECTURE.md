@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.7.0` |
+| Version | `1.8.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-14 |
+| Last updated | 2026-09-15 |
 
 ---
 
@@ -101,7 +101,7 @@ repository.
 | `trailers.py` | commit messages in range | `AuthorshipClaim[]` |
 | `sidecar.py` | `.attest/claims.d/*.json` | `AuthorshipClaim[]` |
 | `gitnotes.py` | notes refs (Git AI compatibility) | `AuthorshipClaim[]` |
-| `github.py` | GitHub REST/GraphQL | `Review`, `Check[]`, environment metadata |
+| `github.py` | GitHub REST/GraphQL and exact PR event/record/Compare context | `GitHubChangeSetContext`, `Review`, `Check[]` |
 | `environment.py` | CI environment variables, injected clock, installed `attest-collect` metadata | `Collection` |
 
 Each collector is independently failable. A collector that fails **MUST** record a degradation
@@ -117,19 +117,31 @@ the environment, clock, package metadata, filesystem, or network (`ADR-036`).
 and F-09. It does not parse certificates, select SANs, verify issuers, or perform cryptography.
 F-08 remains the sole owner of those security operations (`ADR-042`).
 
+GitHub event parsing and PR/Compare semantics stay in `github.py`, not the CLI. The public context
+resolver binds repository, PR number, base, head, and target to GitHub's current PR response, then
+returns the forge merge base and a proven-complete immutable numeric author/committer ID set for the
+exact base/head pair. Incomplete, changed, or unmapped context fails before ChangeSet collection;
+the existing component-wise fail-open boundary applies only to review/check evidence after context
+is complete (`ADR-045`).
+
 ### 3.3 `attest-sign`
 
 | Module | Responsibility |
 |---|---|
 | `dsse.py` | Convert exact canonical payload bytes into Sigstore's public DSSE Statement type; no PAE or envelope construction |
 | `sigstore_signer.py` | Process-isolated Sigstore-native keyless `sign_dsse`, ambient OIDC detection, Rekor submission, bounded bundle output |
-| `verifier.py` | The §8 verification pipeline, in order |
+| `verifier.py` | The §8 verification pipeline and separately labelled parse-only inspection |
 | `trustroot.py` | Explicit production/staging or supplied trust configuration; offline support |
 | `repository.py` | Independent, bounded, read-only Git CLI recomputation for verification |
 | `verify_errors.py` | Verification-only public diagnostics; no signer dependency |
 
 `verifier.py` **MUST** implement the checks as an explicit ordered list, each returning a typed
 result, so the order is auditable in code review and testable step-by-step.
+
+Parse-only inspection reuses Bundle/payload/schema/model parsing but never enters Sigstore
+verification, trust-root, identity, transparency, or repository-recomputation paths. Its only
+successful status is `unverified-identity`, and it cannot construct F-09 policy evidence
+(`ADR-045`).
 
 ### 3.4 `attest-store`
 
@@ -187,40 +199,43 @@ enforcement input.
 
 ### 3.6 `attest-cli`
 
-The top-level composition and presentation root. Owns configuration resolution, output rendering,
-and exit codes. Contains no business logic — a command handler orchestrates calls and maps results
-to exit codes. `attest-export` is the sole bounded lower application layer and may compose storage
-and verification only for F-12 (`ADR-022`).
+The top-level composition and presentation root. Owns the strict configuration model, bounded safe
+file I/O, intermediate application artifacts, output rendering, and exit codes. Contains no
+business logic—a handler orchestrates public calls and maps typed results/errors. Config,
+Collection Artifact, and machine-output schemas are generated from runtime models and independently
+drift-checked. `attest-export` is the sole bounded lower application layer for F-12; `export` is not
+registered until that feature exists (`ADR-022`, `ADR-045`).
 
 ---
 
 ## 4. Primary flow — `attest run` in CI
 
 ```
- GitHub Actions job (id-token: write, contents: read, pull-requests: read)
+ GitHub Actions job (id-token: write, contents: write, pull-requests/checks: read)
     │
     ├─1─ environment.py       → Collection{kind=github-actions, trusted=true, workflowRef, …}
-    ├─2─ git.py               → ChangeSetRecord (base = PR merge base, head = PR head)
-    ├─3─ digest.py            → ChangeSet Digest        [pure]
-    ├─4─ trailers/sidecar/    → AuthorshipClaim[]
+    ├─2─ github.py            → exact PR base/head, forge merge base, author/committer IDs
+    ├─3─ git.py               → ChangeSetRecord (base = forge merge base, head = PR head)
+    ├─4─ digest.py            → ChangeSet Digest        [pure]
+    ├─5─ trailers/sidecar/    → AuthorshipClaim[]
     │    gitnotes
-    ├─5─ github.py            → Review, Check[]
-    ├─6─ builder              → sorted, schema-valid Statement (subject = digest)   [pure]
-    ├─7─ runtime validation   → semantic invariants before signing                  [pure]
-    ├─8─ sigstore_signer.py   → native sign_dsse → DSSE + Fulcio cert + Rekor entry → Bundle
-    ├─9─ store.put()          → refs/attestations/<digest>
-    ├─10─ verifier.py         → re-verify exact identity, log, and ChangeSet  ◀── deliberate
-    ├─11─ policy.evaluate()   → Decision using same target + complete changed paths
-    └─12─ exit code           → 0 / 3 / 4 / 5
+    ├─6─ github.py            → Review, Check[] using the resolved immutable IDs
+    ├─7─ builder              → sorted, schema-valid Statement (subject = digest)   [pure]
+    ├─8─ runtime validation   → semantic invariants before signing                  [pure]
+    ├─9─ sigstore_signer.py   → native sign_dsse → DSSE + Fulcio cert + Rekor entry → Bundle
+    ├─10─ store.put()         → refs/attestations/<digest>
+    ├─11─ verifier.py        → re-verify exact identity, log, and ChangeSet  ◀── deliberate
+    ├─12─ policy.evaluate()  → Decision using same target + complete changed paths
+    └─13─ exit code          → 0 / 3 / 4 / 5
 ```
 
-**Step 10 is deliberate and NORMATIVE.** The overall `attest run` operation always re-verifies
+**Step 11 is deliberate and NORMATIVE.** The overall `attest run` operation always re-verifies
 the signer's output before reporting success. This catches canonicalisation bugs, schema drift,
 and clock problems at production time rather than at audit time — which is the only time that
 matters and the worst time to discover them.
 
 The wording above describes the overall `attest run` operation, not the F-06 `Signer.sign()`
-adapter method. The CLI composition root owns step 10 after F-08 is available; F-06 validates its
+adapter method. The CLI composition root owns step 11; F-06 validates its
 bundle postconditions but does not import or partially implement the independent verifier. This
 keeps the F-06 → F-08 dependency acyclic and preserves verifier isolation (`ADR-037`).
 
@@ -360,16 +375,18 @@ independence is the moat.
 
 ## 8. Configuration resolution
 
-Precedence, highest first:
+Precedence, highest first for v0.1:
 
 1. CLI flags
 2. Environment variables (`ATTEST_*`)
 3. Repository config: `.attest/config.yaml`
-4. Organisation policy (v1.1, fetched and cached)
-5. Built-in defaults
+4. Built-in defaults
 
 Resolved configuration **MUST** be printable via `attest config show --resolved`, annotated with
-the source of each value. Configuration debugging in CI is otherwise miserable.
+the source of each value. The organisation policy layer is reserved for v1.1, reported as
+unsupported, and never fetched by v0.1. The closed YAML vocabulary, environment mapping, strict
+scalar rules, secret redaction, artifact formats, and safe file operations are normative in
+`BRD-F10 §4`–§7 and `ADR-045`.
 
 ---
 

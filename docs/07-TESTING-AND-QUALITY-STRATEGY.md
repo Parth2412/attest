@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-09-14 |
+| Last updated | 2026-09-15 |
 
 ---
 
@@ -157,6 +157,11 @@ The CI schema-drift job activates each schema independently: the Statement schem
 applicable without disabling an already-active schema comparison. The local release gate remains
 stricter and generates every implemented schema before release.
 
+F-10 adds three independently generated contracts: CLI config v1, Collection Artifact v0.1, and
+CLI output v0.1. Their drift comparisons activate as soon as each generator/model lands and all
+three are mandatory before F-10 may be `Done`. Hand-authored expected schemas or one generator
+silently updating another schema are forbidden (`ADR-045`).
+
 ---
 
 ## 9. Property-based testing
@@ -187,6 +192,10 @@ one byte anywhere, assert verification never succeeds.
 | A guard test fails the suite if a production Sigstore endpoint is configured in test settings |
 | Storage conformance runs against filesystem, OCI fixture, Git CLI, and pygit2 implementations; OCI fixture traffic remains local |
 | Storage concurrency uses processes, not only threads, and asserts exact-byte completeness plus containment |
+| GitHub context fixtures prove exact event/PR/Compare endpoints, PR-field binding, forge merge base, complete pagination/counts, and every numeric author/committer association; no live call in default CI |
+| CLI integration uses deterministic injected adapters to compare standalone stages with `run`, while installed-wheel tests exercise the real console entry point |
+| CLI file-I/O tests race and replace inputs/outputs, exercise symlinks/devices/limits, and assert create-only or explicit atomic overwrite behavior |
+| CLI egress tests deny sockets by default and allow only the operation and explicit option under test; doctor probes never send credentials or sign |
 | No test may depend on the current wall clock; clocks are injected |
 | No test may depend on network availability except the explicitly-marked nightly jobs |
 
@@ -209,6 +218,7 @@ A release **MUST NOT** ship unless:
 - [ ] All storage conformance tests pass on filesystem, OCI fixture, Git CLI, and pygit2 backends
 - [ ] Adversarial suite green
 - [ ] Schema drift check green
+- [ ] CLI config, Collection Artifact, and output schema drift checks green once F-10 is implemented
 - [ ] Banned-language check green
 - [ ] Traceability check green
 - [ ] No untriaged surviving mutant in the verifier
@@ -216,6 +226,7 @@ A release **MUST NOT** ship unless:
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated
 - [ ] Backwards compatibility confirmed: attestations from every prior version still verify
+- [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
 
 ---
 

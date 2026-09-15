@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.21.0` |
+| Version | `1.22.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-14 |
+| Last updated | 2026-09-15 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -2083,6 +2083,99 @@ namespace fragments discovery without solving any additional requirement.
 must reject child-shaped or otherwise malformed locators. Any forge permission rule must cover
 `refs/attestations/*`, which already includes the base and sibling forms. No data migration is
 required because F-07 has not shipped and no production attestation refs exist.
+
+---
+
+## ADR-045 — Freeze the F-10 CLI composition contract
+
+**Status:** Accepted · **Date:** 2026-09-15 · **Affects:** `GLOSS-001`, `ARCH-001`, `TECH-001`,
+`BOOT-001`, `COMPAT-001`, `QA-001`, `SEC-001`, `BRD-F02`, `BRD-F04`, `BRD-F08`, `BRD-F10`,
+`BRD-F11`, `F-02`, `F-04`, `F-08`, `F-10`, `F-11`, `F-12`
+
+**Context.** F-01 through F-09 supplied the domain operations required by the CLI, but the original
+F-10 BRD left implementation-significant behaviour unspecified: command options, the configuration
+vocabulary, intermediate files, JSON output, error-to-exit mapping, and filesystem safety. Two
+operations required by the documented command surface also did not exist at a valid package
+boundary. `attest run` needs a forge-resolved pull-request merge base and the immutable GitHub IDs
+of every commit author and committer; accepting values invented by the CLI would make ChangeSet
+binding and separation-of-duties evidence unsound. `attest inspect` needs to parse a Bundle without
+implying signature or identity verification; duplicating Bundle semantics in the CLI would violate
+the package graph. Finally, exposing `attest export` before F-12 exists would advertise a command
+whose owning feature is not implemented.
+
+The earlier BRD headers had also drifted from the machine-readable lifecycle registry. F-01,
+F-05, F-06, and F-09 were complete but retained readiness text, while the new bounded prerequisites
+mean F-04 and F-08 require one additional requirement each before F-10 may start.
+
+**Decision.** `BRD-F10` is the complete v0.1 command, option, configuration, intermediate-artifact,
+machine-output, diagnostic, file-I/O, and exit-code contract. F-10 implements only commands owned by
+F-10. `attest export` is reserved and is not registered, mentioned by help, or represented by a
+successful placeholder until F-12 implements it. F-11 owns publication, container/action supply
+chain, and the live fresh-repository workflow proof; F-10 owns deterministic generation and
+snapshot/integration tests of the workflow and its local-equivalent orchestration.
+
+F-04 gains a public, typed GitHub pull-request context resolver. It parses either exact event bytes
+or an explicit validated pull-request input, binds repository, PR number, base, head, and target to
+matching pull-request responses before and after GitHub's paginated Compare API, takes the forge
+merge base from that exact comparison, and obtains every commit's immutable numeric author and
+committer association. It rejects incomplete,
+capped, duplicated, changed, unmapped, endpoint-mismatched, or otherwise inconsistent data. It
+never guesses Git-to-GitHub identity. This context resolution is fatal when required to construct
+the ChangeSet; the existing review/check collection boundary remains fail-open once a complete
+context exists.
+
+F-08 gains a public parse-only Bundle inspection operation. It performs only Bundle structure,
+payload-type, version-selected structural-schema, and semantic-model checks. A successful result is
+always labelled exactly `unverified-identity`; it never creates a Sigstore verifier, selects trust
+roots, validates a signature/certificate/issuer/log proof, recomputes a repository, or returns
+verified identity fields. F-10 renders that operation and cannot substitute it for `verify` or
+policy input.
+
+The CLI configuration is a closed, versioned, safe-YAML document and its resolved model is strict.
+Precedence is flags, named `ATTEST_*` variables, repository configuration, then built-ins;
+organisation policy remains a documented inactive v1.1 layer and is never fetched by v0.1. Secrets
+are accepted only through the already-governed environment/file inputs and are represented in
+diagnostics as presence plus provenance, never value. Intermediate artifacts and CLI reports are
+separate: artifact files carry stage inputs/outputs, while stdout carries one schema-versioned
+report under `--json`. Generated schemas are committed and drift-checked.
+
+All CLI-controlled reads are bounded regular-file reads that reject symbolic links and malformed
+UTF-8/JSON/YAML. Writes are create-only by default, remain within their resolved parent, use a
+same-directory temporary regular file plus atomic publication, and require explicit `--overwrite`
+to replace an existing regular file. Human diagnostics go to stderr whenever JSON output is active.
+No command performs telemetry or undocumented egress. GitHub collection, signing, explicitly
+online trust refresh, primary storage push, OCI storage, and bounded `doctor` probes are the only
+allowed network operations.
+
+`BRD-INDEX §7.1` remains the authoritative lifecycle registry. Acceptance of this ADR marks F-04
+and F-08 `In progress` for their new prerequisites, leaves F-10 `Planned`, and reconciles completed
+feature headers and checklists. F-10 may move to `In progress` only after the two added acceptance
+criteria are implemented, traced, and both features return to `Done`.
+
+**Rationale.** A security CLI is an API used by shell scripts and CI. Freezing exact configuration,
+output, error, and file behaviour before code prevents accidental contracts from becoming public.
+The forge resolver puts GitHub semantics beside the existing GitHub adapter, and the inspection
+operation puts Bundle semantics beside verification, preserving the dependency graph. Rejecting
+incomplete identity associations is intentionally strict: treating an unknown committer as a known
+non-author could let a self-approval satisfy policy. Reserving export and assigning the live
+workflow proof to their actual owners keeps feature completion truthful.
+
+**Rejected alternatives.** Letting the CLI parse GitHub event/Compare semantics duplicates forge
+business rules and permits inconsistent base/head selection. Accepting only the PR author ignores
+commit authors and committers. Treating missing GitHub identity associations as non-authors fails
+open. Performing an unsigned Bundle parse inside the CLI duplicates version-selection semantics;
+calling it verification would mislead users. Registering `export` as a not-implemented command
+creates a false public surface. Hand-authored output schemas drift from runtime models. Overwriting
+artifacts by default risks evidence loss. A generated `pull_request_target` workflow that checks out
+untrusted PR code would expose a privileged signing context.
+
+**Consequences.** F-10 has two bounded prerequisite PRs and more contract tests, but its
+implementation no longer depends on guesses. `attest export` appears only when F-12 is delivered.
+GitHub pull requests with more commits than can be proven complete by the supported API, or with
+unmapped author/committer associations, cannot produce a forge-complete attestation and receive a
+coded remediation. Parse-only inspection is useful for diagnostics but visibly non-cryptographic.
+F-11 must publish the distribution/action, pin the delivery supply chain, and demonstrate that the
+generated workflow runs unmodified on a fresh repository before release.
 
 ---
 

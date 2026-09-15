@@ -84,8 +84,8 @@ the most persuasive demo available.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| GHCR | `ghcr.io/<org>/attest:<version>` slim container | **Primary** CI channel |
-| GitHub Action | `<org>/attest-action@v1` | Most users — hides Python entirely |
+| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — hides Python entirely; generated workflows pin a commit |
 | PyPI | `attest-cli` wheel | Python-native teams |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
