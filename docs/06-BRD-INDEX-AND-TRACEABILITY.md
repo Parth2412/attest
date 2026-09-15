@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.2.0` |
+| Version | `2.3.0` |
 | Status | Baselined |
 | Last updated | 2026-09-15 |
 
@@ -184,7 +184,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-01` | Done |
 | `F-02` | Done |
 | `F-03` | Done |
-| `F-04` | In progress |
+| `F-04` | Done |
 | `F-05` | Done |
 | `F-06` | Done |
 | `F-07` | Done |
@@ -268,7 +268,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F04-120` | `AC-F04-120` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
 | `REQ-F04-130` | `AC-F04-130` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
 | `REQ-F04-140` | `AC-F04-140` | `packages/attest-collect/tests/test_github_checks.py` | ✓ |
-| `REQ-F04-150` | `AC-F04-150` | `packages/attest-collect/tests/test_github_context.py` | ☐ |
+| `REQ-F04-150` | `AC-F04-150` | `packages/attest-collect/tests/test_github_context.py` | ✓ |
 | `REQ-F05-010` | `AC-F05-010` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-020` | `AC-F05-020` | `packages/attest-core/tests/test_builder.py` | ✓ |
 | `REQ-F05-030` | `AC-F05-030` | `packages/attest-core/tests/test_builder.py` | ✓ |

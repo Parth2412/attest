@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Completed F-04's fail-closed GitHub ChangeSet context resolver with strict pull-request event
+  parsing, PR-field fencing, exhaustive Compare pagination, forge merge-base selection, and
+  immutable author/committer account IDs.
 - Accepted ADR-045's complete F-10 CLI/configuration/artifact/output/security contract, added
   exact GitHub ChangeSet-context and labelled parse-only inspection prerequisites, reserved
   `attest export` for F-12, and assigned publication/live workflow proof to F-11.

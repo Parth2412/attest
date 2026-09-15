@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | In progress · GitHub ChangeSet-context prerequisite governed by `ADR-045` |
+| Status | Done · GitHub ChangeSet-context prerequisite completed under `ADR-045` |
 
 ---
 
@@ -179,7 +179,7 @@ Warnings emitted without invalidating other collected evidence:
 ## 9. Definition of Done
 
 - [x] `REQ-F04-010` through `REQ-F04-140` implemented and green
-- [ ] `REQ-F04-150` implemented and `AC-F04-150` green
+- [x] `REQ-F04-150` implemented and `AC-F04-150` green
 - [x] Recorded HTTP fixtures for all paths; no live calls in the default test suite
 - [x] Nightly live smoke test against a real repository
 - [x] Token-leak test asserts absence across all output streams

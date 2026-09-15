@@ -3,8 +3,8 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-04 and F-08 have bounded F-10
-  prerequisites open; F-10 through F-12 are not implemented.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-08 has one bounded F-10 prerequisite
+  open; F-10 through F-12 are not implemented.
 - **Last Updated**: 2026-09-15
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -26,9 +26,9 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001, F-01 through F-03, F-05 through
-  F-07, and F-09 are complete. F-04 and F-08 are `In progress` only for `REQ-F04-150` and
-  `REQ-F08-170`; F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001, F-01 through F-07, and F-09 are
+  complete. F-08 is `In progress` only for `REQ-F08-170`; F-10 through F-12 remain Planned in
+  `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -37,17 +37,17 @@
   isolation, and secure filesystem tests. F-05 has 99% `attest-core`; F-06's signing module has
   95% branch coverage. F-08 has 100% verifier branch coverage, 94% across `attest-sign`, 15
   mandatory adversarial tests, and 273 killed verifier mutants. F-04 and F-09 enforce their 90%
-  and 95% package gates. F-07 has 91.07% branch coverage across filesystem, Git CLI, optional
-  pygit2, and OCI Referrers conformance. The full local gate passes 789 tests with two intentional
-  environment-dependent skips.
+  and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
+  coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. The full
+  local gate passes 826 tests with two intentional environment-dependent skips.
 - **Known Issues**:
-  - F-04 still needs exact GitHub PR/Compare context resolution and F-08 still needs explicitly
-    non-cryptographic Bundle inspection before F-10 can start (`ADR-045`).
+  - F-08 still needs explicitly non-cryptographic Bundle inspection before F-10 can start
+    (`ADR-045`).
   - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Complete `REQ-F04-150`, then `REQ-F08-170`, then implement the accepted F-10
-  CLI contract. F-11 owns publication/live workflow proof; F-12 later exposes `attest export`.
+- **Next Milestone**: Complete `REQ-F08-170`, then implement the accepted F-10 CLI contract. F-11
+  owns publication/live workflow proof; F-12 later exposes `attest export`.
 
 ---
 
@@ -118,7 +118,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01–F-09 active, two F-10 prerequisites open, F-10–F-12 scaffolded
+├── packages/               seven distributions; F-01–F-09 active, one F-10 prerequisite open, F-10–F-12 scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -135,7 +135,7 @@ out of order means inventing those contracts.
 | `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ✓ done |
 | `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ✓ done |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ✓ done |
-| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ◐ context prerequisite |
+| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ✓ done |
 | `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ✓ done |
 | `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ✓ done |
@@ -356,6 +356,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-15**: Completed `REQ-F04-150` with strict pull-request event parsing, PR-field fencing,
+  exact paginated Compare resolution, forge merge-base selection, and fail-closed immutable author
+  and committer identity collection.
 - **2026-09-15**: Accepted `ADR-045`, freezing the exact F-10 CLI/config/artifact/output/security
   contract, reopening F-04 for exact GitHub ChangeSet context and F-08 for labelled parse-only
   inspection, reserving export for F-12, and assigning live fresh-repository proof to F-11.

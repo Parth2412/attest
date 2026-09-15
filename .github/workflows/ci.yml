@@ -71,6 +71,7 @@ jobs:
           uv run pytest packages/attest-collect/tests/test_github_review.py
           packages/attest-collect/tests/test_github_http.py
           packages/attest-collect/tests/test_github_checks.py
+          packages/attest-collect/tests/test_github_context.py
           --cov=attest_collect.github --cov=attest_collect._github_http
           --cov-report=term-missing --cov-fail-under=90
 
