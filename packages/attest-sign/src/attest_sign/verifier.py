@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from dataclasses import dataclass
 from typing import Final, Literal, cast
@@ -30,6 +32,7 @@ CheckName = Literal[
 ]
 CheckResult = Literal["passed", "failed", "skipped"]
 VerificationStatus = Literal["verified", "verified-untrusted-environment", "failed"]
+InspectionStatus = Literal["unverified-identity", "failed"]
 
 _CHECK_NAMES: Final[tuple[CheckName, ...]] = (
     "bundle-structure",
@@ -38,6 +41,12 @@ _CHECK_NAMES: Final[tuple[CheckName, ...]] = (
     "structural-schema",
     "semantic-model",
     "changeset-recomputation",
+)
+_INSPECTION_CHECK_NAMES: Final[tuple[CheckName, ...]] = (
+    "bundle-structure",
+    "statement-payload",
+    "structural-schema",
+    "semantic-model",
 )
 _PREDICATE_REGISTRY: dict[str, tuple[str, type[Statement]]] = {
     PREDICATE_TYPE_V0_1: ("0.1", Statement),
@@ -84,6 +93,16 @@ class VerificationResult:
     verified_identity: str | None
     verified_issuer: str | None
     transparency_log_verified: bool
+
+
+@dataclass(frozen=True, slots=True)
+class InspectionResult:
+    """Return an explicitly non-cryptographic Bundle parsing result (REQ-F08-170)."""
+
+    status: InspectionStatus
+    checks: list[CheckOutcome]
+    statement: Statement | None
+    failure_code: VerifyErrorCode | None
 
 
 class _MalformedBundleError(ValueError):
@@ -141,6 +160,25 @@ def _parse_bundle(raw: bytes) -> _SigstoreBundle:
     return _SigstoreBundle.from_json(raw)
 
 
+def _unverified_payload(raw: bytes) -> tuple[str, bytes]:
+    decoded: object = json.loads(raw)
+    if not isinstance(decoded, dict):
+        raise _MalformedBundleError
+    wire = cast(dict[str, object], decoded)  # pragma: no mutate - cast is runtime-neutral
+    envelope = wire.get("dsseEnvelope")
+    if not isinstance(envelope, dict):
+        raise _MalformedBundleError
+    payload_type = envelope.get("payloadType")
+    encoded_payload = envelope.get("payload")
+    if not isinstance(payload_type, str) or not isinstance(encoded_payload, str):
+        raise _MalformedBundleError
+    try:
+        payload = base64.b64decode(encoded_payload, validate=True)
+    except (ValueError, binascii.Error):
+        raise _MalformedBundleError from None
+    return payload_type, payload
+
+
 def _exact_identity(bundle: _SigstoreBundle, constraint: IdentityConstraint) -> str:
     if "*" not in constraint.identity_pattern:
         return constraint.identity_pattern
@@ -169,6 +207,56 @@ def _statement_payload(payload_type: str, payload: bytes) -> tuple[dict[str, obj
     if not isinstance(predicate_type, str) or predicate_type not in _PREDICATE_REGISTRY:
         raise _InvalidStatementPayloadError
     return value, predicate_type
+
+
+def _inspection_failure(
+    checks: list[CheckOutcome],
+    name: CheckName,
+    code: VerifyErrorCode,
+) -> InspectionResult:
+    return InspectionResult(
+        status="failed",
+        checks=[*checks, _failed(name, code)],
+        statement=None,
+        failure_code=code,
+    )
+
+
+def inspect_bundle(bundle: bytes) -> InspectionResult:
+    """Parse Bundle structure and Statement shape without verification (REQ-F08-170)."""
+    checks: list[CheckOutcome] = []
+    try:
+        _parse_bundle(bundle)
+        payload_type, payload = _unverified_payload(bundle)
+    except Exception:
+        return _inspection_failure(checks, _INSPECTION_CHECK_NAMES[0], "ERR-VERIFY-001")
+    checks.append(_passed(_INSPECTION_CHECK_NAMES[0]))
+
+    try:
+        statement_wire, predicate_type = _statement_payload(payload_type, payload)
+    except Exception:
+        return _inspection_failure(checks, _INSPECTION_CHECK_NAMES[1], "ERR-VERIFY-007")
+    checks.append(_passed(_INSPECTION_CHECK_NAMES[1]))
+
+    predicate_version, model_type = _PREDICATE_REGISTRY[predicate_type]
+    try:
+        _validate_statement_structure(statement_wire, predicate_version)
+    except Exception:
+        return _inspection_failure(checks, _INSPECTION_CHECK_NAMES[2], "ERR-VERIFY-008")
+    checks.append(_passed(_INSPECTION_CHECK_NAMES[2]))
+
+    try:
+        statement = model_type.model_validate(statement_wire)
+    except Exception:
+        return _inspection_failure(checks, _INSPECTION_CHECK_NAMES[3], "ERR-VERIFY-009")
+    checks.append(_passed(_INSPECTION_CHECK_NAMES[3]))
+
+    return InspectionResult(
+        status="unverified-identity",
+        checks=checks,
+        statement=statement,
+        failure_code=None,
+    )
 
 
 def verify(

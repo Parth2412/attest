@@ -20,4 +20,4 @@ packages = ["src/attest_sign"]
 source_paths = ["src/attest_sign"]
 only_mutate = ["src/attest_sign/verifier.py"]
 on_dependency_change = "rerun"
-pytest_add_cli_args_test_selection = ["tests/test_verifier.py"]
+pytest_add_cli_args_test_selection = ["tests/test_verifier.py", "tests/test_inspection.py"]

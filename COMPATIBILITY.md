@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.13.0` |
+| Version | `1.14.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-15 |
 
@@ -41,9 +41,9 @@
 F-01 and F-05 are active in `attest-core`; F-02, F-03, F-04, and the F-05 environment adapter are
 active in `attest-collect`; F-06 signing and F-08 verification are active in `attest-sign`; F-07
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
-F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. The implemented F-08
-verification surface remains active while its new `REQ-F08-170` inspection operation is in
-progress under `ADR-045`. F-10 through F-12 remain scaffolds.
+F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
+its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10 through
+F-12 remain scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -230,6 +230,8 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-15**: Completed F-08 parse-only Bundle inspection with ordered structural checks,
+  explicit `unverified-identity` success, and no verified-identity or policy-evidence surface.
 - **2026-09-15**: Completed F-04 exact GitHub event/PR/Compare context resolution with immutable
   numeric author and committer associations and fail-closed drift/cap handling.
 - **2026-09-15**: Accepted the F-10 v0.1 CLI/config/artifact/output contracts in `ADR-045`, with

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.3.0` |
+| Version | `2.4.0` |
 | Status | Baselined |
 | Last updated | 2026-09-15 |
 
@@ -188,7 +188,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-05` | Done |
 | `F-06` | Done |
 | `F-07` | Done |
-| `F-08` | In progress |
+| `F-08` | Done |
 | `F-09` | Done |
 | `F-10` | Planned |
 | `F-11` | Planned |
@@ -309,7 +309,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F08-140` | `AC-F08-140` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 | `REQ-F08-150` | `AC-F08-150` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
 | `REQ-F08-160` | `AC-F08-160` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
-| `REQ-F08-170` | `AC-F08-170` | `packages/attest-sign/tests/test_inspection.py` | ☐ |
+| `REQ-F08-170` | `AC-F08-170` | `packages/attest-sign/tests/test_inspection.py` | ✓ |
 | `REQ-F09-010` | `AC-F09-010` | `packages/attest-policy/tests/test_boundaries.py` | ✓ |
 | `REQ-F09-020` | `AC-F09-020` | `packages/attest-policy/tests/test_models.py`, `test_schema.py` | ✓ |
 | `REQ-F09-030` | `AC-F09-030` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |

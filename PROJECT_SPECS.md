@@ -3,8 +3,8 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-08 has one bounded F-10 prerequisite
-  open; F-10 through F-12 are not implemented.
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-09 are complete; F-10
+  through F-12 are not implemented.
 - **Last Updated**: 2026-09-15
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -26,9 +26,8 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001, F-01 through F-07, and F-09 are
-  complete. F-08 is `In progress` only for `REQ-F08-170`; F-10 through F-12 remain Planned in
-  `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-09 are complete.
+  F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -36,18 +35,16 @@
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
   isolation, and secure filesystem tests. F-05 has 99% `attest-core`; F-06's signing module has
   95% branch coverage. F-08 has 100% verifier branch coverage, 94% across `attest-sign`, 15
-  mandatory adversarial tests, and 273 killed verifier mutants. F-04 and F-09 enforce their 90%
+  mandatory adversarial tests, and 385 killed verifier mutants. F-04 and F-09 enforce their 90%
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. The full
-  local gate passes 826 tests with two intentional environment-dependent skips.
+  local gate passes 842 tests with two intentional environment-dependent skips.
 - **Known Issues**:
-  - F-08 still needs explicitly non-cryptographic Bundle inspection before F-10 can start
-    (`ADR-045`).
   - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Complete `REQ-F08-170`, then implement the accepted F-10 CLI contract. F-11
-  owns publication/live workflow proof; F-12 later exposes `attest export`.
+- **Next Milestone**: Implement the accepted F-10 CLI contract. F-11 owns publication/live workflow
+  proof; F-12 later exposes `attest export`.
 
 ---
 
@@ -356,6 +353,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-15**: Completed `REQ-F08-170` with parse-only Bundle inspection, ordered
+  structure/payload/schema/model checks, explicit `unverified-identity` success, and no trusted
+  identity or policy-evidence fields.
 - **2026-09-15**: Completed `REQ-F04-150` with strict pull-request event parsing, PR-field fencing,
   exact paginated Compare resolution, forge merge-base selection, and fail-closed immutable author
   and committer identity collection.
