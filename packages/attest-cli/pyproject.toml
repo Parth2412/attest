@@ -19,7 +19,12 @@ dependencies = [
   "rich",
   "structlog",
   "pyyaml",
+  "pydantic>=2.13.5",
+  "httpx>=0.28.1",
 ]
+
+[project.scripts]
+attest = "attest_cli.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/attest_cli"]

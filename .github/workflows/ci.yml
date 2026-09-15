@@ -102,6 +102,19 @@ jobs:
           uv run pytest packages/attest-store/tests --cov=attest_store
           --cov-report=term-missing --cov-fail-under=90
 
+  cli-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-10 CLI coverage
+        run: >-
+          uv run pytest packages/attest-cli/tests --cov=attest_cli
+          --cov-report=term-missing --cov-fail-under=90
+
   storage-base-install:
     runs-on: ubuntu-latest
     steps:

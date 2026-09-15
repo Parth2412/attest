@@ -3,9 +3,9 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-09 are complete; F-10
-  through F-12 are not implemented.
-- **Last Updated**: 2026-09-15
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-10 are complete; F-11
+  and F-12 are not implemented.
+- **Last Updated**: 2026-09-16
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -26,8 +26,8 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-09 are complete.
-  F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-10 are complete.
+  F-11 and F-12 remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -37,14 +37,16 @@
   95% branch coverage. F-08 has 100% verifier branch coverage, 94% across `attest-sign`, 15
   mandatory adversarial tests, and 385 killed verifier mutants. F-04 and F-09 enforce their 90%
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
-  coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. The full
-  local gate passes 842 tests with two intentional environment-dependent skips.
+  coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
+  enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
+  entrypoint and startup contracts. The full local gate passes 1,100 tests with two intentional
+  environment-dependent skips.
 - **Known Issues**:
-  - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded.
+  - F-11 and F-12 remain unimplemented; their delivery surfaces stay scaffolded.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement the accepted F-10 CLI contract. F-11 owns publication/live workflow
-  proof; F-12 later exposes `attest export`.
+- **Next Milestone**: Implement F-11's Action, container, and PyPI publication plus immutable-image
+  and live fresh-repository proof. F-12 later exposes `attest export`.
 
 ---
 
@@ -115,7 +117,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01–F-09 active, one F-10 prerequisite open, F-10–F-12 scaffolded
+├── packages/               seven distributions; F-01–F-10 active, F-11–F-12 delivery surfaces scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -136,9 +138,9 @@ out of order means inventing those contracts.
 | `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ✓ done |
 | `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ✓ done |
-| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ◐ inspection prerequisite |
+| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
-| `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ☐ contract accepted |
+| `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
 | `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ☐ not started |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
@@ -159,8 +161,8 @@ Everything else is plumbing.
 
 ## CLI Surface
 
-**Nothing is implemented.** Active F-10 surface accepted by `ADR-045`; exact options, artifacts,
-configuration, schemas, and mappings live in `BRD-F10`:
+Implemented under `ADR-045`; exact options, artifacts, configuration, schemas, and mappings live
+in `BRD-F10`:
 
 | Command | Purpose | Exit codes |
 |---|---|---|
@@ -353,6 +355,10 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-16**: Completed F-10 with the exact import-light CLI surface, strict
+  provenance-aware configuration, bounded symlink-safe I/O, canonical staged artifacts,
+  deterministic output and exit mappings, secure all-or-none initialization, generated schemas,
+  installed-wheel contracts, and end-to-end orchestration across F-01 through F-09.
 - **2026-09-15**: Completed `REQ-F08-170` with parse-only Bundle inspection, ordered
   structure/payload/schema/model checks, explicit `unverified-identity` success, and no trusted
   identity or policy-evidence fields.

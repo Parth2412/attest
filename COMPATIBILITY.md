@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.14.0` |
+| Version | `1.15.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -32,7 +32,7 @@
 | Storage | `attest-store` | `attest_store` | 0.1.0 | Python 3.12+ | `F-07` | active |
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
-| CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | scaffold |
+| CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | active |
 | GitHub Action | `Parth2412/attest/action` | — | — | Container | `F-11` | scaffold |
 | Container image | `ghcr.io/parth2412/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
@@ -42,8 +42,8 @@ F-01 and F-05 are active in `attest-core`; F-02, F-03, F-04, and the F-05 enviro
 active in `attest-collect`; F-06 signing and F-08 verification are active in `attest-sign`; F-07
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
-its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10 through
-F-12 remain scaffolds.
+its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI is
+active; F-11 and F-12 remain scaffolds.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -230,6 +230,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-16**: Activated F-10 in `attest-cli`; the exact command surface, config and artifact
+  schemas, installed entrypoints, deterministic reports and exits, secure I/O, and full pipeline
+  orchestration pass the enforced 90% CLI coverage gate.
 - **2026-09-15**: Completed F-08 parse-only Bundle inspection with ordered structural checks,
   explicit `unverified-identity` success, and no verified-identity or policy-evidence surface.
 - **2026-09-15**: Completed F-04 exact GitHub event/PR/Compare context resolution with immutable

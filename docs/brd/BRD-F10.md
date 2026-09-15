@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-cli` |
 | Depends on | `F-01`…`F-09`, including `REQ-F04-150` and `REQ-F08-170` |
-| Status | Planned · contract accepted in `ADR-045`; starts only after F-04 and F-08 return to Done |
+| Status | Done · governed by `ADR-045` |
 
 ---
 
@@ -433,11 +433,15 @@ denied policy, missing required evidence, or a placeholder.
 
 ## 12. Definition of Done
 
-- [ ] F-04 and F-08 prerequisites are Done before F-10 starts
-- [ ] All `REQ-F10-*` implemented and every `AC-F10-*` green
-- [ ] Every command has installed-wheel and `CliRunner` success/failure/JSON tests
-- [ ] All three generated schemas are committed and independently drift-checked
-- [ ] Command/option/exit, no-secret, no-egress, safe-I/O, and import-boundary snapshots are green
-- [ ] Coverage ≥ 90% for `attest-cli`
-- [ ] Cross-cutting obligations satisfied
-- [ ] F-11 handoff records that publication and live fresh-repository proof remain open
+- [x] F-04 and F-08 prerequisites are Done before F-10 starts
+- [x] All `REQ-F10-*` implemented and every `AC-F10-*` green
+- [x] Every command has installed-wheel and `CliRunner` success/failure/JSON tests
+- [x] All three generated schemas are committed and independently drift-checked
+- [x] Command/option/exit, no-secret, no-egress, safe-I/O, and import-boundary snapshots are green
+- [x] Coverage ≥ 90% for `attest-cli`
+- [x] Cross-cutting obligations satisfied
+- [x] F-11 handoff records that publication and live fresh-repository proof remain open
+
+F-11 remains Planned and owns the published Action, container and PyPI artifacts, immutable image
+digest, live least-privilege validation, and proof that the generated workflow runs unmodified in a
+fresh repository. F-10 completion does not claim that any distribution is publicly released.
