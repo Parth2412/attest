@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `GLOSS-001` |
-| Version | `1.0.5` |
+| Version | `1.0.6` |
 | Status | **NORMATIVE** for terminology and identifiers |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-15 |
 
 > **Why this document exists.** Ambiguous vocabulary is the single largest source of drift in
 > AI-assisted implementation. If "attestation", "claim", and "record" are used loosely, an
@@ -157,6 +157,7 @@ Errors are identified, not just messaged, so policies and tests can assert on th
 | `ERR-VERIFY-*` | 500–599 | Verification failures |
 | `ERR-POLICY-*` | 600–699 | Policy evaluation failures and violations |
 | `ERR-EXPORT-*` | 700–799 | Export failures |
+| `ERR-INTERNAL-*` | 900–999 | Sanitised unexpected application-boundary failures |
 
 Every attest-defined domain error escaping a public feature-operation boundary **MUST** carry a
 code, a human message, and a remediation hint specified by that feature's BRD. Direct Pydantic

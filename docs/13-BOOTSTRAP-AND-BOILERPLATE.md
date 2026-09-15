@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BOOT-001` |
-| Version | `1.7.0` |
+| Version | `1.8.0` |
 | Status | **NORMATIVE** for repository scaffold, file contents, and tooling configuration |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-15 |
 
 > **Purpose.** This document is complete enough to generate the entire starting repository with
 > **zero invention**. Every file that must exist is listed. Every configuration file's content is
@@ -318,7 +318,7 @@ packages = ["src/attest_core"]
 | `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pydantic`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
-| `attest-cli` | all six above, `typer`, `rich`, `structlog`, `pyyaml` |
+| `attest-cli` | all six above, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml` |
 
 **Version constraints are not given here on purpose except for the executed `CH-01`/`CH-02`
 baselines below.** Run `uv add` and let the resolver pin into `uv.lock`. `uv.lock` is the source of

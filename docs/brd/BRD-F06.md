@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-05` |
-| Status | Ready when F-01 and F-05 are Done · `CH-02` closed |
+| Status | Done · completion reconciled by `ADR-045` |
 
 ---
 

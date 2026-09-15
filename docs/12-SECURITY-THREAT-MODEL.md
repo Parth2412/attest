@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-15 |
 
 ---
 
@@ -199,6 +199,37 @@ documented in the quickstart, not something attest can enforce alone. Stated as 
 
 ---
 
+### T-14 — Incomplete forge identity context bypasses separation of duties
+
+**Likelihood:** medium · **Impact:** high
+
+An unmapped or omitted commit author/committer could be treated as a non-author reviewer, allowing
+self-approval to satisfy policy.
+
+**C-14:** The F-04 GitHub context resolver binds every requested field to the current PR response,
+exhaustively accounts for the exact comparison, and fails closed on PR drift, caps,
+missing/duplicate pages, count drift, endpoint mismatch, or any unmapped author or committer
+association. Names and email addresses are never mapped heuristically
+(`REQ-F04-150`, `ADR-045`).
+
+---
+
+### T-15 — CLI input or generated workflow becomes a privileged execution vector
+
+**Likelihood:** medium · **Impact:** critical
+
+The CLI processes repository-controlled files and generates a workflow with OIDC and repository
+write permission. Symlink races, unsafe YAML, arbitrary plugin hooks, or a
+`pull_request_target` checkout could disclose credentials or execute attacker code.
+
+**C-15:** F-10 uses closed bounded models, safe YAML/JSON, no-follow regular-file reads, revalidated
+atomic writes, no interactive/plugin/script configuration, and deny-by-default egress. Its workflow
+uses `pull_request`, never `pull_request_target`, and invokes only caller-supplied full-SHA checkout
+and attest Actions. F-11 must prove the published Action does not execute repository content and is
+pinned to an immutable image digest before release (`REQ-F10-160`, `REQ-F10-190`, `ADR-045`).
+
+---
+
 ## 5. Residual risks (accepted and documented)
 
 | # | Residual risk | Why accepted |
@@ -224,6 +255,9 @@ and publishing them is worth more than the risk they represent.
 | Prompt-leak test: no input causes prompt text to reach a predicate |
 | Safe-YAML test: policy loading cannot trigger construction |
 | No-egress test: `attest-core` and `attest-policy` make no network calls |
+| CLI no-egress test permits only explicit forge/signing/storage/online-refresh/doctor operations and confirms no telemetry |
+| CLI hostile-file suite covers bounds, unsafe YAML/JSON, symlinks, devices, input races, create-only output, and atomic overwrite |
+| Generated-workflow tests reject `pull_request_target`, mutable Action refs, excess permissions, and any untrusted-code execution path |
 | `pip-audit` and `bandit` gate releases |
 
 ---

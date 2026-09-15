@@ -22,7 +22,7 @@ execution there is a supply-chain vulnerability, not a feature.
 ## Before every session
 
 ```bash
-# F-10 needs F-01…F-08 Done. F-09 needs F-01, F-04, F-08 Done.
+# F-10 needs F-01…F-09 Done, including REQ-F04-150 and REQ-F08-170.
 grep -A 20 '^## 7. Requirement traceability matrix' docs/06-BRD-INDEX-AND-TRACEABILITY.md
 ```
 
@@ -85,8 +85,10 @@ codes (`REQ-F10-040`, `AC-F10-040`).
 
 ### Command surface (`BRD-F10 §3`) — do not invent commands outside it
 
-`init` · `collect` · `build` · `sign` · `push` · `verify` · `gate` · `run` · `inspect` · `export` ·
+`init` · `collect` · `build` · `sign` · `push` · `verify` · `gate` · `run` · `inspect` ·
 `config show` · `doctor` · `version`
+
+`export` remains unregistered until F-12 implements it (`ADR-045`).
 
 ### Non-negotiables
 
@@ -95,7 +97,7 @@ codes (`REQ-F10-040`, `AC-F10-040`).
 | Exit codes match `GLOSS-001 §7` exactly and never change without a major bump | `REQ-F10-010`, snapshot-tested |
 | `--json` on every command, stable and schema-versioned, on **stdout** | `REQ-F10-020` |
 | With `--json`, human output goes to **stderr** so stdout stays pure JSON | `REQ-F10-030` |
-| `attest verify` **requires** an identity constraint; exits `2` if none resolvable | `REQ-F10-100` |
+| Verify/gate/run **require** identity and issuer constraints; exit `2` if either is unresolved | `REQ-F10-100` |
 | Secrets are never CLI flags — environment or file only | `REQ-F10-060` |
 | Every error prints its code, a plain-language message, and the remediation hint | `REQ-F10-070` |
 | `attest --help` returns in under 300 ms — heavy imports deferred into subcommands | `REQ-F10-080` |
@@ -106,8 +108,9 @@ codes (`REQ-F10-040`, `AC-F10-040`).
 
 ### Configuration resolution
 
-Precedence, highest first (`ARCH-001 §8`): CLI flags → `ATTEST_*` environment → `.attest/config.yaml`
-→ organisation policy (v1.1) → built-in defaults.
+Precedence, highest first (`ARCH-001 §8`): CLI flags → named `ATTEST_*` environment →
+`.attest/config.yaml` → built-in defaults. Organisation policy is an inactive v1.1 layer and is
+never fetched in v0.1.
 
 `attest config show --resolved` **must** print the source of every value. Configuration debugging in
 someone else's CI is otherwise miserable, and a gate that is hard to debug gets disabled.
@@ -124,8 +127,8 @@ Scaffolds `.attest/config.yaml`, a starter policy, and a workflow file **with th
 constraint already filled in**. This is the mitigation for `ADR-004`'s ergonomic cost: identity
 constraints are mandatory, so `init` must make the right one trivial to obtain.
 
-Definition of Done requires the generated workflow to run successfully **unmodified** on a fresh
-repository.
+F-10 owns deterministic template bytes and local integration tests. F-11 owns publication and the
+proof that the generated workflow runs **unmodified** on a fresh repository (`ADR-045`).
 
 ---
 

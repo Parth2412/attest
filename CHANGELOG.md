@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-045's complete F-10 CLI/configuration/artifact/output/security contract, added
+  exact GitHub ChangeSet-context and labelled parse-only inspection prerequisites, reserved
+  `attest export` for F-12, and assigned publication/live workflow proof to F-11.
 - Implemented F-07 exact-byte storage through filesystem, Git CLI, optional pygit2, and OCI 1.1
   Referrers backends with deterministic multi-attestation retrieval, create-only concurrency,
   integrity validation, explicit fallback, bounded egress, and containment-safe staging.

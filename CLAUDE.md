@@ -377,8 +377,8 @@ Provisioned by `scripts/multica-setup.sh`, which is idempotent — re-run it aft
 | Project | Contents |
 |---|---|
 | `Week 0 — Validation` | `CH-01`…`CH-04`, `BOOT-001`. **Nothing else may start until `CH-01` and `CH-02` are closed.** |
-| `M1 — Signed core` | `F-01`, `F-02`, `F-03`, `F-05`, `F-06`, `F-08`, `F-10`, `CH-08`, spec publication, `v0.1.0`, M1 gate |
-| `M2 — Enforcement` | `F-04`, `F-07`, `F-09`, `F-11`, `CH-05`, `CH-09`, M2 gate |
+| `M1 — Signed core` | `F-01`, `F-02`, `F-03`, `F-05`, `F-06`, `F-08`, `CH-08`, spec publication, `v0.1.0`, M1 gate |
+| `M2 — Enforcement` | `F-04`, `F-07`, `F-09`, `F-10`, `F-11`, `CH-05`, `CH-09`, M2 gate |
 | `M3 — Evidence` | `F-12`, `CH-04` close-out, `CH-06`, `CH-07`, M3 gate |
 
 Multi-session features are parent issues with children (`F-01` → `F-01a`…`F-01e`). Challenges that

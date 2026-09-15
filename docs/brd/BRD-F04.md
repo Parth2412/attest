@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-collect` |
 | Depends on | `F-01` |
-| Status | In progress · Effective review-state correction governed by `ADR-042` |
+| Status | In progress · GitHub ChangeSet-context prerequisite governed by `ADR-045` |
 
 ---
 
@@ -32,9 +32,44 @@ class ForgeAdapter(Protocol):
     def fetch_review_requirement(self, repo: str, base_branch: str) -> ReviewRequirementData: ...
     def fetch_checks(self, repo: str, head_sha: str) -> ForgeCheckData: ...
 
+class GitHubContextAdapter(Protocol):
+    def fetch_pull_request(self, repo: str, pr_number: int) -> JsonObject: ...
+
+    def fetch_comparison_pages(
+        self,
+        repo: str,
+        base_revision: str,
+        head_revision: str,
+    ) -> tuple[JsonObject, ...]: ...
+
 def collect_review(data: ForgeReviewData, change_author_ids: set[str]) -> Review: ...
 
 def collect_github(adapter: ForgeAdapter, context: GitHubReviewContext) -> GitHubCollection: ...
+
+@dataclass(frozen=True, slots=True)
+class GitHubPullRequestInput:
+    repository: str
+    pr_number: int
+    base_revision: str
+    head_revision: str
+    target_branch: str
+
+@dataclass(frozen=True, slots=True)
+class GitHubChangeSetContext:
+    repository: str
+    pr_number: int
+    base_revision: str
+    head_revision: str
+    merge_base_revision: str
+    target_branch: str
+    change_author_ids: frozenset[str]
+
+def parse_github_pull_request_event(payload: bytes) -> GitHubPullRequestInput: ...
+
+def resolve_github_changeset_context(
+    adapter: GitHubContextAdapter,
+    request: GitHubPullRequestInput,
+) -> GitHubChangeSetContext: ...
 ```
 
 `GitHubReviewContext` is an immutable, validated context with a kind of `pull-request`,
@@ -50,6 +85,30 @@ checks plus non-fatal warnings. `GitHubCollection` carries a `Review`, successfu
 or unavailable checks as `None`, and stable warnings. Strict fetch and pagination failures never
 return partial pages; `collect_github` is the default fail-open boundary described by
 `REQ-F04-130` and `ADR-041`.
+
+`parse_github_pull_request_event` accepts the exact contents of `GITHUB_EVENT_PATH`; it performs no
+filesystem or environment access. It accepts only a GitHub `pull_request` object with canonical
+`repository.full_name`, positive `number`, full lowercase `pull_request.base.sha` and
+`pull_request.head.sha`, and non-empty `pull_request.base.ref`. Unknown fields are ignored because
+GitHub event payloads are additive, but missing, wrongly typed, or inconsistent required values are
+`ERR-COLLECT-126`. The parser never accepts a workflow ref, branch name, or checkout `HEAD` as a
+substitute for either immutable revision.
+
+`resolve_github_changeset_context` fetches the exact pull request both before and after the
+paginated comparison. Both responses' `number`, `base.repo.full_name`, `base.sha`, `head.sha`, and
+`base.ref` must equal the requested repository, number, base revision, head revision, and target
+branch. This binds review evidence to the ChangeSet and detects a mid-resolution PR change rather
+than trusting caller-supplied adjacency. Between those reads it uses GitHub's Compare API for that
+exact base/head pair. The returned `merge_base_commit.sha` is the sole forge merge base. Every
+comparison commit is consumed through complete, same-origin pagination; its non-null GitHub
+`author.id` and `committer.id` values form `change_author_ids`. IDs are decimal strings and are
+deduplicated only after completeness is proved. A PR or comparison response that is capped,
+partial, duplicated, changes across requests/pages, disagrees with its declared total or requested
+endpoint/input, lacks a merge base, or contains an unmapped/invalid author or committer is
+`ERR-COLLECT-127`. The resolver never guesses identity from names or email addresses. Existing
+authentication, timeout, rate-limit, pagination, secret, and sanitised-error rules apply. Context
+failure is fatal to callers that require a ChangeSet; fail-open review/check collection begins only
+after a complete context exists.
 
 ## 5. Requirements
 
@@ -69,6 +128,7 @@ return partial pages; `collect_github` is the default fail-open boundary describ
 | `REQ-F04-120` | All network calls **MUST** have an explicit timeout; there **MUST NOT** be an unbounded request. |
 | `REQ-F04-130` | Forge failures **MUST NOT** abort the public collection call by default. Review failures produce `Review.state == unknown`; branch-rule-only failures produce `required == unknown`; check failures omit checks. Every degradation carries a stable warning and partial pages are discarded. Policy decides whether the result is acceptable. |
 | `REQ-F04-140` | Checks **MUST** be collected through every paginated check suite and every paginated run in each suite with `filter=all`. Every distinct terminal run, including reruns, is retained with exact name and decimal run ID. Predicate-native conclusions map directly; GitHub `action_required` and `stale` map to `failure`; nonterminal runs are omitted with `WARN-COLLECT-005`. |
+| `REQ-F04-150` | The public GitHub context boundary **MUST** parse an exact pull-request event or validated explicit input, bind repository/PR/base/head/target to the exact current pull-request response, resolve the exact forge merge base, and return the complete immutable numeric author and committer ID set for the exact base/head comparison. It **MUST** fail closed with `ERR-COLLECT-126` or `ERR-COLLECT-127` on malformed, capped, partial, duplicated, changed, inconsistent, or identity-unmapped context and **MUST NOT** infer identity from Git names, email addresses, branches, or checkout state. |
 
 ## 6. Acceptance criteria
 
@@ -88,6 +148,7 @@ return partial pages; `collect_github` is the default fail-open boundary describ
 | `AC-F04-120` | Every `httpx` call site is constructed with an explicit timeout, asserted by a test. |
 | `AC-F04-130` | A 500 from the review endpoint makes the public collection call return normally with `state == "unknown"` plus `ERR-COLLECT-125`; independent branch-rule and check failures preserve valid review evidence and emit their own warnings. |
 | `AC-F04-140` | A multi-page suite/run fixture proves every terminal rerun is retained, nonterminal runs warn and are omitted, `action_required` and `stale` map to `failure`, and each check digest independently matches its complete fixture object. |
+| `AC-F04-150` | Recorded PR, event, and multi-page Compare fixtures return the event's exact repository/number/base/head/target, the API merge base, and the deduplicated union of every numeric author and committer ID; a PR-field mismatch or mid-resolution change, wrong endpoint, total/count drift, missing page, duplicate commit, cap, missing merge base, unmapped identity, malformed event, and attempted name/email fallback each fail with the specified code and return no context. |
 
 ## 7. Error codes
 
@@ -98,6 +159,8 @@ return partial pages; `collect_github` is the default fail-open boundary describ
 | `ERR-COLLECT-123` | Rate limit deadline exceeded | Increase deadline or reduce frequency |
 | `ERR-COLLECT-124` | PR context could not be determined | Pass `--pr` explicitly |
 | `ERR-COLLECT-125` | Forge request failed or returned an invalid response | Check GitHub availability and the recorded response contract, then retry |
+| `ERR-COLLECT-126` | Pull-request context input is malformed, unsupported, or inconsistent | Supply an exact GitHub pull-request event or complete explicit repository, PR, base, head, and target inputs |
+| `ERR-COLLECT-127` | The forge PR/comparison cannot prove one consistent ChangeSet, merge base, and immutable author/committer identity set | Retry a stable PR; ensure every commit identity is associated with a GitHub account and reduce or split an API-capped change |
 
 Warnings emitted without invalidating other collected evidence:
 
@@ -115,7 +178,8 @@ Warnings emitted without invalidating other collected evidence:
 
 ## 9. Definition of Done
 
-- [x] All `REQ-F04-*` implemented, all `AC-F04-*` green, including effective-state marking
+- [x] `REQ-F04-010` through `REQ-F04-140` implemented and green
+- [ ] `REQ-F04-150` implemented and `AC-F04-150` green
 - [x] Recorded HTTP fixtures for all paths; no live calls in the default test suite
 - [x] Nightly live smoke test against a real repository
 - [x] Token-leak test asserts absence across all output streams

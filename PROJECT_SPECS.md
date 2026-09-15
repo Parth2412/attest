@@ -3,8 +3,9 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-09 are complete.
-- **Last Updated**: 2026-09-14
+- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-04 and F-08 have bounded F-10
+  prerequisites open; F-10 through F-12 are not implemented.
+- **Last Updated**: 2026-09-15
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -25,8 +26,9 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-09 are
-  complete; F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
+- **Development Stage**: **Pre-alpha implementation.** BOOT-001, F-01 through F-03, F-05 through
+  F-07, and F-09 are complete. F-04 and F-08 are `In progress` only for `REQ-F04-150` and
+  `REQ-F08-170`; F-10 through F-12 remain Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -39,11 +41,13 @@
   pygit2, and OCI Referrers conformance. The full local gate passes 789 tests with two intentional
   environment-dependent skips.
 - **Known Issues**:
-  - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded
-    until their owning BRDs are completed.
+  - F-04 still needs exact GitHub PR/Compare context resolution and F-08 still needs explicitly
+    non-cryptographic Bundle inspection before F-10 can start (`ADR-045`).
+  - F-10 through F-12 remain unimplemented; their modules and delivery surfaces stay scaffolded.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement F-10, whose F-01 through F-08 dependencies are complete.
+- **Next Milestone**: Complete `REQ-F04-150`, then `REQ-F08-170`, then implement the accepted F-10
+  CLI contract. F-11 owns publication/live workflow proof; F-12 later exposes `attest export`.
 
 ---
 
@@ -114,7 +118,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01 through F-09 active, F-10–F-12 scaffolded
+├── packages/               seven distributions; F-01–F-09 active, two F-10 prerequisites open, F-10–F-12 scaffolded
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -131,13 +135,13 @@ out of order means inventing those contracts.
 | `F-01` | Core domain model and predicate schema | `attest-core` | M1 | — | `CH-01`, `CH-02` | Atlas | ✓ done |
 | `F-02` | Git ChangeSet collector (`CSD-1`) | `attest-collect` | M1 | F-01 | `CH-01`, `CH-08` | Sage | ✓ done |
 | `F-03` | Authorship claim collector | `attest-collect` | M1 | F-01 | — | Sage | ✓ done |
-| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ✓ done |
+| `F-04` | Review record collector (GitHub) | `attest-collect` | M2 | F-01 | — | Sage | ◐ context prerequisite |
 | `F-05` | Attestation builder | `attest-core`, `attest-collect` | M1 | F-01, F-02, F-03 | — | Atlas | ✓ done |
 | `F-06` | Sigstore signing | `attest-sign` | M1 | F-01, F-05 | `CH-02` | Cipher | ✓ done |
 | `F-07` | Storage and retrieval | `attest-store` | M2 | F-01, F-06 | — | Sage | ✓ done |
-| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
+| `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ◐ inspection prerequisite |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
-| `F-10` | CLI | `attest-cli` | M1 | F-01…F-08 | — | Pixel | ☐ not started |
+| `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ☐ contract accepted |
 | `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ☐ not started |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
@@ -158,27 +162,26 @@ Everything else is plumbing.
 
 ## CLI Surface
 
-**Nothing is implemented.** Planned surface from `BRD-F10 §3`, recorded here so that no command is
-invented outside it:
+**Nothing is implemented.** Active F-10 surface accepted by `ADR-045`; exact options, artifacts,
+configuration, schemas, and mappings live in `BRD-F10`:
 
 | Command | Purpose | Exit codes |
 |---|---|---|
-| `attest init` | Scaffold `.attest/config.yaml`, starter policy, workflow with the correct identity constraint | 0, 2 |
-| `attest collect` | Run collectors, emit an intermediate JSON document | 0, 1, 2 |
+| `attest init` | Scaffold config, starter policy, and secure workflow | 0, 1, 2 |
+| `attest collect` | Run collectors, emit a Collection Artifact | 0, 1, 2, 6 |
 | `attest build` | Build a Statement from collected input | 0, 1, 2 |
 | `attest sign` | Sign a Statement into a bundle | 0, 1, 2, 6 |
 | `attest push` | Store a bundle | 0, 1, 2, 6 |
-| `attest verify` | Verify a bundle against an identity constraint | 0, 4, 5 |
-| `attest gate` | Verify plus evaluate policy | 0, 3, 4, 5 |
-| `attest run` | collect → build → sign → push → verify → gate | 0, 1, 3, 4, 5, 6 |
-| `attest inspect` | Human-readable rendering of a bundle | 0, 2, 5 |
-| `attest export` | Evidence bundle (`F-12`) | 0, 2, 5 |
-| `attest config show` | Resolved configuration with value provenance | 0, 2 |
-| `attest doctor` | Environment diagnostics, performing no real signature | 0, 2 |
-| `attest version` | Version and build metadata | 0 |
+| `attest verify` | Verify a bundle against identity and issuer constraints | 0, 1, 2, 4, 5 |
+| `attest gate` | Verify plus evaluate policy | 0, 1, 2, 3, 4, 5 |
+| `attest run` | collect → build → sign → push → verify → gate | 0, 1, 2, 3, 4, 5, 6 |
+| `attest inspect` | Parse and render with explicit `unverified-identity` status | 0, 1, 2, 5 |
+| `attest config show` | Resolved configuration with value provenance | 0, 1, 2 |
+| `attest doctor` | Environment diagnostics, performing no signature | 0, 1, 2 |
+| `attest version` | Version and build metadata | 0, 1 |
 
-`attest verify` **requires** an identity constraint from flag or config and exits `2` if none is
-resolvable (`REQ-F10-100`). There is no bypass and none may be added.
+`attest export` is reserved and unregistered until F-12. Verify/gate/run require both identity and
+issuer from flag or config and exit `2` if either is unresolved (`REQ-F10-100`); no bypass exists.
 
 ---
 
@@ -265,8 +268,8 @@ still verify**.
 
 ## Configuration Management
 
-- **Precedence** (`ARCH-001 §8`), highest first: CLI flags → `ATTEST_*` environment variables →
-  `.attest/config.yaml` → organisation policy (v1.1) → built-in defaults.
+- **Precedence** (`ARCH-001 §8`), highest first: CLI flags → named `ATTEST_*` variables →
+  `.attest/config.yaml` → built-ins. Organisation policy is inactive/never fetched in v0.1.
 - **Config files**: `.attest/config.yaml`, `.attest/policy.yaml`. Claim sidecars live in
   `.attest/claims.d/*.json` and are gitignored — local and per-developer.
 - **Resolved configuration MUST be printable** via `attest config show --resolved`, annotated with
@@ -353,6 +356,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-15**: Accepted `ADR-045`, freezing the exact F-10 CLI/config/artifact/output/security
+  contract, reopening F-04 for exact GitHub ChangeSet context and F-08 for labelled parse-only
+  inspection, reserving export for F-12, and assigning live fresh-repository proof to F-11.
 - **2026-09-13**: Implemented F-08's six-step independent verifier with mandatory exact issuer and
   bounded workflow identity, explicit offline trust sources, historical real-bundle evidence,
   hardened caller-selected Git recomputation, fail-closed diagnostics, the complete adversarial

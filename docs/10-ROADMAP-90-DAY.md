@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ROADMAP-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | Baselined |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-15 |
 
 ---
 
@@ -92,6 +92,7 @@ The 90-day count starts after Week 0.
 ### Week 7 — Policy and gate
 - `F-09` policy schema, evaluator, decision reporting
 - Decision-table tests across every predicate
+- Complete `REQ-F04-150` GitHub ChangeSet context and `REQ-F08-170` parse-only inspection
 - `F-10` `init`, `run`, `verify`, `inspect`, `doctor`, and `gate`; exit codes frozen
 
 ### Week 8 — Action and design partners

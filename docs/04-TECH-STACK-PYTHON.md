@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.5.0` |
+| Version | `1.6.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-14 |
+| Last updated | 2026-09-15 |
 
 ---
 
@@ -95,11 +95,11 @@ packages/
 
 | Package | Purpose | Package assignment |
 |---|---|---|
-| `pydantic` (v2.x) | Models, validation, JSON Schema generation, camelCase aliasing | `attest-core`, `attest-policy` |
+| `pydantic` (v2.x) | Models, validation, JSON Schema generation, camelCase aliasing | `attest-core`, `attest-policy`, `attest-cli` |
 | `rfc8785` | RFC 8785 JCS canonicalisation | `attest-core` |
 | `sigstore` | Keyless signing, native DSSE signing/verification, bundles, trust root | `attest-sign` |
 | `pygit2` | Optional libgit2 backend; pinned in development/CI for conformance | `attest-collect[pygit2]`, `attest-store[pygit2]`, root `dev` group |
-| `httpx` | HTTP client (forge APIs) | `attest-collect` |
+| `httpx` | HTTP client (forge APIs and explicit doctor probes) | `attest-collect`, `attest-cli` |
 | `typer` | CLI framework | `attest-cli` |
 | `rich` | Terminal output, tables, diagnostics | `attest-cli` |
 | `structlog` | Structured logging and JSON output | `attest-cli` |
@@ -111,6 +111,11 @@ packages/
 models and generates `spec/schemas/policy-v1.schema.json` from those models. PyYAML supplies only
 bounded tokenisation/parsing under the restrictions in `BRD-F09 §5.1`; library glob defaults and
 constructors are not part of the policy contract (`ADR-042`).
+
+`attest-cli` is a direct Pydantic and HTTPX consumer under `ADR-045`: Pydantic owns the closed
+configuration, Collection Artifact, and output models plus generated schemas; HTTPX is used only
+for explicit credential-free `doctor --probe-network` requests. Depending on either only through a
+sibling package would leave the CLI's runtime imports undeclared.
 
 The executed pre-bootstrap baselines are `pygit2==1.20.0`, `rfc8785==0.1.4`,
 `sigstore==4.5.0`, `pydantic==2.13.5`, and `jsonschema==4.26.0`. `BOOT-001 §4.1`
@@ -314,8 +319,8 @@ is by far the most persuasive demo you will have.
 | Channel | Artifact | Audience |
 |---|---|---|
 | PyPI | `attest-cli` wheel | Python-native teams |
-| GHCR | `ghcr.io/<org>/attest:<version>` slim container | **Primary** CI channel |
-| GitHub Action | `<org>/attest-action@v1` | Most users — hides Python entirely |
+| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula | Local developer use |
 
 Container base: `python:3.12-slim` initially. Move to distroless once the `pygit2`/libgit2 native

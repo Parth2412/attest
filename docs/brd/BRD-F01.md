@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-core` |
 | Depends on | — |
-| Status | In progress · Reviewer effective-state wire correction governed by `ADR-042` |
+| Status | Done · completion reconciled by `ADR-045` |
 
 ---
 
@@ -171,9 +171,9 @@ semantic invariants. F-04 and the official builder require them on every newly e
 
 - [x] All `REQ-F01-*` implemented, all `AC-F01-*` green, including legacy-compatible
   `Reviewer.effective` semantics
-- [ ] All four properties in §7 implemented in Hypothesis
-- [ ] All `SPEC-001 §12` vectors present and passing
-- [ ] Coverage ≥ 95% on `attest-core`
-- [ ] Cross-cutting obligations `X-01`…`X-10` satisfied
-- [ ] Generated schema committed and drift check green
-- [ ] `mutmut` run on `digest.py` and `canonical.py`; surviving mutants reviewed and either killed or justified in writing
+- [x] All four properties in §7 implemented in Hypothesis
+- [x] All `SPEC-001 §12` vectors present and passing
+- [x] Coverage ≥ 95% on `attest-core`
+- [x] Cross-cutting obligations `X-01`…`X-10` satisfied
+- [x] Generated schema committed and drift check green
+- [x] `mutmut` run on `digest.py` and `canonical.py`; zero surviving mutants

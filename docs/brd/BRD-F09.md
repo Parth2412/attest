@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-policy` |
 | Depends on | `F-01`, `F-04`, `F-08` |
-| Status | Ready when F-01, F-04, and F-08 are Done · governed by `ADR-042` |
+| Status | Done · completion reconciled by `ADR-045` |
 
 ---
 

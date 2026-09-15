@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-06` |
-| Status | In progress · Verified policy-evidence result fields governed by `ADR-042` |
+| Status | In progress · Parse-only inspection prerequisite governed by `ADR-045` |
 
 ---
 
@@ -81,12 +81,21 @@ class VerificationResult:
     verified_issuer: str | None
     transparency_log_verified: bool
 
+@dataclass(frozen=True)
+class InspectionResult:
+    status: Literal["unverified-identity", "failed"]
+    checks: list[CheckOutcome]
+    statement: Statement | None
+    failure_code: str | None
+
 def verify(
     bundle: bytes,
     constraint: IdentityConstraint,
     trust_root: TrustRootSource,
     repository: RepositoryConstraint | None = None,
 ) -> VerificationResult: ...
+
+def inspect_bundle(bundle: bytes) -> InspectionResult: ...
 ```
 
 `constraint` and `trust_root` are **required and positional**. Neither is optional and neither has
@@ -128,6 +137,15 @@ Sigstore verified, and `transparency_log_verified` is `True`. Every failed resul
 to `None`, `None`, and `False`; partial cryptographic progress is never exposed as trusted policy
 evidence (`ADR-042`).
 
+`inspect_bundle` is a separate, explicitly non-cryptographic operation. Its checks are exactly
+`bundle-structure`, `statement-payload`, `structural-schema`, and `semantic-model`, in that order,
+using the same safe parsing and predicate-version registry as verification. It aborts at the first
+failure and reuses `ERR-VERIFY-001`, `ERR-VERIFY-007`, `ERR-VERIFY-008`, or `ERR-VERIFY-009` for the
+corresponding structural boundary. Success returns the parsed Statement with status exactly
+`unverified-identity`; failure returns no Statement, status `failed`, and the failing code. The
+operation does not accept identity, issuer, trust, or repository inputs and does not create a
+Sigstore verifier, verify DSSE/certificates/transparency, or expose any identity as verified.
+
 ## 5. Requirements
 
 | ID | Requirement |
@@ -148,6 +166,7 @@ evidence (`ADR-042`).
 | `REQ-F08-140` | Failure output **MUST** name the failing check and its code, and **MUST NOT** reveal internal cryptographic material. |
 | `REQ-F08-150` | attest **MUST** verify every predicate version it has ever emitted; verification code for old versions **MUST NOT** be removed. |
 | `REQ-F08-160` | A successful `VerificationResult` **MUST** expose the exact verified certificate identity, exact verified issuer, and affirmative transparency-log result for policy consumption. A failed result **MUST** expose `None`, `None`, and `False`; callers **MUST NOT** treat partial verification progress as policy evidence. |
+| `REQ-F08-170` | F-08 **MUST** expose a parse-only `inspect_bundle` operation that applies the exact four non-cryptographic structure/payload/schema/model checks and labels every success `unverified-identity`. It **MUST NOT** perform or imply signature, certificate, issuer, transparency-log, trust-root, identity, or ChangeSet verification, and its result **MUST NOT** be accepted as policy evidence. |
 
 ## 6. Acceptance criteria
 
@@ -169,6 +188,7 @@ evidence (`ADR-042`).
 | `AC-F08-140` | Failure messages contain a code and no key material. |
 | `AC-F08-150` | A stored historical bundle from the earliest supported version still verifies. |
 | `AC-F08-160` | Exact and bounded-pattern successes return the resolved exact SAN, exact issuer, and `transparency_log_verified == true`; every failure step returns no identity or issuer and `false`. |
+| `AC-F08-170` | Valid and signature-tampered but structurally valid Bundles both inspect as `unverified-identity`; malformed Bundle, unknown predicate, schema failure, and semantic failure stop at the matching check/code. A boundary test proves inspection never constructs or calls the Sigstore verifier and cannot satisfy `VerificationView`. |
 
 ## 7. Adversarial test suite (required)
 
@@ -204,7 +224,8 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 
 ## 10. Definition of Done
 
-- [x] All `REQ-F08-*` implemented, all `AC-F08-*` green, including `REQ-F08-160`
+- [x] `REQ-F08-010` through `REQ-F08-160` implemented and green
+- [ ] `REQ-F08-170` implemented and `AC-F08-170` green
 - [x] Full adversarial suite (§7) implemented and green
 - [x] Offline verification demonstrated in CI with network disabled
 - [x] Owner acceptance recorded on PR #18 under the `ADR-040` solo-maintainer exception; no
