@@ -1,0 +1,25 @@
+{
+  "status": "ahead",
+  "ahead_by": 3,
+  "behind_by": 0,
+  "total_commits": 3,
+  "base_commit": {
+    "sha": "1111111111111111111111111111111111111111"
+  },
+  "merge_base_commit": {
+    "sha": "1111111111111111111111111111111111111111"
+  },
+  "commits": [
+    {
+      "sha": "4444444444444444444444444444444444444444",
+      "author": {
+        "id": 101,
+        "login": "alice"
+      },
+      "committer": {
+        "id": 202,
+        "login": "release-service"
+      }
+    }
+  ]
+}

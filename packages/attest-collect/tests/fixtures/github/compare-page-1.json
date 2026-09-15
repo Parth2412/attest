@@ -1,0 +1,36 @@
+{
+  "status": "ahead",
+  "ahead_by": 3,
+  "behind_by": 0,
+  "total_commits": 3,
+  "base_commit": {
+    "sha": "1111111111111111111111111111111111111111"
+  },
+  "merge_base_commit": {
+    "sha": "1111111111111111111111111111111111111111"
+  },
+  "commits": [
+    {
+      "sha": "2222222222222222222222222222222222222222",
+      "author": {
+        "id": 101,
+        "login": "alice"
+      },
+      "committer": {
+        "id": 201,
+        "login": "merge-service"
+      }
+    },
+    {
+      "sha": "3333333333333333333333333333333333333333",
+      "author": {
+        "id": 102,
+        "login": "bob"
+      },
+      "committer": {
+        "id": 201,
+        "login": "merge-service"
+      }
+    }
+  ]
+}

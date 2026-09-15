@@ -11,6 +11,7 @@ from typing import Final, Literal, Protocol, cast, runtime_checkable
 
 from attest_collect._github_http import GitHubHttpClient
 from attest_collect._github_http import JsonObject as JsonObject
+from attest_collect._strict_json import decode_json
 from attest_collect.errors import (
     CollectDiagnosticCode,
     CollectError,
@@ -113,6 +114,54 @@ class GitHubReviewContext:
 
 
 @dataclass(frozen=True, slots=True)
+class GitHubPullRequestInput:
+    """Carry an exact requested GitHub pull-request ChangeSet (REQ-F04-150)."""
+
+    repository: str
+    pr_number: int
+    base_revision: str
+    head_revision: str
+    target_branch: str
+
+    def __post_init__(self) -> None:
+        if not _valid_context_fields(
+            repository=self.repository,
+            pr_number=self.pr_number,
+            base_revision=self.base_revision,
+            head_revision=self.head_revision,
+            target_branch=self.target_branch,
+        ):
+            raise collect_error("ERR-COLLECT-126")
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubChangeSetContext:
+    """Return a forge-bound GitHub ChangeSet context (REQ-F04-150)."""
+
+    repository: str
+    pr_number: int
+    base_revision: str
+    head_revision: str
+    merge_base_revision: str
+    target_branch: str
+    change_author_ids: frozenset[str]
+
+    def __post_init__(self) -> None:
+        if (
+            not _valid_context_fields(
+                repository=self.repository,
+                pr_number=self.pr_number,
+                base_revision=self.base_revision,
+                head_revision=self.head_revision,
+                target_branch=self.target_branch,
+            )
+            or not _valid_head_sha(self.merge_base_revision)
+            or not _valid_author_ids(self.change_author_ids)
+        ):
+            raise collect_error("ERR-COLLECT-127")
+
+
+@dataclass(frozen=True, slots=True)
 class ForgeReviewData:
     """Supply complete raw review evidence to the normalizer (REQ-F04-020/060)."""
 
@@ -197,6 +246,22 @@ class ForgeAdapter(Protocol):
         """Fetch every representable terminal check run."""
 
 
+@runtime_checkable
+class GitHubContextAdapter(Protocol):
+    """Define the exact injectable PR/Compare context boundary (REQ-F04-150)."""
+
+    def fetch_pull_request(self, repo: str, pr_number: int) -> JsonObject:
+        """Fetch the current pull-request response object."""
+
+    def fetch_comparison_pages(
+        self,
+        repo: str,
+        base_revision: str,
+        head_revision: str,
+    ) -> tuple[JsonObject, ...]:
+        """Fetch all Compare response pages for the requested revisions."""
+
+
 @dataclass(frozen=True, slots=True)
 class _ParsedReview:
     raw: JsonObject
@@ -273,6 +338,198 @@ def _valid_branch(value: object) -> bool:
 
 def _valid_author_ids(value: object) -> bool:
     return isinstance(value, frozenset) and all(_valid_numeric_identity(item) for item in value)
+
+
+def _valid_context_fields(
+    *,
+    repository: object,
+    pr_number: object,
+    base_revision: object,
+    head_revision: object,
+    target_branch: object,
+) -> bool:
+    return (
+        _valid_repository(repository)
+        and isinstance(pr_number, int)
+        and not isinstance(pr_number, bool)
+        and pr_number > 0
+        and _valid_head_sha(base_revision)
+        and _valid_head_sha(head_revision)
+        and _valid_branch(target_branch)
+    )
+
+
+def _context_object(value: object) -> JsonObject:
+    if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+        raise ValueError
+    return cast(JsonObject, value)
+
+
+def _context_string(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError
+    return value
+
+
+def _context_oid(value: object) -> str:
+    rendered = _context_string(value)
+    if not _valid_head_sha(rendered):
+        raise ValueError
+    return rendered
+
+
+def _context_integer(value: object, *, positive: bool) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < int(positive):
+        raise ValueError
+    return value
+
+
+def _context_list(value: object) -> list[JsonValue]:
+    if not isinstance(value, list):
+        raise TypeError
+    return value
+
+
+def _require_context(condition: bool) -> None:
+    if not condition:
+        raise ValueError
+
+
+def parse_github_pull_request_event(payload: bytes) -> GitHubPullRequestInput:
+    """Parse exact GitHub pull-request event bytes without ambient access (REQ-F04-150)."""
+    if not isinstance(payload, bytes):
+        raise collect_error("ERR-COLLECT-126")
+    try:
+        event = _context_object(decode_json(payload.decode("utf-8")))
+        repository = _context_string(_context_object(event.get("repository")).get("full_name"))
+        pr_number = _context_integer(event.get("number"), positive=True)
+        pull_request = _context_object(event.get("pull_request"))
+        base = _context_object(pull_request.get("base"))
+        head = _context_object(pull_request.get("head"))
+        base_repository = _context_string(_context_object(base.get("repo")).get("full_name"))
+        _require_context(base_repository == repository)
+        return GitHubPullRequestInput(
+            repository=repository,
+            pr_number=pr_number,
+            base_revision=_context_oid(base.get("sha")),
+            head_revision=_context_oid(head.get("sha")),
+            target_branch=_context_string(base.get("ref")),
+        )
+    except Exception:
+        raise collect_error("ERR-COLLECT-126") from None
+
+
+def _pull_request_matches(response: object, request: GitHubPullRequestInput) -> bool:
+    try:
+        pull_request = _context_object(response)
+        base = _context_object(pull_request.get("base"))
+        head = _context_object(pull_request.get("head"))
+        repository = _context_object(base.get("repo"))
+        return (
+            _context_integer(pull_request.get("number"), positive=True) == request.pr_number
+            and _context_string(repository.get("full_name")) == request.repository
+            and _context_oid(base.get("sha")) == request.base_revision
+            and _context_oid(head.get("sha")) == request.head_revision
+            and _context_string(base.get("ref")) == request.target_branch
+        )
+    except (TypeError, ValueError):
+        return False
+
+
+def _require_pull_request_match(
+    response: object,
+    request: GitHubPullRequestInput,
+) -> None:
+    if not _pull_request_matches(response, request):
+        raise collect_error("ERR-COLLECT-127")
+
+
+def _comparison_context(
+    value: object,
+    request: GitHubPullRequestInput,
+) -> tuple[str, frozenset[str]]:
+    if not isinstance(value, tuple) or not value:
+        raise ValueError
+    expected_total: int | None = None
+    expected_merge_base: str | None = None
+    identities: set[str] = set()
+    commit_oids: list[str] = []
+    seen_commit_oids: set[str] = set()
+
+    for raw_page in value:
+        page = _context_object(raw_page)
+        total = _context_integer(page.get("total_commits"), positive=False)
+        ahead = _context_integer(page.get("ahead_by"), positive=False)
+        if ahead != total:
+            raise ValueError
+        base = _context_oid(_context_object(page.get("base_commit")).get("sha"))
+        merge_base = _context_oid(_context_object(page.get("merge_base_commit")).get("sha"))
+        if base != request.base_revision:
+            raise ValueError
+        if expected_total is None:
+            expected_total = total
+            expected_merge_base = merge_base
+        elif total != expected_total or merge_base != expected_merge_base:
+            raise ValueError
+
+        commits = _context_list(page.get("commits"))
+        for raw_commit in commits:
+            commit = _context_object(raw_commit)
+            oid = _context_oid(commit.get("sha"))
+            if oid in seen_commit_oids:
+                raise ValueError
+            seen_commit_oids.add(oid)
+            commit_oids.append(oid)
+            for role in ("author", "committer"):
+                actor = _context_object(commit.get(role))
+                identity = _context_integer(actor.get("id"), positive=True)
+                identities.add(str(identity))
+
+    if expected_total is None or expected_merge_base is None:
+        raise ValueError
+    if len(commit_oids) != expected_total:
+        raise ValueError
+    if expected_total == 0:
+        if request.base_revision != request.head_revision:
+            raise ValueError
+    elif commit_oids[-1] != request.head_revision:
+        raise ValueError
+    return expected_merge_base, frozenset(identities)
+
+
+def resolve_github_changeset_context(
+    adapter: GitHubContextAdapter,
+    request: GitHubPullRequestInput,
+) -> GitHubChangeSetContext:
+    """Resolve one PR-bound, identity-complete GitHub context (REQ-F04-150)."""
+    if not isinstance(request, GitHubPullRequestInput):
+        raise collect_error("ERR-COLLECT-126")
+    try:
+        before = adapter.fetch_pull_request(request.repository, request.pr_number)
+        _require_pull_request_match(before, request)
+        pages = adapter.fetch_comparison_pages(
+            request.repository,
+            request.base_revision,
+            request.head_revision,
+        )
+        merge_base, identities = _comparison_context(pages, request)
+        after = adapter.fetch_pull_request(request.repository, request.pr_number)
+        _require_pull_request_match(after, request)
+        return GitHubChangeSetContext(
+            repository=request.repository,
+            pr_number=request.pr_number,
+            base_revision=request.base_revision,
+            head_revision=request.head_revision,
+            merge_base_revision=merge_base,
+            target_branch=request.target_branch,
+            change_author_ids=identities,
+        )
+    except CollectError as error:
+        if error.code in {"ERR-COLLECT-121", "ERR-COLLECT-123", "ERR-COLLECT-127"}:
+            raise
+        raise collect_error("ERR-COLLECT-127") from None
+    except Exception:
+        raise collect_error("ERR-COLLECT-127") from None
 
 
 def _validate_context(context: GitHubReviewContext) -> None:

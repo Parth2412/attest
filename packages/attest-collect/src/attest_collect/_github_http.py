@@ -435,6 +435,81 @@ class GitHubHttpClient:
             raise collect_error("ERR-COLLECT-122")
         return tuple(records)
 
+    def _paginate_objects(
+        self,
+        url: str,
+        *,
+        deadline_at: float,
+    ) -> tuple[JsonObject, ...]:
+        initial_url = url
+        current_url = url
+        current_page = 1
+        expected_last: int | None = None
+        seen_urls: set[str] = set()
+        pages: list[JsonObject] = []
+
+        while True:
+            if current_url in seen_urls:
+                raise collect_error("ERR-COLLECT-122")
+            seen_urls.add(current_url)
+            response, parsed = self._request_json(current_url, deadline_at=deadline_at)
+            if parsed is None:
+                raise collect_error("ERR-COLLECT-125")
+            pages.append(_json_object(parsed))
+
+            relations = self._relations(response)
+            last_relation = relations.get("last")
+            if last_relation is not None:
+                _, last_page = self._validated_relation_url(
+                    last_relation.get("url"),
+                    initial_url=initial_url,
+                    expected_page=None,
+                )
+                if last_page < current_page or (
+                    expected_last is not None and last_page != expected_last
+                ):
+                    raise collect_error("ERR-COLLECT-122")
+                expected_last = last_page
+
+            next_relation = relations.get("next")
+            if next_relation is None:
+                if expected_last is not None and current_page < expected_last:
+                    raise collect_error("ERR-COLLECT-122")
+                break
+            if expected_last is not None and current_page >= expected_last:
+                raise collect_error("ERR-COLLECT-122")
+            current_url, current_page = self._validated_relation_url(
+                next_relation.get("url"),
+                initial_url=initial_url,
+                expected_page=current_page + 1,
+            )
+
+        return tuple(pages)
+
+    def fetch_pull_request(self, repository: str, pr_number: int) -> JsonObject:
+        """Fetch one exact pull-request response for context binding (REQ-F04-150)."""
+        repo = _repository_path(repository)
+        number = _positive_context_integer(pr_number)
+        url = f"{_API_ORIGIN}/repos/{repo}/pulls/{number}"
+        _, parsed = self._request_json(url, deadline_at=self._new_deadline())
+        if parsed is None:
+            raise collect_error("ERR-COLLECT-125")
+        return _json_object(parsed)
+
+    def fetch_comparison_pages(
+        self,
+        repository: str,
+        base_revision: str,
+        head_revision: str,
+    ) -> tuple[JsonObject, ...]:
+        """Fetch every ordered Compare response page for one exact pair (REQ-F04-150)."""
+        repo = _repository_path(repository)
+        base = _head_sha(base_revision)
+        head = _head_sha(head_revision)
+        query = urlencode((("per_page", _PER_PAGE), ("page", "1")))
+        url = f"{_API_ORIGIN}/repos/{repo}/compare/{base}...{head}?{query}"
+        return self._paginate_objects(url, deadline_at=self._new_deadline())
+
     def fetch_reviews(self, repository: str, pr_number: int) -> tuple[JsonObject, ...]:
         """Fetch every pull-request review response object (REQ-F04-070)."""
         repo = _repository_path(repository)

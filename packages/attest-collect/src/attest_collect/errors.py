@@ -17,6 +17,8 @@ CollectErrorCode = Literal[
     "ERR-COLLECT-123",
     "ERR-COLLECT-124",
     "ERR-COLLECT-125",
+    "ERR-COLLECT-126",
+    "ERR-COLLECT-127",
 ]
 
 CollectDiagnosticCode = Literal[
@@ -39,6 +41,8 @@ CollectDiagnosticCode = Literal[
     "ERR-COLLECT-123",
     "ERR-COLLECT-124",
     "ERR-COLLECT-125",
+    "ERR-COLLECT-126",
+    "ERR-COLLECT-127",
 ]
 
 _ERROR_DETAILS: Final[dict[CollectDiagnosticCode, tuple[str, str]]] = {
@@ -118,6 +122,17 @@ _ERROR_DETAILS: Final[dict[CollectDiagnosticCode, tuple[str, str]]] = {
     "ERR-COLLECT-125": (
         "GitHub request failed or returned an invalid response",
         "Check GitHub availability and the documented response contract, then retry",
+    ),
+    "ERR-COLLECT-126": (
+        "Pull-request context input is malformed, unsupported, or inconsistent",
+        "Supply an exact GitHub pull-request event or complete explicit repository, PR, base, "
+        "head, and target inputs",
+    ),
+    "ERR-COLLECT-127": (
+        "The forge PR/comparison cannot prove one consistent ChangeSet, merge base, and immutable "
+        "author/committer identity set",
+        "Retry a stable PR; ensure every commit identity is associated with a GitHub account and "
+        "reduce or split an API-capped change",
     ),
 }
 
