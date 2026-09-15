@@ -1,5 +1,12 @@
-"""CLI process entry point.
+"""CLI process entry point."""
 
-Governed by: BRD-F10.
-Not yet implemented. Do not add logic here outside a BRD-F10 work session.
-"""
+from attest_cli.app import app
+
+
+def main() -> None:
+    """Run the attest command-line application."""
+    app()
+
+
+if __name__ == "__main__":
+    main()

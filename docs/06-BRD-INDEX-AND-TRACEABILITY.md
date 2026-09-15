@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.4.0` |
+| Version | `2.5.0` |
 | Status | Baselined |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -190,7 +190,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-07` | Done |
 | `F-08` | Done |
 | `F-09` | Done |
-| `F-10` | Planned |
+| `F-10` | Done |
 | `F-11` | Planned |
 | `F-12` | Planned |
 
@@ -328,6 +328,31 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F09-160` | `AC-F09-160` | `packages/attest-policy/tests/test_boundaries.py`, `test_evaluate.py` | ✓ |
 | `REQ-F09-170` | `AC-F09-170` | `packages/attest-policy/tests/test_models.py` | ✓ |
 | `REQ-F09-180` | `AC-F09-180` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F10-010` | `AC-F10-010` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-020` | `AC-F10-020` | `packages/attest-cli/tests/test_models_output.py`, `test_cli_surface.py` | ✓ |
+| `REQ-F10-030` | `AC-F10-030` | `packages/attest-cli/tests/test_cli_surface.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-040` | `AC-F10-040` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-050` | `AC-F10-050` | `packages/attest-cli/tests/test_config.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-060` | `AC-F10-060` | `packages/attest-cli/tests/test_cli_surface.py`, `test_config.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-070` | `AC-F10-070` | `packages/attest-cli/tests/test_error_mapping.py`, `test_commands_verify_gate.py`, `test_commands_sign_push.py` | ✓ |
+| `REQ-F10-080` | `AC-F10-080` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-090` | `AC-F10-090` | `packages/attest-cli/tests/test_models_output.py` | ✓ |
+| `REQ-F10-100` | `AC-F10-100` | `packages/attest-cli/tests/test_commands_verify_gate.py` | ✓ |
+| `REQ-F10-110` | `AC-F10-110` | `packages/attest-cli/tests/test_commands_collect_build.py`, `test_commands_sign_push.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-120` | `AC-F10-120` | `packages/attest-cli/tests/test_commands_doctor.py` | ✓ |
+| `REQ-F10-130` | `AC-F10-130` | `packages/attest-cli/tests/conftest.py`, `test_commands_doctor.py` | ✓ |
+| `REQ-F10-140` | `AC-F10-140` | `packages/attest-cli/tests/test_commands_verify_gate.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-150` | `AC-F10-150` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-160` | `AC-F10-160` | `packages/attest-cli/tests/test_safe_io.py`, `test_init.py`, `test_config.py` | ✓ |
+| `REQ-F10-170` | `AC-F10-170` | `packages/attest-cli/tests/test_commands_basic.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-180` | `AC-F10-180` | `packages/attest-cli/tests/test_commands_collect_build.py` | ✓ |
+| `REQ-F10-190` | `AC-F10-190` | `packages/attest-cli/tests/test_init.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-200` | `AC-F10-200` | `packages/attest-cli/tests/test_config.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-210` | `AC-F10-210` | `packages/attest-cli/tests/test_commands_sign_push.py`, `test_error_mapping.py` | ✓ |
+| `REQ-F10-220` | `AC-F10-220` | `packages/attest-cli/tests/test_models_output.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-230` | `AC-F10-230` | `packages/attest-cli/tests/conftest.py`, `test_cli_surface.py`, `test_commands_sign_push.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-240` | `AC-F10-240` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-250` | `AC-F10-250` | `packages/attest-cli/tests/test_cli_surface.py`, `test_safe_io.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
