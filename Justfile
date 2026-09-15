@@ -33,7 +33,7 @@ verifier-coverage:
     uv run pytest packages/attest-sign/tests/test_verifier.py packages/attest-sign/tests/test_inspection.py --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
 
 github-coverage:
-    uv run pytest packages/attest-collect/tests/test_github_review.py packages/attest-collect/tests/test_github_http.py packages/attest-collect/tests/test_github_checks.py --cov=attest_collect.github --cov=attest_collect._github_http --cov-report=term-missing --cov-fail-under=90
+    uv run pytest packages/attest-collect/tests/test_github_review.py packages/attest-collect/tests/test_github_http.py packages/attest-collect/tests/test_github_checks.py packages/attest-collect/tests/test_github_context.py --cov=attest_collect.github --cov=attest_collect._github_http --cov-report=term-missing --cov-fail-under=90
 
 policy-coverage:
     uv run pytest packages/attest-policy/tests --cov=attest_policy --cov-report=term-missing --cov-fail-under=95
