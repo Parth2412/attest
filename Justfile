@@ -30,7 +30,7 @@ adversarial:
     uv run python scripts/run_test_group.py adversarial F-08
 
 verifier-coverage:
-    uv run pytest packages/attest-sign/tests/test_verifier.py --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
+    uv run pytest packages/attest-sign/tests/test_verifier.py packages/attest-sign/tests/test_inspection.py --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
 
 github-coverage:
     uv run pytest packages/attest-collect/tests/test_github_review.py packages/attest-collect/tests/test_github_http.py packages/attest-collect/tests/test_github_checks.py --cov=attest_collect.github --cov=attest_collect._github_http --cov-report=term-missing --cov-fail-under=90

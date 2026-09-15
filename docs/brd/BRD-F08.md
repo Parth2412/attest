@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-06` |
-| Status | In progress · Parse-only inspection prerequisite governed by `ADR-045` |
+| Status | Done |
 
 ---
 
@@ -225,7 +225,7 @@ Policy decisions (F-09). Verification answers "is this attestation genuine"; pol
 ## 10. Definition of Done
 
 - [x] `REQ-F08-010` through `REQ-F08-160` implemented and green
-- [ ] `REQ-F08-170` implemented and `AC-F08-170` green
+- [x] `REQ-F08-170` implemented and `AC-F08-170` green
 - [x] Full adversarial suite (§7) implemented and green
 - [x] Offline verification demonstrated in CI with network disabled
 - [x] Owner acceptance recorded on PR #18 under the `ADR-040` solo-maintainer exception; no

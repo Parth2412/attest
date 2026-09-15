@@ -12,7 +12,9 @@ from attest_sign.trustroot import (
 from attest_sign.verifier import (
     CheckOutcome,
     IdentityConstraint,
+    InspectionResult,
     VerificationResult,
+    inspect_bundle,
     verify,
 )
 
@@ -20,6 +22,7 @@ __all__ = [
     "Bundle",
     "CheckOutcome",
     "IdentityConstraint",
+    "InspectionResult",
     "RepositoryConstraint",
     "ServiceTrustRoot",
     "Signer",
@@ -29,5 +32,6 @@ __all__ = [
     "TrustRootSource",
     "VerificationEnvironment",
     "VerificationResult",
+    "inspect_bundle",
     "verify",
 ]
