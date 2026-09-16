@@ -1098,7 +1098,7 @@ def run_action(
         event = _resolve_event(environ)
         repository = _repository_path(environ)
         with tempfile.TemporaryDirectory(prefix="attest-action-") as temporary_name:
-            temporary = Path(temporary_name)
+            temporary = Path(temporary_name).resolve(strict=True)
             home = temporary / "home"
             _prepare_home(home, repository)
             runtime = _complete_repository(repository, event, home)

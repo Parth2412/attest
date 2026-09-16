@@ -7,7 +7,9 @@ import os
 import stat
 import subprocess
 import sys
-from collections.abc import Mapping
+import tempfile
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -403,6 +405,30 @@ def test_outputs_remain_empty_before_their_prerequisite_stage(tmp_path: Path) ->
     assert "changeset-digest" not in output
     assert "decision" not in output
     assert "log-index" not in output
+
+
+@pytest.mark.ac("AC-F11-040")
+def test_run_resolves_a_platform_temporary_directory_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository, base, head = _repository(tmp_path)
+    environment = _runner_environment(tmp_path, repository, base, head)
+    executable = _fake_attest(tmp_path, _report("run"), exit_code=0)
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    alias = tmp_path / "runtime-link"
+    alias.symlink_to(runtime, target_is_directory=True)
+
+    @contextmanager
+    def linked_temporary_directory(*, prefix: str) -> Iterator[str]:
+        assert prefix == "attest-action-"
+        yield os.fspath(alias)
+
+    monkeypatch.setattr(tempfile, "TemporaryDirectory", linked_temporary_directory)
+
+    exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+    assert exit_code == 0, rendered
 
 
 @pytest.mark.ac("AC-F11-050")
