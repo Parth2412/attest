@@ -131,7 +131,14 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: false
       - name: Build and validate the exact release artifacts
-        run: just package-contract
+        run: |
+          uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
+          uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
+          uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
       - name: Install and smoke-test the wheels in a clean environment
         run: |
           uv venv build/release-smoke --python "${{ matrix.python }}" --clear
