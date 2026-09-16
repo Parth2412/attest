@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Prepared the exact six-package `0.1.0` release set with complete PyPI metadata, exact internal
+  pins, embedded licence content, archive/hash validation, and clean Python 3.12/3.13 wheel smoke
+  tests; `attest-export` remains unpublished and outside the CLI dependency graph.
 - Accepted ADR-046 and started F-11 with the exact container Action interface, six-package
   product 0.1.0 scope, independent Action v1.0.0/v1 lifecycle, two-phase digest-reviewed release,
   Trusted Publishing, and public repository, fork-safety, dogfood, and performance evidence gates.
