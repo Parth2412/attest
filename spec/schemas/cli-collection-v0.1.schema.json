@@ -1,0 +1,962 @@
+{
+  "$defs": {
+    "AgentRef": {
+      "additionalProperties": false,
+      "description": "Identify an authoring harness without restricting its name (REQ-F01-010).",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "AgentRef",
+      "type": "object"
+    },
+    "Authorship": {
+      "additionalProperties": false,
+      "description": "Record explicit authorship evidence state without a mode default (REQ-F01-170).",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/AuthorshipClaim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "claimsPresent": {
+          "title": "Claimspresent",
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "#/$defs/AuthorshipMode"
+        }
+      },
+      "required": [
+        "mode",
+        "claimsPresent",
+        "claims"
+      ],
+      "title": "Authorship",
+      "type": "object"
+    },
+    "AuthorshipClaim": {
+      "additionalProperties": false,
+      "description": "Represent one self-reported Authorship Claim (REQ-F01-010).",
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/AgentRef"
+        },
+        "claimId": {
+          "pattern": "^(?:[0-7][0-9A-HJKMNP-TV-Z]{25}|[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-7[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12})$",
+          "title": "Claimid",
+          "type": "string"
+        },
+        "claimedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "pattern": "^.+(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claimedat"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "promptDigest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promptdigest"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClaimScope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sessionId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sessionid"
+        },
+        "source": {
+          "$ref": "#/$defs/ClaimSource"
+        }
+      },
+      "required": [
+        "claimId",
+        "agent",
+        "source"
+      ],
+      "title": "AuthorshipClaim",
+      "type": "object"
+    },
+    "AuthorshipMode": {
+      "description": "Describe the declared authorship mode (REQ-F01-010/170).",
+      "enum": [
+        "human-authored",
+        "ai-assisted",
+        "ai-authored",
+        "unknown"
+      ],
+      "title": "AuthorshipMode",
+      "type": "string"
+    },
+    "AutomatedReview": {
+      "additionalProperties": false,
+      "description": "Record an automated review separately from human approvals (REQ-F01-010/070).",
+      "properties": {
+        "findingsDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Findingsdigest",
+          "type": "string"
+        },
+        "submittedAt": {
+          "format": "date-time",
+          "pattern": "^.+(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+          "title": "Submittedat",
+          "type": "string"
+        },
+        "tool": {
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ReviewVerdict"
+        }
+      },
+      "required": [
+        "tool",
+        "verdict",
+        "findingsDigest",
+        "submittedAt"
+      ],
+      "title": "AutomatedReview",
+      "type": "object"
+    },
+    "ChangeSetEntry": {
+      "additionalProperties": false,
+      "description": "Represent one canonical CSD-1 path transition (REQ-F01-050).",
+      "properties": {
+        "changeType": {
+          "$ref": "#/$defs/ChangeType"
+        },
+        "newBlob": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Newblob"
+        },
+        "newMode": {
+          "anyOf": [
+            {
+              "pattern": "^[0-7]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Newmode"
+        },
+        "oldBlob": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oldblob"
+        },
+        "oldMode": {
+          "anyOf": [
+            {
+              "pattern": "^[0-7]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oldmode"
+        },
+        "path": {
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z0-9._~/-]|%[0-9A-F]{2})+$",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "changeType",
+        "oldMode",
+        "newMode",
+        "oldBlob",
+        "newBlob"
+      ],
+      "title": "ChangeSetEntry",
+      "type": "object"
+    },
+    "ChangeSetInfo": {
+      "additionalProperties": false,
+      "description": "Represent ChangeSet identity and signed context (REQ-F01-010/080/090).",
+      "properties": {
+        "algorithm": {
+          "const": "CSD-1",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "baseCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Basecommit",
+          "type": "string"
+        },
+        "digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "headCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Headcommit",
+          "type": "string"
+        },
+        "mergeBase": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mergebase"
+        },
+        "paths": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "pattern": "^(?:[A-Za-z0-9._~/-]|%[0-9A-F]{2})+$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paths"
+        },
+        "pathsTruncated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pathstruncated"
+        },
+        "repository": {
+          "minLength": 1,
+          "pattern": "^(?!https://[^/]*@)(?!.*\\.git$)(?!.*\\/$)https://[A-Za-z0-9.-]+(?::[0-9]+)?/[^\\s/?#]+(?:/[^\\s/?#]+)*$",
+          "title": "Repository",
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/$defs/ChangeSetStats"
+        }
+      },
+      "required": [
+        "repository",
+        "algorithm",
+        "baseCommit",
+        "headCommit",
+        "digest",
+        "stats"
+      ],
+      "title": "ChangeSetInfo",
+      "type": "object"
+    },
+    "ChangeSetRecord": {
+      "additionalProperties": false,
+      "description": "Represent the exact context-free CSD-1 digest record (REQ-F01-050).",
+      "properties": {
+        "algorithm": {
+          "const": "CSD-1",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/ChangeSetEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        }
+      },
+      "required": [
+        "algorithm",
+        "entries"
+      ],
+      "title": "ChangeSetRecord",
+      "type": "object"
+    },
+    "ChangeSetStats": {
+      "additionalProperties": false,
+      "description": "Count ChangeSet entry classes without line statistics (REQ-F01-010).",
+      "properties": {
+        "filesAdded": {
+          "minimum": 0,
+          "title": "Filesadded",
+          "type": "integer"
+        },
+        "filesChanged": {
+          "minimum": 0,
+          "title": "Fileschanged",
+          "type": "integer"
+        },
+        "filesDeleted": {
+          "minimum": 0,
+          "title": "Filesdeleted",
+          "type": "integer"
+        },
+        "filesModified": {
+          "minimum": 0,
+          "title": "Filesmodified",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "filesChanged",
+        "filesAdded",
+        "filesModified",
+        "filesDeleted"
+      ],
+      "title": "ChangeSetStats",
+      "type": "object"
+    },
+    "ChangeType": {
+      "description": "Describe one CSD-1 path transition (REQ-F01-050).",
+      "enum": [
+        "added",
+        "modified",
+        "deleted",
+        "typechange"
+      ],
+      "title": "ChangeType",
+      "type": "string"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "description": "Record one forge check conclusion (REQ-F01-010/090).",
+      "properties": {
+        "conclusion": {
+          "$ref": "#/$defs/CheckConclusion"
+        },
+        "detailsDigest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Detailsdigest",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "runId": {
+          "minLength": 1,
+          "title": "Runid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "conclusion",
+        "runId",
+        "detailsDigest"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "CheckConclusion": {
+      "description": "Describe a recorded check conclusion (REQ-F01-010).",
+      "enum": [
+        "success",
+        "failure",
+        "neutral",
+        "cancelled",
+        "skipped",
+        "timed_out"
+      ],
+      "title": "CheckConclusion",
+      "type": "string"
+    },
+    "ClaimScope": {
+      "additionalProperties": false,
+      "description": "Bind an Authorship Claim to canonical Git paths (REQ-F01-180).",
+      "properties": {
+        "paths": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^(?:[A-Za-z0-9._~/-]|%[0-9A-F]{2})+$",
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "title": "ClaimScope",
+      "type": "object"
+    },
+    "ClaimSource": {
+      "additionalProperties": false,
+      "description": "Record the provenance of an Authorship Claim (REQ-F01-010/090).",
+      "properties": {
+        "digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimSourceKind"
+        },
+        "reference": {
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reference",
+        "digest"
+      ],
+      "title": "ClaimSource",
+      "type": "object"
+    },
+    "ClaimSourceKind": {
+      "description": "Identify how an Authorship Claim was collected (REQ-F01-010).",
+      "enum": [
+        "trailer",
+        "sidecar",
+        "git-note",
+        "forge-api",
+        "manual"
+      ],
+      "title": "ClaimSourceKind",
+      "type": "string"
+    },
+    "Collection": {
+      "additionalProperties": false,
+      "description": "Record where and when predicate data was collected (REQ-F01-070).",
+      "properties": {
+        "collectedAt": {
+          "format": "date-time",
+          "pattern": "^.+(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+          "title": "Collectedat",
+          "type": "string"
+        },
+        "collector": {
+          "$ref": "#/$defs/CollectorRef"
+        },
+        "environment": {
+          "$ref": "#/$defs/EnvironmentRef"
+        }
+      },
+      "required": [
+        "collector",
+        "collectedAt",
+        "environment"
+      ],
+      "title": "Collection",
+      "type": "object"
+    },
+    "CollectionContext": {
+      "additionalProperties": false,
+      "description": "Retain one exact caller-selected collection and policy context.",
+      "properties": {
+        "baseCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Basecommit",
+          "type": "string"
+        },
+        "headCommit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Headcommit",
+          "type": "string"
+        },
+        "mergeBase": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mergebase"
+        },
+        "targetBranch": {
+          "minLength": 1,
+          "title": "Targetbranch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseCommit",
+        "headCommit",
+        "mergeBase",
+        "targetBranch"
+      ],
+      "title": "CollectionContext",
+      "type": "object"
+    },
+    "CollectorRef": {
+      "additionalProperties": false,
+      "description": "Identify the collecting implementation and version (REQ-F01-010).",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "CollectorRef",
+      "type": "object"
+    },
+    "EnvironmentKind": {
+      "description": "Identify the environment where collection occurred (REQ-F01-010).",
+      "enum": [
+        "github-actions",
+        "gitlab-ci",
+        "local",
+        "other"
+      ],
+      "title": "EnvironmentKind",
+      "type": "string"
+    },
+    "EnvironmentRef": {
+      "additionalProperties": false,
+      "description": "Describe collection environment trust and forge context (REQ-F01-010).",
+      "properties": {
+        "eventName": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eventname"
+        },
+        "kind": {
+          "$ref": "#/$defs/EnvironmentKind"
+        },
+        "oidcIssuer": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oidcissuer"
+        },
+        "runAttempt": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runattempt"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runid"
+        },
+        "trusted": {
+          "title": "Trusted",
+          "type": "boolean"
+        },
+        "workflowRef": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workflowref"
+        }
+      },
+      "required": [
+        "kind",
+        "trusted"
+      ],
+      "title": "EnvironmentRef",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "description": "Identify a disclosed model without guessed values (REQ-F01-010).",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "provider",
+        "name"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "Review": {
+      "additionalProperties": false,
+      "description": "Represent the complete Review Record structure (REQ-F01-010).",
+      "properties": {
+        "automatedReviews": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AutomatedReview"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Automatedreviews"
+        },
+        "humanApprovals": {
+          "minimum": 0,
+          "title": "Humanapprovals",
+          "type": "integer"
+        },
+        "required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "unknown",
+              "type": "string"
+            }
+          ],
+          "title": "Required"
+        },
+        "reviewLatencySeconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewlatencyseconds"
+        },
+        "reviewers": {
+          "items": {
+            "$ref": "#/$defs/Reviewer"
+          },
+          "title": "Reviewers",
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/ReviewState"
+        }
+      },
+      "required": [
+        "required",
+        "state",
+        "humanApprovals",
+        "reviewers"
+      ],
+      "title": "Review",
+      "type": "object"
+    },
+    "ReviewEvidence": {
+      "additionalProperties": false,
+      "description": "Bind a reviewer record to forge response evidence (REQ-F01-090).",
+      "properties": {
+        "digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "kind": {
+          "const": "forge-api",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "digest"
+      ],
+      "title": "ReviewEvidence",
+      "type": "object"
+    },
+    "ReviewState": {
+      "description": "Describe the aggregate human-review state (REQ-F01-010).",
+      "enum": [
+        "approved",
+        "changes-requested",
+        "commented",
+        "none",
+        "unknown"
+      ],
+      "title": "ReviewState",
+      "type": "string"
+    },
+    "ReviewVerdict": {
+      "description": "Describe one human or automated review verdict (REQ-F01-010).",
+      "enum": [
+        "approved",
+        "changes-requested",
+        "commented",
+        "dismissed"
+      ],
+      "title": "ReviewVerdict",
+      "type": "string"
+    },
+    "Reviewer": {
+      "additionalProperties": false,
+      "description": "Record one namespaced human reviewer and evidence (REQ-F01-010/070).",
+      "properties": {
+        "effective": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective"
+        },
+        "evidence": {
+          "$ref": "#/$defs/ReviewEvidence"
+        },
+        "identity": {
+          "pattern": "^[^:]+:[0-9]+:[^:]+$",
+          "title": "Identity",
+          "type": "string"
+        },
+        "identityProvider": {
+          "minLength": 1,
+          "title": "Identityprovider",
+          "type": "string"
+        },
+        "isChangeAuthor": {
+          "title": "Ischangeauthor",
+          "type": "boolean"
+        },
+        "submittedAt": {
+          "format": "date-time",
+          "pattern": "^.+(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+          "title": "Submittedat",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ReviewVerdict"
+        }
+      },
+      "required": [
+        "identity",
+        "identityProvider",
+        "verdict",
+        "submittedAt",
+        "isChangeAuthor",
+        "evidence"
+      ],
+      "title": "Reviewer",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Carry all deterministic stage inputs required to build and gate.",
+  "properties": {
+    "authorship": {
+      "$ref": "#/$defs/Authorship"
+    },
+    "changeSet": {
+      "$ref": "#/$defs/ChangeSetInfo"
+    },
+    "changeSetRecord": {
+      "$ref": "#/$defs/ChangeSetRecord"
+    },
+    "checks": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Check"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checks"
+    },
+    "collection": {
+      "$ref": "#/$defs/Collection"
+    },
+    "context": {
+      "$ref": "#/$defs/CollectionContext"
+    },
+    "review": {
+      "$ref": "#/$defs/Review"
+    },
+    "schemaVersion": {
+      "const": "0.1.0",
+      "title": "Schemaversion",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "changeSetRecord",
+    "changeSet",
+    "authorship",
+    "review",
+    "collection",
+    "context"
+  ],
+  "title": "CollectionArtifact",
+  "type": "object"
+}

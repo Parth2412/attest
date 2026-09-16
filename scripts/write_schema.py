@@ -1,4 +1,4 @@
-"""Write the model-generated F-01 and F-09 schemas outside their pure packages."""
+"""Write every model-generated schema outside the pure domain packages."""
 
 from __future__ import annotations
 
@@ -7,6 +7,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
+from attest_cli.artifacts import render_collection_schema
+from attest_cli.config import render_config_schema
+from attest_cli.models import render_cli_output_schema
 from attest_core.schema import render_json_schema
 from attest_policy import render_policy_json_schema
 
@@ -15,6 +18,15 @@ _SCHEMA_PATH: Final[Path] = (
 )
 _POLICY_SCHEMA_PATH: Final[Path] = (
     Path(__file__).resolve().parent.parent / "spec" / "schemas" / "policy-v1.schema.json"
+)
+_CLI_CONFIG_SCHEMA_PATH: Final[Path] = (
+    Path(__file__).resolve().parent.parent / "spec" / "schemas" / "cli-config-v1.schema.json"
+)
+_CLI_COLLECTION_SCHEMA_PATH: Final[Path] = (
+    Path(__file__).resolve().parent.parent / "spec" / "schemas" / "cli-collection-v0.1.schema.json"
+)
+_CLI_OUTPUT_SCHEMA_PATH: Final[Path] = (
+    Path(__file__).resolve().parent.parent / "spec" / "schemas" / "cli-output-v0.1.schema.json"
 )
 
 
@@ -30,6 +42,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     schemas = {
         _SCHEMA_PATH: render_json_schema("0.1"),
         _POLICY_SCHEMA_PATH: render_policy_json_schema(),
+        _CLI_CONFIG_SCHEMA_PATH: render_config_schema(),
+        _CLI_COLLECTION_SCHEMA_PATH: render_collection_schema(),
+        _CLI_OUTPUT_SCHEMA_PATH: render_cli_output_schema(),
     }
     for path, rendered in schemas.items():
         if arguments.check:

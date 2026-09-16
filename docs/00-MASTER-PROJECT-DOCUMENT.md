@@ -6,7 +6,7 @@
 | Version | `1.1.0` |
 | Status | Baselined |
 | Owner | Parth (ZettaCore) |
-| Last updated | 2026-09-13 |
+| Last updated | 2026-09-16 |
 | Supersedes | — |
 
 > **Read this first.** This document is the entry point. It is *descriptive*, not normative,

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented F-10's production CLI with the exact import-light command surface,
+  provenance-aware strict configuration, bounded safe I/O, canonical stage artifacts, generated
+  schemas, deterministic reports and exits, secure initialization, and full pipeline orchestration.
 - Completed F-08's parse-only Bundle inspection with explicit `unverified-identity` results,
   ordered structure/payload/schema/model checks, and a boundary that cannot produce verified
   identity or policy evidence.
