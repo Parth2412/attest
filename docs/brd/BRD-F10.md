@@ -442,6 +442,6 @@ denied policy, missing required evidence, or a placeholder.
 - [x] Cross-cutting obligations satisfied
 - [x] F-11 handoff records that publication and live fresh-repository proof remain open
 
-F-11 remains Planned and owns the published Action, container and PyPI artifacts, immutable image
+F-11 is In progress and owns the published Action, container and PyPI artifacts, immutable image
 digest, live least-privilege validation, and proof that the generated workflow runs unmodified in a
 fresh repository. F-10 completion does not claim that any distribution is publicly released.

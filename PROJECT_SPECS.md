@@ -3,8 +3,8 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven packages at 0.1.0. F-01 through F-10 are complete; F-11
-  and F-12 are not implemented.
+- **Version**: 0.0.0 workspace; seven workspace packages at 0.1.0. F-01 through F-10 are
+  complete; F-11 is In progress under `ADR-046`; F-12 is Planned.
 - **Last Updated**: 2026-09-16
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -27,7 +27,7 @@
 ## Current Project Status
 
 - **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-10 are complete.
-  F-11 and F-12 remain Planned in `BRD-INDEX §7.1`.
+  F-11 is In progress and F-12 is Planned in `BRD-INDEX §7.1`.
 - **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
   Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -42,11 +42,13 @@
   entrypoint and startup contracts. The full local gate passes 1,100 tests with two intentional
   environment-dependent skips.
 - **Known Issues**:
-  - F-11 and F-12 remain unimplemented; their delivery surfaces stay scaffolded.
+  - F-11's delivery surface remains scaffolded while its accepted implementation/release contract
+    is executed; F-12 remains unimplemented.
   - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
     closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement F-11's Action, container, and PyPI publication plus immutable-image
-  and live fresh-repository proof. F-12 later exposes `attest export`.
+- **Next Milestone**: Implement F-11's closed Action wrapper and multi-platform candidate image,
+  then complete protected PyPI/GHCR/Action publication, dogfood, public-repository, fork, and
+  20-run performance proofs. F-12 later exposes `attest export`.
 
 ---
 
@@ -73,7 +75,7 @@
 | Import boundaries | import-linter | decided |
 | Tests | pytest, hypothesis, `mutmut` (core + verifier) | decided |
 | CI | GitHub Actions | decided |
-| Distribution | GHCR container (primary), GitHub Action, PyPI wheel | decided |
+| Distribution | GHCR container (primary), GitHub Action, six implemented PyPI distributions | decided |
 | Database | **none in v1.0** — deliberately (`TECH-001 §3.1`) | decided |
 
 The workspace resolves through committed `uv.lock`. The evidence-backed bootstrap versions are
@@ -141,7 +143,7 @@ out of order means inventing those contracts.
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
-| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ☐ not started |
+| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ◐ in progress |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
 ### The two irreducible ideas (`MPD-001 §5.2`)
@@ -288,9 +290,8 @@ gate is worth nothing.
 | Operation | Target | Validated by |
 |---|---|---|
 | `CSD-1` on 1,000 changed files | < 500 ms | `CH-08`, week 2 |
-| Full `attest run` in CI | < 15 s p95 | `REQ-F11-100`, `CH-09`, week 8 |
+| Full Action step in CI | < 15 s nearest-rank p95 over 20 hosted jobs, including image pull | `REQ-F11-100`, `CH-09`, `ADR-046` |
 | `attest verify` offline | < 2 s | `F-08` |
-| Container cold start | < 3 s | `CH-09` |
 | `attest --help` | < 300 ms | `AC-F10-080` — heavy imports deferred into subcommands |
 
 Ongoing product metric: the share of attestations with `mode == "unknown"`. Above 50% after
@@ -355,6 +356,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-09-16**: Accepted `ADR-046` and started F-11 with a closed five-input Action contract,
+  six-package product 0.1.0 publication scope, independent Action v1.0.0/v1 lifecycle, two-phase
+  digest-reviewed release, and exact public repository, fork-safety, and 20-run performance proof.
 - **2026-09-16**: Completed F-10 with the exact import-light CLI surface, strict
   provenance-aware configuration, bounded symlink-safe I/O, canonical staged artifacts,
   deterministic output and exit mappings, secure all-or-none initialization, generated schemas,

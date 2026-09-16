@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -149,10 +149,14 @@ traceable.
 
 attest runs in privileged CI jobs across many organisations.
 
-**C-09:** Small, audited dependency tree; `pip-audit` and `bandit` in CI; SBOM per release;
-releases signed and attested by attest itself; the Action pins the image by digest, not tag
-(`REQ-F11-010`). CI consumes external actions only at reviewed full commit SHAs, pins its uv
-version, and installs exclusively from the committed lock (`ADR-027`).
+**C-09:** Small, audited dependency tree; `pip-audit` and `bandit` in CI; multi-platform SBOM,
+provenance, and GitHub artifact attestation per release; releases attested and publicly verified by
+attest itself; the Action pins the image by immutable manifest digest, not tag
+(`REQ-F11-010`). A two-phase candidate/review/release flow prevents an unreviewed digest from
+entering the Action. PyPI uses environment-protected Trusted Publishing with separated build and
+publish jobs and no long-lived package token. CI consumes external Actions only at reviewed full
+commit SHAs, pins its base image and uv version, and installs exclusively from the committed lock
+(`ADR-027`, `ADR-046`).
 
 ---
 
@@ -162,10 +166,10 @@ version, and installs exclusively from the committed lock (`ADR-027`).
 A PR from a fork, in a workflow using `pull_request_target`, may run attacker-controlled code with
 access to the workflow token.
 
-**C-10:** Documentation **MUST** cover this explicitly (`REQ-F11-070`). Recommended patterns:
-prefer `pull_request` where possible; when `pull_request_target` is required, never check out
-untrusted code in the signing job. attest cannot enforce this — it is a workflow design issue —
-so the documentation obligation is the control.
+**C-10:** The Action accepts branch `pull_request`, rejects `pull_request_target` and every
+unsupported event before orchestration, and never executes repository content
+(`REQ-F11-070`, `REQ-F11-160`). A fork receives neither OIDC signing authority nor write authority
+and must fail before repository-controlled reads; no elevated-event workaround is supported.
 
 ---
 
@@ -225,8 +229,10 @@ write permission. Symlink races, unsafe YAML, arbitrary plugin hooks, or a
 **C-15:** F-10 uses closed bounded models, safe YAML/JSON, no-follow regular-file reads, revalidated
 atomic writes, no interactive/plugin/script configuration, and deny-by-default egress. Its workflow
 uses `pull_request`, never `pull_request_target`, and invokes only caller-supplied full-SHA checkout
-and attest Actions. F-11 must prove the published Action does not execute repository content and is
-pinned to an immutable image digest before release (`REQ-F10-160`, `REQ-F10-190`, `ADR-045`).
+and attest Actions. F-11 validates its event and OIDC before repository reads, sanitizes Python
+import paths, escapes workflow output/summary data, executes no repository content, and consumes
+only an immutable reviewed image digest (`REQ-F10-160`, `REQ-F10-190`, `REQ-F11-020`,
+`REQ-F11-160`, `ADR-045`, `ADR-046`).
 
 ---
 
@@ -258,6 +264,8 @@ and publishing them is worth more than the risk they represent.
 | CLI no-egress test permits only explicit forge/signing/storage/online-refresh/doctor operations and confirms no telemetry |
 | CLI hostile-file suite covers bounds, unsafe YAML/JSON, symlinks, devices, input races, create-only output, and atomic overwrite |
 | Generated-workflow tests reject `pull_request_target`, mutable Action refs, excess permissions, and any untrusted-code execution path |
+| Action container tests prove OIDC-before-read ordering, event rejection, no repository execution/import, workflow-command escaping, credential redaction, and preservation of every non-policy failure |
+| Release tests prove exact package scope, Trusted Publisher/environment binding, final context equality and exact candidate-manifest promotion, multi-platform SBOM/provenance/attestations, and immutable Action/image references |
 | `pip-audit` and `bandit` gate releases |
 
 ---

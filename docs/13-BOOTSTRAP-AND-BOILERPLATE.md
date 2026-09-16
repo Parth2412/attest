@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BOOT-001` |
-| Version | `1.8.0` |
+| Version | `1.9.0` |
 | Status | **NORMATIVE** for repository scaffold, file contents, and tooling configuration |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 > **Purpose.** This document is complete enough to generate the entire starting repository with
 > **zero invention**. Every file that must exist is listed. Every configuration file's content is
@@ -318,11 +318,16 @@ packages = ["src/attest_core"]
 | `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pydantic`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
-| `attest-cli` | all six above, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml` |
+| `attest-cli` | `attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml`; add `attest-export` only when F-12 is Done |
 
 **Version constraints are not given here on purpose except for the executed `CH-01`/`CH-02`
 baselines below.** Run `uv add` and let the resolver pin into `uv.lock`. `uv.lock` is the source of
 truth (`TECH-001 §3`). Do not hand-write version numbers from memory.
+
+Workspace dependency sources remain local during development. For public `0.1.0` artifacts, every
+active internal dependency is emitted as an exact `==0.1.0` requirement; ranges and direct local
+paths are forbidden in published metadata. F-11 publishes six implemented distributions and does
+not publish `attest-export` (`ADR-046`).
 
 The first bootstrap lock **MUST** resolve these empirically validated versions exactly. The root
 development group owns the `pygit2` pin so both Git implementations remain mandatory in CI while
@@ -680,9 +685,11 @@ jobs:
       - run: uv run pip-audit
 ```
 
-`e2e-sign.yml` and `release.yml` **MUST NOT exist** at bootstrap. GitHub registers every recognized
-workflow file and rejects comment-only placeholders. `BRD-F06` and `BRD-F11` create those exact
-paths only when they deliver valid executable workflows (`ADR-028`).
+`e2e-sign.yml`, `action-candidate.yml`, and `release.yml` **MUST NOT exist** at bootstrap. GitHub
+registers every recognized workflow file and rejects comment-only placeholders. `BRD-F06` and
+`BRD-F11` create those exact paths only when they deliver valid executable workflows. F-11's
+candidate workflow produces the image digest for a reviewed `action.yml` update; the protected
+release workflow only publishes that reviewed candidate (`ADR-028`, `ADR-046`).
 
 ---
 

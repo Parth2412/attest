@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.6.0` |
+| Version | `1.7.0` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -306,7 +306,8 @@ Detail in `QA-001`. Stack summary:
 | `banned-language` | every push | Grep for banned phrases (`GLOSS-001 §2.2`) |
 | `security` | every push | bandit, pip-audit |
 | `e2e-sign` | main + nightly | Real signing against Sigstore staging, then verify |
-| `release` | tag | Build wheels + container, sign own artifacts with attest, publish |
+| `action-candidate` | protected `dev` after implementation | Build/test/scan the enumerated-context multi-platform image; emit context/manifest digests, SBOM, provenance, and GitHub attestation |
+| `release` | manual dispatch on protected `main` | Verify final context and promote the exact reviewed candidate; publish packages, immutable release records, and verified dogfood evidence |
 
 **Dogfooding requirement (NORMATIVE):** attest **MUST** attest its own releases from the first
 release. If the tool cannot be used on itself, it is not ready to be used by anyone else — and it
@@ -318,13 +319,17 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | `attest-cli` wheel | Python-native teams |
-| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — hides Python entirely; generated workflows pin a commit |
-| Homebrew | Formula | Local developer use |
+| PyPI | Exact `0.1.0` distributions for core, collect, sign, store, policy, and CLI | Python-native teams; exact internal `0.1.0` pins, no export package until F-12 |
+| GHCR | `ghcr.io/parth2412/attest:0.1.0` multi-platform slim container plus immutable digest | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.0`, reviewed moving `v1` | Most users — hides Python entirely; generated workflows pin a commit |
+| Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-Container base: `python:3.12-slim` initially. Move to distroless once the `pygit2`/libgit2 native
-dependency is settled. Multi-arch: `linux/amd64` and `linux/arm64`.
+The candidate build records and pins the verified `python:3.12-slim` base digest; release builds
+from the committed lock with user-site/current-directory imports disabled. Multi-arch is
+`linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
+artifact attestation. PyPI publication uses Trusted Publishing from the protected `pypi`
+environment with build and publish jobs separated and no long-lived package token. The exact
+two-phase release and independent Action/product versions are governed by `ADR-046`.
 
 ---
 
