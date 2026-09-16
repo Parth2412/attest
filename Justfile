@@ -44,6 +44,15 @@ store-coverage:
 cli-coverage:
     uv run pytest packages/attest-cli/tests --cov=attest_cli --cov-report=term-missing --cov-fail-under=90
 
+package-contract:
+    uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
+    uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
+    uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
+    uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
+    uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
+    uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
+    uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
+
 mutation-core:
     cd packages/attest-core && uv run mutmut run
     cd packages/attest-core && uv run mutmut results
@@ -74,4 +83,4 @@ adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage package-contract schema-check banned trace security

@@ -122,7 +122,6 @@ source = { editable = "packages/attest-cli" }
 dependencies = [
     { name = "attest-collect" },
     { name = "attest-core" },
-    { name = "attest-export" },
     { name = "attest-policy" },
     { name = "attest-sign" },
     { name = "attest-store" },
@@ -138,7 +137,6 @@ dependencies = [
 requires-dist = [
     { name = "attest-collect", editable = "packages/attest-collect" },
     { name = "attest-core", editable = "packages/attest-core" },
-    { name = "attest-export", editable = "packages/attest-export" },
     { name = "attest-policy", editable = "packages/attest-policy" },
     { name = "attest-sign", editable = "packages/attest-sign" },
     { name = "attest-store", editable = "packages/attest-store" },

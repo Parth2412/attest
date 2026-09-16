@@ -6,15 +6,27 @@ build-backend = "hatchling.build"
 name = "attest-cli"
 version = "0.1.0"
 description = "attest command-line composition and presentation layer"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Parth (ZettaCore)" }]
+keywords = ["ai", "attestation", "provenance", "sigstore", "supply-chain"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
 dependencies = [
-  "attest-core",
-  "attest-collect",
-  "attest-sign",
-  "attest-store",
-  "attest-policy",
-  "attest-export",
+  "attest-core==0.1.0",
+  "attest-collect==0.1.0",
+  "attest-sign==0.1.0",
+  "attest-store==0.1.0",
+  "attest-policy==0.1.0",
   "typer",
   "rich",
   "structlog",
@@ -22,6 +34,13 @@ dependencies = [
   "pydantic>=2.13.5",
   "httpx>=0.28.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Parth2412/attest"
+Documentation = "https://github.com/Parth2412/attest/tree/main/docs"
+Repository = "https://github.com/Parth2412/attest.git"
+Issues = "https://github.com/Parth2412/attest/issues"
+Changelog = "https://github.com/Parth2412/attest/blob/main/CHANGELOG.md"
 
 [project.scripts]
 attest = "attest_cli.__main__:main"

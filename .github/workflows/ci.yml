@@ -115,6 +115,36 @@ jobs:
           uv run pytest packages/attest-cli/tests --cov=attest_cli
           --cov-report=term-missing --cov-fail-under=90
 
+  package-contract:
+    name: package-contract (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - name: Build and validate the exact release artifacts
+        run: |
+          uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
+          uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
+          uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
+      - name: Install and smoke-test the wheels in a clean environment
+        run: |
+          uv venv build/release-smoke --python "${{ matrix.python }}" --clear
+          uv pip install --python build/release-smoke/bin/python --strict build/release-dist/*.whl
+          build/release-smoke/bin/python scripts/smoke_release_install.py
+
   storage-base-install:
     runs-on: ubuntu-latest
     steps:
