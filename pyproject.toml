@@ -59,12 +59,13 @@ enable_error_code = ["ignore-without-code","redundant-expr","truthy-bool"]
 exclude = ["(^|/)mutants/"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages"]
-addopts = "-q --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants --ignore=packages/attest-sign/mutants"
+testpaths = ["packages", "action/tests"]
+addopts = "-q -m 'not container' --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants --ignore=packages/attest-sign/mutants"
 markers = [
   "ac(id): the acceptance criterion this test satisfies, e.g. AC-F01-050",
   "vectors: normative test-vector conformance",
   "adversarial: forgery, tampering, and replay tests",
+  "container: real container runtime contract tests",
   "slow: excluded from the default run",
 ]
 

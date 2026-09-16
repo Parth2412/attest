@@ -32,7 +32,9 @@ def _feature_statuses(text: str) -> dict[str, str]:
 def _test_markers() -> set[str]:
     marker_pattern = re.compile(r"@pytest\.mark\.ac\(\s*['\"](AC-F\d{2}-\d{3})['\"]\s*\)")
     markers: set[str] = set()
-    for path in sorted((REPOSITORY_ROOT / "packages").glob("*/tests/**/*.py")):
+    paths = list((REPOSITORY_ROOT / "packages").glob("*/tests/**/*.py"))
+    paths.extend((REPOSITORY_ROOT / "action/tests").glob("**/*.py"))
+    for path in sorted(paths):
         markers.update(marker_pattern.findall(path.read_text(encoding="utf-8")))
     return markers
 
