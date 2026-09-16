@@ -42,7 +42,10 @@ store-coverage:
     uv run pytest packages/attest-store/tests --cov=attest_store --cov-report=term-missing --cov-fail-under=90
 
 cli-coverage:
-    uv run pytest packages/attest-cli/tests --cov=attest_cli --cov-report=term-missing --cov-fail-under=90
+    uv run pytest packages/attest-cli/tests -m "not performance" --cov=attest_cli --cov-report=term-missing --cov-fail-under=90
+
+cli-performance:
+    uv run pytest packages/attest-cli/tests/test_cli_surface.py::test_ten_clean_installed_help_processes_each_finish_under_300ms -m performance
 
 package-contract:
     uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
@@ -87,4 +90,4 @@ adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage package-contract action-contract schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage cli-performance package-contract action-contract schema-check banned trace security

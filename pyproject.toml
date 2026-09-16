@@ -66,6 +66,7 @@ markers = [
   "vectors: normative test-vector conformance",
   "adversarial: forgery, tampering, and replay tests",
   "container: real container runtime contract tests",
+  "performance: wall-clock acceptance tests that require the designated CI baseline",
   "slow: excluded from the default run",
 ]
 
