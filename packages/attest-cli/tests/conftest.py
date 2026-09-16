@@ -19,6 +19,9 @@ _UNDECLARED_OPERATION = "undeclared network or OIDC operation"
 def deny_undeclared_network_and_oidc(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail every CLI test on real egress or ambient credential exchange."""
 
+    # Tests opt into event discovery explicitly; never inherit the runner's own PR event.
+    monkeypatch.delenv("GITHUB_EVENT_PATH", raising=False)
+
     def forbidden(*_args: object, **_kwargs: object) -> None:
         raise AssertionError(_UNDECLARED_OPERATION)
 
