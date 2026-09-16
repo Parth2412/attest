@@ -53,6 +53,10 @@ package-contract:
     uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
     uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
 
+action-contract:
+    docker build --tag attest-action-runtime:test --file action/Dockerfile .
+    ATTEST_ACTION_IMAGE=attest-action-runtime:test uv run pytest action/tests/test_container.py -m container
+
 mutation-core:
     cd packages/attest-core && uv run mutmut run
     cd packages/attest-core && uv run mutmut results
@@ -76,11 +80,11 @@ trace:
     uv run python scripts/check_traceability.py
 
 security:
-    uv run bandit -r packages --exclude "*/tests/*,*/mutants/*" -c pyproject.toml
+    uv run bandit -r packages action --exclude "*/tests/*,*/mutants/*" -c pyproject.toml
     uv run pip-audit
 
 adr TITLE:
     uv run python scripts/new_adr.py "{{TITLE}}"
 
 # The full release gate from QA-001 §12
-release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage package-contract schema-check banned trace security
+release-gate: check vectors adversarial verifier-coverage github-coverage policy-coverage store-coverage cli-coverage package-contract action-contract schema-check banned trace security

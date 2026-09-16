@@ -31,6 +31,8 @@ SCAN_PATTERNS: Final[tuple[str, ...]] = (
     "action/**/*",
     "tests/**/*",
 )
+IGNORED_PATH_PARTS: Final[frozenset[str]] = frozenset({"__pycache__"})
+IGNORED_SUFFIXES: Final[frozenset[str]] = frozenset({".pyc", ".pyo"})
 
 
 class AllowlistConfigurationError(ValueError):
@@ -76,7 +78,13 @@ def _masked_glossary(text: str) -> str:
 def _scan_files() -> list[Path]:
     files: set[Path] = set()
     for pattern in SCAN_PATTERNS:
-        files.update(path for path in REPOSITORY_ROOT.glob(pattern) if path.is_file())
+        files.update(
+            path
+            for path in REPOSITORY_ROOT.glob(pattern)
+            if path.is_file()
+            and not IGNORED_PATH_PARTS.intersection(path.relative_to(REPOSITORY_ROOT).parts)
+            and path.suffix not in IGNORED_SUFFIXES
+        )
     return sorted(files)
 
 

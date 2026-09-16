@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Implemented the hardened F-11 container Action runtime with closed inputs, fail-closed GitHub
+  event and repository validation, OIDC-before-read enforcement, sanitized CLI execution,
+  injection-safe outputs and summaries, and real-container contract coverage.
 - Prepared the exact six-package `0.1.0` release set with complete PyPI metadata, exact internal
   pins, embedded licence content, archive/hash validation, and clean Python 3.12/3.13 wheel smoke
   tests; `attest-export` remains unpublished and outside the CLI dependency graph.

@@ -145,6 +145,21 @@ jobs:
           uv pip install --python build/release-smoke/bin/python --strict build/release-dist/*.whl
           build/release-smoke/bin/python scripts/smoke_release_install.py
 
+  action-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Build the locked Action runtime
+        run: docker build --tag attest-action-runtime:test --file action/Dockerfile .
+      - name: Run the real-container Action contract
+        env:
+          ATTEST_ACTION_IMAGE: attest-action-runtime:test
+        run: uv run pytest action/tests/test_container.py -m container
+
   storage-base-install:
     runs-on: ubuntu-latest
     steps:
@@ -214,5 +229,5 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
-      - run: uv run bandit -r packages --exclude "*/tests/*" -c pyproject.toml
+      - run: uv run bandit -r packages action --exclude "*/tests/*" -c pyproject.toml
       - run: uv run pip-audit
