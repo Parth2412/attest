@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `MPD-001` |
-| Version | `1.1.0` |
+| Version | `1.2.0` |
 | Status | Baselined |
 | Owner | Parth (ZettaCore) |
 | Last updated | 2026-09-16 |
@@ -196,11 +196,12 @@ Full detail in `ARCH-001`. Summary only here.
 | `attest-store` | Git-ref and OCI storage backends | core |
 | `attest-policy` | Policy model, evaluation, decisions | core |
 | `attest-export` | Control mapping, evidence bundles | core, store, sign |
-| `attest-cli` | Command surface, config, output, exit codes | all |
+| `attest-cli` | Command surface, config, output, exit codes | active packages; export activates with F-12 |
 
 Dependency rule (enforced in CI): dependencies point **inward toward `attest-core`**. Peer adapters
 do not import each other; `attest-export` is the bounded application layer above store and sign;
-`attest-cli` is the top-level root (`ADR-022`). No cycles.
+`attest-cli` is the top-level root (`ADR-022`). Its first public distribution excludes the
+unfinished export package until F-12 (`ADR-046`). No cycles.
 
 ---
 

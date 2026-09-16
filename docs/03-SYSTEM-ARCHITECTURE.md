@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.8.0` |
+| Version | `1.9.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -64,6 +64,8 @@ attest/
 - `attest-export` **MAY** import exactly `attest-core`, `attest-store`, and `attest-sign` as the
   bounded evidence-export application layer (`ADR-022`).
 - `attest-cli` is the top-level composition and presentation root and may import every package.
+  Its `0.1.0` published distribution does not depend on the unfinished `attest-export` package;
+  that dependency and command activate only when F-12 is Done (`ADR-046`).
 - Enforced by an import-linter contract in CI (`QA-001 §6`). A violation fails the build.
 
 **Why this matters for AI-assisted implementation:** the most common failure mode of an agent
@@ -205,6 +207,22 @@ business logic—a handler orchestrates public calls and maps typed results/erro
 Collection Artifact, and machine-output schemas are generated from runtime models and independently
 drift-checked. `attest-export` is the sole bounded lower application layer for F-12; `export` is not
 registered until that feature exists (`ADR-022`, `ADR-045`).
+
+### 3.7 `action/`
+
+The GitHub Action is a presentation and orchestration adapter around the F-10 CLI, not a new
+domain layer. Its Python entry point validates the closed Action inputs and event, checks OIDC and
+repository completeness in the required order, invokes only public CLI operations, maps their
+typed reports to Action outputs, and writes an escaped job summary. It contains no signing,
+verification, policy, git, or storage business logic.
+
+The Action container is a locked release artifact. `action.yml` references a public
+multi-platform GHCR image only by manifest digest. The container uses an exec-form entry point,
+disables user-site and current-directory Python imports, and never sources or executes repository
+content. `run` checks OIDC before any repository-controlled read; `verify` and `gate` do not acquire
+OIDC. Only validated branch `pull_request` and branch `push` events cross the boundary. Exact
+inputs, outputs, failure treatment, and two-phase release ownership are governed by `ADR-046` and
+`BRD-F11`.
 
 ---
 
@@ -424,9 +442,8 @@ auditor access, without becoming a dependency for the core loop.
 | Operation | Target | Notes |
 |---|---|---|
 | `CSD-1` on 1,000 changed files | < 500 ms | Pure computation over OIDs |
-| Full `attest run` in CI | < 15 s p95 | Dominated by network: Fulcio + Rekor + forge API |
+| Full Action step in CI | < 15 s nearest-rank p95 over 20 hosted jobs | Includes image pull and wrapper/CLI work; excludes checkout (`ADR-046`) |
 | `attest verify` offline | < 2 s | Excluding trust root fetch |
-| Cold start (container) | < 3 s | See `TECH-001 §9` on Python distribution |
 
 Performance is not a differentiator here; predictability is. A gate that intermittently times out
 gets disabled by the first frustrated engineer, and a disabled gate is worth nothing.

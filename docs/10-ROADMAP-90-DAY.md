@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ROADMAP-001` |
-| Version | `1.2.0` |
+| Version | `1.3.0` |
 | Status | Baselined |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -96,7 +96,10 @@ The 90-day count starts after Week 0.
 - `F-10` `init`, `run`, `verify`, `inspect`, `doctor`, and `gate`; exit codes frozen
 
 ### Week 8 — Action and design partners
-- `F-11` container Action, job summary, quickstart
+- `F-11` closed-interface container Action, injection-safe job summary, and quickstart
+- Two-phase multi-platform image candidate and protected release; publish the six implemented
+  `0.1.0` distributions through PyPI Trusted Publishing and Action `v1.0.0`/`v1`
+- Dedicated public-repository and `zettacore-labs` fork proof; retain required-check and timing evidence
 - Onboard three external design partners
 - First public write-up: "We signed every PR for a month — here is what the auditor saw"
 
@@ -108,7 +111,9 @@ The 90-day count starts after Week 0.
 - [ ] Three external repositories running the Action in CI
 - [ ] Quickstart works unmodified on a fresh repository
 - [ ] Onboarding friction documented from real partner feedback
-- [ ] `v0.1.0` is published to PyPI and GHCR and attested by itself
+- [ ] Product `0.1.0` is published as the six approved PyPI distributions and immutable
+  multi-platform GHCR image; Action `v1.0.0`/`v1` is published and the release verifies its own
+  attest evidence
 
 ---
 

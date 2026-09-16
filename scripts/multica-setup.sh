@@ -402,14 +402,15 @@ WORK
 3. Replace <org> in packages/attest-core/src/attest_core/constants.py (ADR-013).
 4. Write the three scripts to their behaviour contracts: §9 check_banned_language.py,
    §10 check_traceability.py, §11 new_adr.py.
-5. Do not create e2e-sign.yml or release.yml. Their owning BRDs (F-06, F-11)
-   create those paths only when the workflows are valid (ADR-028).
+5. Do not create e2e-sign.yml, action-candidate.yml, or release.yml. Their owning
+   BRDs (F-06, F-11) create those paths only when the workflows are valid
+   (ADR-028, ADR-046).
 6. uv sync --all-packages && uv run pre-commit install
 
 FORBIDDEN during bootstrap (BOOT-001 §17)
   implementing any function · hand-writing the JSON Schema · creating test vectors ·
   pinning dependency versions from memory · adding a dependency not in §4.1 ·
-  creating e2e-sign.yml or release.yml · choosing a different layout ·
+  creating e2e-sign.yml, action-candidate.yml, or release.yml · choosing a different layout ·
   "improving" any configuration in BOOT-001
 
 EXIT — the fourteen boxes of BOOT-001 §16, all of them. Notably:
@@ -1022,21 +1023,21 @@ NON-NEGOTIABLES
   - THE ACTION PINS ITS IMAGE BY DIGEST, NOT BY TAG (REQ-F11-010, SEC-001 C-09).
     A tag is mutable; a digest is not. This is a supply-chain control.
   - Workflow permissions are minimal and explicit: id-token: write,
-    contents: read (write only where refs are pushed), pull-requests: read.
-  - pull_request_target IS DOCUMENTED AS A HAZARD (REQ-F11-070, SEC-001 T-10).
-    A PR from a fork under pull_request_target can run attacker-controlled code
-    with access to the workflow token — which means forged attestations. Prefer
-    pull_request; when pull_request_target is required, NEVER check out untrusted
-    code in the signing job. attest cannot enforce this, so THE DOCUMENTATION IS
-    THE CONTROL.
+    contents: read (write only where refs are pushed), pull-requests: read,
+    checks: read.
+  - pull_request_target IS REJECTED (REQ-F11-070, SEC-001 T-10). Only validated
+    branch pull_request and branch push events are supported. No mode executes
+    repository content; an unprivileged fork fails before repository reads.
   - The gate MUST be re-run on the final merge candidate, and the required status
     check configured to require branches to be up to date (SEC-001 T-13). Document
     it in the quickstart.
   - checkout uses fetch-depth: 0 wherever a ChangeSet is computed — a shallow
     clone silently changes what the digest covers.
 
-Also delivers .github/workflows/release.yml; the file is absent until this feature implements it:
-multi-arch container, SBOM, self-attestation, publish.
+Also delivers action-candidate.yml and release.yml under ADR-046's two-phase contract:
+candidate on protected dev, reviewed manifest-digest pin, then exact-manifest promotion and
+Trusted Publishing from a manual dispatch on protected main. Publish the six implemented 0.1.0
+distributions only; Action version is independently v1.0.0/v1.
 
 DoD: the quickstart works UNMODIFIED on a genuinely fresh repository.
 EOF
@@ -1048,7 +1049,10 @@ Normative: CHALLENGE-001 §11. One day, week 8. Gates the F-11 Definition of Don
 REQ-F11-100 requires the full Action under 15 s p95. This is the one place the
 Python decision (ADR-012) carries measurable risk.
 
-EXPERIMENT: 20 runs of the full Action on a standard runner; record p50 and p95.
+EXPERIMENT: 20 independent ubuntu-latest jobs with the frozen staging fixture.
+Measure the Action step including image pull and excluding checkout. Retain every
+run ID/duration, runner image, Action SHA, image digest, p50, and nearest-rank p95
+(sorted observation 19).
 
 EXIT
 [ ] p95 under 15 s

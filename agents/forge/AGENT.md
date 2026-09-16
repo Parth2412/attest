@@ -39,14 +39,16 @@ grep -A 15 '^## 12. Outcome log' docs/14-OPEN-CHALLENGES-AND-VALIDATION.md
 | `traceability` | every push | `REQ-` → `AC-` → test mapping |
 | `security` | every push | `bandit`, `pip-audit` |
 | `e2e-sign` | main + nightly | Real signing against **Sigstore staging**, then verify |
-| `release` | tag | Build wheels + container, sign attest's own artifacts **with attest**, publish |
+| `action-candidate` | protected `dev` after implementation | Build, test, scan, and attest the enumerated-context multi-platform image; emit context/manifest digests, SBOM, and provenance |
+| `release` | manual dispatch on protected `main` | Verify final context and promote the exact candidate, publish approved artifacts, and verify dogfood evidence |
 
 `checkout` uses `fetch-depth: 0` wherever a job computes a ChangeSet — a shallow clone silently
 changes what the digest covers.
 
-`e2e-sign.yml` and `release.yml` do not exist at bootstrap (`ADR-028`). `F-06` and `F-11` create
-those exact paths only when they deliver valid workflows. Do not create them early and do not move
-them — GitHub registers every recognized workflow file as executable configuration.
+`e2e-sign.yml`, `action-candidate.yml`, and `release.yml` do not exist at bootstrap (`ADR-028`).
+`F-06` and `F-11` create those exact paths only when they deliver valid workflows. Do not create
+them early and do not move them — GitHub registers every recognized workflow file as executable
+configuration.
 
 ---
 
@@ -56,14 +58,13 @@ them — GitHub registers every recognized workflow file as executable configura
 mutable; a digest is not. This is a supply-chain control, not a style preference.
 
 **Workflow permissions are minimal and explicit.** The signing job needs `id-token: write`,
-`contents: read` (and `write` only where refs are pushed), `pull-requests: read`. Nothing else, and
-never a repository-wide default.
+`contents: read` (and `write` only where refs are pushed), `pull-requests: read`, and `checks: read`
+where review/check collection requires it. Nothing else, and never a repository-wide default.
 
-**`pull_request_target` is documented as a hazard** (`REQ-F11-070`, `SEC-001 T-10`). A PR from a
-fork under `pull_request_target` can run attacker-controlled code with access to the workflow
-token — which means forged attestations. Recommended patterns: prefer `pull_request`; when
-`pull_request_target` is genuinely required, **never check out untrusted code in the signing job**.
-attest cannot enforce this — it is a workflow design issue — so the documentation *is* the control.
+**`pull_request_target` is rejected** (`REQ-F11-070`, `SEC-001 T-10`). A PR from a fork under that
+event could place untrusted content beside elevated authority. The Action supports only validated
+branch `pull_request` and branch `push`, executes no repository content, and requires an
+unprivileged fork to fail before repository-controlled reads (`ADR-046`).
 
 **Tests never touch the production transparency log.** `e2e-sign` targets Sigstore **staging**.
 This is a hard rule (`QA-001 §10`), and a guard test fails the suite if a production endpoint is
@@ -84,14 +85,15 @@ the most persuasive demo available.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — hides Python entirely; generated workflows pin a commit |
-| PyPI | `attest-cli` wheel | Python-native teams |
+| GHCR | Public `ghcr.io/parth2412/attest:0.1.0` amd64/arm64 image plus immutable digest | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.0`, reviewed moving `v1` | Most users — generated workflows pin a commit |
+| PyPI | Six `0.1.0` distributions: core, collect, sign, store, policy, and CLI | Python-native teams; no export package until F-12 |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
-Base image `python:3.12-slim`; move to distroless once the `pygit2`/libgit2 native dependency is
-settled. Multi-arch `linux/amd64` and `linux/arm64`. Publish an SBOM with every release
-(`SEC-001 C-09`).
+Pin the verified `python:3.12-slim` base by digest. Multi-arch is `linux/amd64` and
+`linux/arm64`; publish SBOM, provenance, and GitHub artifact attestations with every image
+(`SEC-001 C-09`). PyPI uses the protected `pypi` environment and Trusted Publishing, never a
+long-lived token.
 
 **There is no single static binary and none is planned.** Do not build one speculatively.
 `ADR-011` holds the only trigger that could reopen it — M2 exit gate, installation friction ranked
@@ -105,7 +107,9 @@ is not Forge's to trigger.
 `REQ-F11-100` requires the full Action under 15 s p95. This is the one place the Python decision
 carries measurable risk, and Forge owns closing it.
 
-**Experiment:** 20 runs of the full Action on a standard runner; record p50 and p95.
+**Experiment:** 20 independent `ubuntu-latest` Action jobs with the frozen staging fixture. Time
+the Action step including image pull but excluding checkout; retain every run ID/duration and use
+nearest-rank observation 19 for p95.
 **Gate:** p95 under 15 s.
 **If missed:** slim the image, defer heavy imports, cache layers. Do not silently ship slower than
 `ARCH-001 §11` claims — amend the target by ADR or fix it.
@@ -119,11 +123,13 @@ concern with Pixel.
 
 Arbiter decides *whether* to release; Forge builds *what* gets released. The pipeline:
 
-1. Build wheels for each package and the multi-arch container
-2. Generate the SBOM
-3. **Sign attest's own release artifacts using attest**, and verify that attestation publicly
-4. Publish to PyPI and GHCR
-5. Tag the Action major version to the released image digest
+1. Build/test/scan a locked candidate image from the enumerated context and emit context/manifest
+   digests, SBOM, provenance, and attestation after implementation lands on protected `dev`
+2. Land a second reviewed PR that pins that manifest in `action.yml`, outside the build context
+3. From protected `main`, verify context equality, promote that exact manifest, and build the six distributions once
+4. Publish from separate authority via PyPI Trusted Publishing and public GHCR
+5. Create immutable product Release/tag `v0.1.0` and Action tag `v1.0.0`, advance reviewed `v1`,
+   attest the release with attest, and verify the evidence publicly
 
 A release that cannot attest itself does not ship. That is not a slogan — it is a release gate in
 `QA-001 §12`.

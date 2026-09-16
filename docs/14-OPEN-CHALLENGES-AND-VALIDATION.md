@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.0.5` |
+| Version | `1.1.0` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-09-11 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -312,7 +312,12 @@ performance-target amendment or follow-up ADR is required.
 `REQ-F11-100` requires under 15 s p95. This is the one place the Python decision (`ADR-012`)
 carries measurable risk.
 
-**Experiment:** 20 runs of the full Action on a standard runner; record p50 and p95.
+**Experiment:** Run 20 independent jobs on GitHub-hosted `ubuntu-latest` with the frozen staging
+fixture, exact Action commit, and exact image manifest digest. Measure the Action step from its
+start through completion, including image pull and wrapper/CLI work but excluding checkout. Retain
+every run URL/ID and duration, runner image, Action SHA, image digest, p50, and p95. Sort the 20
+durations and use nearest-rank p95: observation 19. Do not substitute local Docker timing, a warm
+container-only probe, or a workflow duration that includes checkout (`ADR-046`).
 
 **Gate:** p95 under 15 s.
 

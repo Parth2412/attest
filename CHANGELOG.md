@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-046 and started F-11 with the exact container Action interface, six-package
+  product 0.1.0 scope, independent Action v1.0.0/v1 lifecycle, two-phase digest-reviewed release,
+  Trusted Publishing, and public repository, fork-safety, dogfood, and performance evidence gates.
 - Implemented F-10's production CLI with the exact import-light command surface,
   provenance-aware strict configuration, bounded safe I/O, canonical stage artifacts, generated
   schemas, deterministic reports and exits, secure initialization, and full pipeline orchestration.

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.22.0` |
+| Version | `1.23.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -2176,6 +2176,148 @@ unmapped author/committer associations, cannot produce a forge-complete attestat
 coded remediation. Parse-only inspection is useful for diagnostics but visibly non-cryptographic.
 F-11 must publish the distribution/action, pin the delivery supply chain, and demonstrate that the
 generated workflow runs unmodified on a fresh repository before release.
+
+---
+
+## ADR-046 — Freeze the F-11 Action and release contract
+
+**Status:** Accepted · **Date:** 2026-09-16 · **Affects:** `MPD-001`, `GLOSS-001`, `ARCH-001`, `TECH-001`,
+`QA-001`, `SEC-001`, `BOOT-001`, `ROADMAP-001`, `CHALLENGE-001`, `COMPAT-001`, `BRD-INDEX`,
+`BRD-F11`, `F-11`
+
+**Context.** F-10 produced the exact workflow consumed by F-11, but the Action BRD did not define
+enough of the public boundary to implement or release it without invention. The `verify` and
+`gate` modes had no Bundle input; output meaning on every path was unstated; the treatment of
+unsupported events, shallow repositories, policy violations, and untrusted repository content was
+ambiguous. The repository also had no closed publication contract for its seven distributions,
+container image, Action tags, release provenance, or first public proof. Publishing directly from
+that state would create mutable dependencies, broaden trusted-publisher authority, expose an
+unfinished export package, and make the image digest impossible to review before the Action refers
+to it.
+
+**Decision.** F-11 publishes a Linux Docker container Action whose manifest uses an immutable
+multi-platform GHCR manifest digest. Its closed inputs are `mode` (`run`, `verify`, or `gate`,
+default `run`), `policy` (run/gate default `.attest/policy.yaml`), `bundle` (required only for
+`verify` and `gate`), `push-attestation` (strict Boolean string, run default `true`), and
+`fail-on-violation` (strict Boolean string, run/gate default `true`). Mode-scoped inputs are
+forbidden outside their stated modes; the wrapper, not metadata, applies defaults so absence is
+distinguishable from an invalid explicit input. Repository
+paths are relative, bounded regular files; symbolic links and path escape are rejected. `run`
+performs the F-10 production composition and uses a temporary filesystem store when publication is
+disabled. `verify` performs identity-bound verification without policy. `gate` verifies before
+evaluating policy. No mode executes repository content.
+
+The Action supports only branch `pull_request` and branch `push` events. It rejects tags,
+`pull_request_target`, branch creation/deletion, malformed event data, and shallow or incomplete
+history. Pull-request context uses the F-04 resolver. Push context is derived strictly from the
+validated event and git objects. `run` checks for OIDC before reading repository-controlled
+configuration or evidence and reports `ERR-SIGN-301` with the exact `id-token: write`
+remediation. `verify` and `gate` do not request or use OIDC. The runtime receives the automatic
+`github.token` through Action metadata, never through a public token input or output, and the
+documented permissions remain mode- and publication-specific least privilege.
+
+The outputs are `changeset-digest`, `attestation-ref`, `decision`, and `log-index`. The digest is
+set after a valid Statement is available; the reference is the durable published run location or
+the validated input Bundle location and is empty for a non-publishing run; decision is the verified
+policy outcome for `run` and `gate` and the verification outcome for `verify`; log index is set only when present in a successfully
+verified Bundle. Available outputs are emitted before an expected policy exit. With
+`fail-on-violation=false`, only a verified, decision-backed policy exit `3` or `5` becomes a
+successful Action result; verification, configuration, signing, storage, network, and internal
+failures remain fatal. The escaped job summary contains the decision, authorship mode, and review
+record and never renders untrusted markup.
+
+The first product release is `0.1.0` with product tag and immutable GitHub Release `v0.1.0`. It publishes only the six implemented distributions
+`attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, and `attest-cli`;
+`attest-export` remains unpublished until F-12. Published internal dependencies are exactly pinned
+to `0.1.0`, package metadata and licence files are complete, and the CLI does not depend on the
+unfinished export distribution. The Action has an independent immutable tag `v1.0.0` and a
+reviewed moving-major tag `v1`; both point to the `v0.1.0` release commit. A tag ruleset prevents
+updates/deletion of immutable version tags, GitHub immutable releases protect `v0.1.0`, and only
+the reviewed release procedure may move `v1`. The image is versioned `0.1.0` and is also
+addressable by immutable digest.
+
+The PyPI JSON endpoints for all six selected names returned not-found on 2026-09-16; this is an
+availability observation, not a reservation. Release rechecks every name immediately before
+Trusted Publisher registration and publication. If any name is no longer available or owned by
+the project owner, publication stops and a new naming ADR is required; the workflow does not
+silently choose a different distribution name.
+
+Release is two-phase. After the implementation slice lands on protected `dev`, the candidate
+workflow builds the locked multi-platform image from its explicitly enumerated build context,
+tests it, scans it, and produces its manifest digest, build-context digest, SBOM, provenance, and
+GitHub artifact attestation. A second reviewed PR may change the Action image reference to that
+digest; the image build context excludes `action.yml`, so that pin cannot change the image. After
+the reviewed tree reaches protected `main`, a manually dispatched release workflow verifies that
+the final build-context digest equals the attested candidate context and promotes the exact
+candidate manifest—never a look-alike rebuild—to version `0.1.0`. It builds the six wheels and
+source distributions once and publishes them through a PyPI Trusted Publisher bound to the
+protected `pypi` environment, creates immutable GitHub Release/tag `v0.1.0` and Action tag
+`v1.0.0`, advances `v1`,
+and creates and publicly verifies attested release evidence with attest itself. Build and publish
+jobs are separated; publishing uses no long-lived package secret; all third-party Actions are
+pinned to full commit SHAs. The release fails on any source/context digest, version, lock, image,
+SBOM, provenance, attestation, installation-smoke, or self-verification mismatch.
+
+Local tests cover the wrapper and manifest contract without network signing. Sigstore staging is
+used only by explicit integration tests. Public release and dogfood evidence use production trust
+services. Release-gated proof uses the dedicated public repository
+`Parth2412/attest-action-proof` and its public `zettacore-labs/attest-action-proof` fork; both names
+were absent when checked on 2026-09-16 and are created only by the release-proof procedure. It
+commits the three exact F-10-generated files. The proof change and pull request are created by the
+first-party `github-actions[bot]` identity (numeric ID `41898282`), while the project owner supplies
+the independent human approval; no second human or external service identity is used. The gate is
+pinned to the re-observed GitHub Actions App (currently App ID `15368`) under strict branch
+protection. The first no-review result is required and blocked; after the human approval, a rerun
+must succeed and become mergeable. The fork must fail before repository reads
+when OIDC/write authority is absent. No elevated fork event is used. Retained evidence includes
+repository and pull-request URLs, immutable SHAs and digests, check identity, protection settings,
+run IDs, logs, outputs, and verified Bundles.
+
+`REQ-F11-100` is measured over 20 independent `ubuntu-latest` hosted Action jobs using the frozen
+staging fixture. Duration is the Action step from start through completion, including image pull
+and wrapper/CLI work but excluding checkout. Sorted nearest-rank p95 is observation 19; every run
+ID and duration, p50, p95, runner image, Action SHA, and image digest is retained. p95 must be below
+15 seconds. Acceptance of this ADR moves F-11 to `In progress`; F-11 returns to `Done` only after
+all local, release, public-repository, fork, and performance evidence is complete.
+
+The platform assumptions above were checked against the primary documentation for
+[Docker container Actions](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-a-docker-container-action),
+[Action metadata](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax),
+[GitHub OIDC](https://docs.github.com/en/actions/reference/security/oidc),
+[automatic token authentication](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token),
+[immutable Action releases](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/using-immutable-releases-and-tags-to-manage-your-actions-releases),
+[GitHub artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations),
+[PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/), and
+[BuildKit SBOM attestations](https://docs.docker.com/build/metadata/attestations/sbom/), as read on
+2026-09-16. Repository-specific assumptions were verified against the live repository settings
+before this decision was accepted.
+
+**Rationale.** A container Action is itself a privileged supply-chain product, not a thin YAML
+wrapper. A closed interface and fail-closed event model make every privilege and output auditable.
+Separating candidate production from reviewed publication solves the digest self-reference without
+using a mutable tag. Independent Action and product versions preserve their different compatibility
+promises. Publishing only implemented distributions keeps the first public package set truthful.
+Trusted Publishing, digest pins, SBOM/provenance, and self-verification minimize durable authority
+and make the released bytes attributable and reproducible.
+
+**Rejected alternatives.** A mutable image tag cannot identify reviewed bytes. Building and
+publishing in one unreviewed tag job cannot place the resulting digest into the commit being
+released. A public token input duplicates `github.token` and invites disclosure. Supporting
+`pull_request_target` would put untrusted contributions beside elevated authority. Treating every
+failure as advisory would turn verification and configuration defects into false success.
+Publishing `attest-export` as a placeholder would claim F-12 is implemented. A single monolithic
+PyPI distribution would discard the approved package architecture; loosely bounded internal
+dependencies could install an incompatible family. TestPyPI cannot prove production identities or
+the public consumer path, while using production trust services in ordinary unit tests would make
+the suite nondeterministic.
+
+**Consequences.** The first release requires a candidate digest PR, protected `pypi` environment,
+PyPI Trusted Publisher registration, public GHCR package, immutable release records, a dedicated
+proof repository, an organisation fork, and 20 retained hosted-runner measurements. F-11 gains a
+fifth input and four additional requirements/acceptance criteria. The unfinished export package is
+removed from the CLI's published dependency set until F-12. A fork cannot produce a signed run
+without explicitly granted authority, and this safe failure is a required proof rather than an
+unsupported corner case.
 
 ---
 

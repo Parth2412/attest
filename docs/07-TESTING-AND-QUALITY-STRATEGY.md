@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.3.0` |
+| Version | `1.4.0` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-16 |
 
 ---
 
@@ -56,6 +56,7 @@ under `packages/*/src/` (`ADR-026`).
 | `attest-sign` (verifier module) | 95% | Security-critical |
 | `attest-policy` | 95% | Pure, no excuse |
 | `attest-store` | 90% | Persistent evidence must remain complete and retrievable |
+| `action/` Python wrapper | 90% | Privileged public orchestration boundary |
 | All other packages | 90% | — |
 
 Coverage is a floor, not a goal. 100% coverage with weak assertions is worse than 90% with
@@ -196,6 +197,11 @@ one byte anywhere, assert verification never succeeds.
 | CLI integration uses deterministic injected adapters to compare standalone stages with `run`, while installed-wheel tests exercise the real console entry point |
 | CLI file-I/O tests race and replace inputs/outputs, exercise symlinks/devices/limits, and assert create-only or explicit atomic overwrite behavior |
 | CLI egress tests deny sockets by default and allow only the operation and explicit option under test; doctor probes never send credentials or sign |
+| Action contract tests run the real container entry point with table-driven inputs/events and hostile paths, environment, summaries, output files, workflow commands, and repository executables |
+| Action tests prove OIDC preflight precedes repository reads in `run`, while `verify` and `gate` never request OIDC |
+| Action policy-advisory tests neutralize only verified decision-backed exits `3`/`5`; every configuration, verification, signing, storage, network, and internal failure remains fatal |
+| Candidate/release tests inspect final build-context equality, exact manifest promotion, both image architectures, base and Action digest pins, lock equality, SBOM, provenance, GitHub artifact attestation, and clean package/image installation |
+| Production Sigstore is used only for the public release/dogfood proof; ordinary integration signing remains on staging |
 | No test may depend on the current wall clock; clocks are injected |
 | No test may depend on network availability except the explicitly-marked nightly jobs |
 
@@ -223,10 +229,15 @@ A release **MUST NOT** ship unless:
 - [ ] Traceability check green
 - [ ] No untriaged surviving mutant in the verifier
 - [ ] `pip-audit` reports no unmitigated high-severity advisory
+- [ ] Candidate and protected release workflows prove final build-context equality, exact candidate manifest promotion, both target architectures, a pinned base, SBOM, provenance, and GitHub artifact attestations
+- [ ] Build and publish authority are separated; PyPI Trusted Publishing is bound to the protected `pypi` environment and no long-lived package token exists
+- [ ] Clean environments install and smoke-test exactly the six approved `0.1.0` distributions; `attest-export` is neither published nor a CLI dependency
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated
 - [ ] Backwards compatibility confirmed: attestations from every prior version still verify
 - [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
+- [ ] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
+- [ ] F-11 retains 20 hosted Action-step timings whose nearest-rank p95, including image pull, is below 15 seconds
 
 ---
 

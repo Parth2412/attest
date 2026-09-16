@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.15.0` |
+| Version | `1.16.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-09-16 |
 
@@ -33,8 +33,8 @@
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.0 | Python 3.12+ | `F-10` | active |
-| GitHub Action | `Parth2412/attest/action` | — | — | Container | `F-11` | scaffold |
-| Container image | `ghcr.io/parth2412/attest` | — | — | `python:3.12-slim` | `F-11` | scaffold |
+| GitHub Action | `Parth2412/attest/action` | — | v1.0.0 (planned) | Container | `F-11` | scaffold |
+| Container image | `ghcr.io/parth2412/attest` | — | 0.1.0 (planned) | pinned `python:3.12-slim` digest | `F-11` | scaffold |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
@@ -43,7 +43,7 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI is
-active; F-11 and F-12 remain scaffolds.
+active. F-11 is In progress while its Action/image components remain scaffolds; F-12 is Planned.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -126,7 +126,11 @@ hand-write a version from memory.
 | `attest-store` | `attest-core`, `oras`; optional `pygit2` extra |
 | `attest-policy` | `attest-core`, `pyyaml` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
-| `attest-cli` | all six above, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml` |
+| `attest-cli` | `attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml`; `attest-export` only after F-12 |
+
+Published product `0.1.0` metadata exact-pins every active internal dependency to `==0.1.0`.
+Workspace sources remain local during development. `attest-export` is excluded from the first
+published set and from the published CLI dependency graph until F-12 is Done (`ADR-046`).
 
 **`attest-core` MUST NOT gain any dependency with I/O capability.** Adding one requires an ADR
 (`BOOT-001 §4.1`, `REQ-F01-140`). Enforced by the `core-is-pure` import-linter contract, not by
@@ -164,9 +168,9 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-store` | `attest-core` | 0.1.0 | import-linter `layers` |
 | `attest-policy` | `attest-core` | 0.1.0 | import-linter `layers` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
-| `attest-cli` | all six | 0.1.0 | import-linter `layers` |
+| `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | exactly 0.1.0 in published metadata | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | container image, pinned **by digest, not tag** | — | `REQ-F11-010`, `C-09` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.0; Action v1.0.0/v1 | `REQ-F11-010`, `C-09`, `ADR-046` |
 
 ---
 
@@ -190,13 +194,13 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | `ghcr.io/parth2412/attest:<version>` slim container | **Primary** CI channel | `F-11` |
-| GitHub Action | `Parth2412/attest/action@<full-sha>` | Most users — generated workflows pin a commit | `F-11` |
-| PyPI | `attest-cli` wheel | Python-native teams | `F-10` |
+| GHCR | public `ghcr.io/parth2412/attest:0.1.0` for amd64/arm64 plus immutable digest | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.0`, reviewed moving `v1` | Most users — generated workflows pin a commit | `F-11` |
+| PyPI | `attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, `attest-cli` at 0.1.0 | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
-Multi-arch: `linux/amd64` and `linux/arm64`. Base image `python:3.12-slim` initially; distroless
-once the `pygit2`/libgit2 native dependency is settled (`TECH-001 §8`).
+Multi-arch: `linux/amd64` and `linux/arm64`. The selected `python:3.12-slim` base is pinned by
+verified digest for the release; distroless remains a later evidence-based option (`TECH-001 §8`).
 
 **There is no single static binary and none is planned.** `ADR-011` records the one bounded
 trigger that could reopen it — M2 exit gate, installation friction ranked top complaint by a
@@ -230,6 +234,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-09-16**: Accepted F-11's closed Action and two-phase release contract in `ADR-046`;
+  recorded product 0.1.0's exact six-package set, independent Action v1.0.0/v1 versions,
+  multi-platform immutable image, Trusted Publishing, and required public/fork/performance proofs.
 - **2026-09-16**: Activated F-10 in `attest-cli`; the exact command surface, config and artifact
   schemas, installed entrypoints, deterministic reports and exits, secure I/O, and full pipeline
   orchestration pass the enforced 90% CLI coverage gate.
