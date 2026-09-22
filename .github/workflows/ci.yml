@@ -170,8 +170,16 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
+      - name: Stage the enumerated Action build context
+        run: >-
+          uv run --no-project python scripts/prepare_action_context.py
+          build/action-context
+          --manifest-output build/action-context-manifest.json
+          --digest-output build/action-context.sha256
       - name: Build the locked Action runtime
-        run: docker build --tag attest-action-runtime:test --file action/Dockerfile .
+        run: >-
+          docker build --tag attest-action-runtime:test
+          --file build/action-context/action/Dockerfile build/action-context
       - name: Run the real-container Action contract
         env:
           ATTEST_ACTION_IMAGE: attest-action-runtime:test
