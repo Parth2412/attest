@@ -1,0 +1,18 @@
+version: 1
+repository:
+  path: "."
+  backend: subprocess
+signing:
+  environment: production
+  timeoutSeconds: 120
+verification:
+  identity: "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
+  issuer: "https://token.actions.githubusercontent.com"
+  environment: production
+  offline: false
+policy:
+  path: "release/attest-release-policy.yaml"
+storage:
+  backend: filesystem
+  directory: "build/release-evidence/store"
+  fallbackDirectory: "build/release-evidence/fallback"
