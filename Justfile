@@ -57,7 +57,8 @@ package-contract:
     uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
 
 action-contract:
-    docker build --tag attest-action-runtime:test --file action/Dockerfile .
+    uv run --no-project python scripts/prepare_action_context.py build/action-context --manifest-output build/action-context-manifest.json --digest-output build/action-context.sha256
+    docker build --tag attest-action-runtime:test --file build/action-context/action/Dockerfile build/action-context
     ATTEST_ACTION_IMAGE=attest-action-runtime:test uv run pytest action/tests/test_container.py -m container
 
 mutation-core:

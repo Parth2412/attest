@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added the F-11 candidate supply chain with a Git-tracked deterministic build context,
+  multi-platform GHCR image build, per-platform scanning, BuildKit SBOM/provenance, GitHub artifact
+  attestation, identity-bound verification, and retained digest evidence.
 - Implemented the hardened F-11 container Action runtime with closed inputs, fail-closed GitHub
   event and repository validation, OIDC-before-read enforcement, sanitized CLI execution,
   injection-safe outputs and summaries, and real-container contract coverage.
