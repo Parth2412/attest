@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added the protected F-11 release workflow for exact candidate promotion, six-package Trusted
+  Publishing, clean public verification, production self-attestation, immutable release evidence,
+  and independent product and Action tags.
 - Added the closed public F-11 Docker Action manifest with the reviewed immutable multi-platform
   image digest, exact five-input/four-output interface, and automatic GitHub token injection.
 - Added the F-11 candidate supply chain with a Git-tracked deterministic build context,
