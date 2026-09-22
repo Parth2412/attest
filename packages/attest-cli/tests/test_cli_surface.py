@@ -538,6 +538,7 @@ def test_module_main_calls_the_single_root_application(monkeypatch: pytest.Monke
 
 
 @pytest.mark.ac("AC-F10-080")
+@pytest.mark.performance
 @pytest.mark.slow
 def test_ten_clean_installed_help_processes_each_finish_under_300ms(
     installed_cli: tuple[Path, Path, Path, dict[str, str]],
