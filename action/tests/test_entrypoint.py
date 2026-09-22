@@ -798,6 +798,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
         assert _error_code(rendered) == "ERR-STORE-405"
 
 
+@pytest.mark.ac("AC-F11-010")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
 
@@ -809,9 +810,3 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
     assert 'ENTRYPOINT ["/opt/venv/bin/python", "-I", "/opt/attest/entrypoint.py"]' in dockerfile
     assert "COPY action/action.yml" not in dockerfile
-
-
-def test_public_action_manifest_remains_unpublished_until_candidate_digest_review() -> None:
-    manifest = (Path(__file__).parents[1] / "action.yml").read_text(encoding="utf-8")
-
-    assert manifest == "# The container action definition is owned by BRD-F11.\n"

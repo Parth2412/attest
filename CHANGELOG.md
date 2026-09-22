@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added the closed public F-11 Docker Action manifest with the reviewed immutable multi-platform
+  image digest, exact five-input/four-output interface, and automatic GitHub token injection.
 - Added the F-11 candidate supply chain with a Git-tracked deterministic build context,
   multi-platform GHCR image build, per-platform scanning, BuildKit SBOM/provenance, GitHub artifact
   attestation, identity-bound verification, retained digest evidence, and a fail-closed security
