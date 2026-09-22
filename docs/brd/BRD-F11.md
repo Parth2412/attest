@@ -157,11 +157,13 @@ by `action.yml` only through its immutable manifest digest.
 3. After the reviewed tree reaches protected `main`, a manually dispatched protected release job
    verifies final context equality and promotes the exact candidate manifest to `0.1.0`; it does
    not substitute a rebuild with a different digest.
-4. A build job creates distributions once. A separate publish job uses PyPI Trusted Publishing
-   bound to the protected `pypi` environment; no API token is stored.
-5. The workflow publishes the public image and six distributions, creates immutable product
-   Release/tag `v0.1.0` and immutable Action tag `v1.0.0`, advances reviewed `v1`, creates attest's
-   own release ChangeSet evidence, and verifies that evidence publicly.
+4. A build job creates all distributions once. Separate per-package jobs use PyPI Trusted
+   Publishing bound to six protected environments; no API token is stored. The first release
+   publishes three packages, verifies their public bytes, and then exposes the protected checkpoint
+   for registering and approving the remaining three publishers.
+5. Only after both PyPI waves succeed, the workflow publishes the public image, creates immutable
+   product Release/tag `v0.1.0` and immutable Action tag `v1.0.0`, advances reviewed `v1`, creates
+   attest's own release ChangeSet evidence, and verifies that evidence publicly.
 
 Every third-party Action is pinned to a full commit SHA. Release smoke tests install each package
 and the CLI into clean supported Python environments and execute the published Action by full SHA.

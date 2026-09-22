@@ -2386,6 +2386,79 @@ read on 2026-09-22.
 
 ---
 
+## ADR-048 — Sequence the first-release PyPI bootstrap in two waves
+
+**Status:** Accepted · **Date:** 2026-09-23 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `F-11` · **Amends:** `ADR-046`, `ADR-047`
+
+**Context.** ADR-047 assigned six unique Trusted Publisher identities so Warehouse could distinguish
+the six absent projects. Live registration then exposed a separate account-level control:
+Warehouse permits a user to hold no more than three pending Trusted Publishers at once. The first
+three valid registrations are `attest-core`, `attest-collect`, and `attest-sign`; registering
+`attest-store` is rejected until a pending slot is released. PyPI converts a pending publisher
+into a normal project publisher only when its first upload creates the project. Consequently, one
+user cannot pre-register all six first-release projects, regardless of their distinct OIDC
+identities. ADR-047's assumption that all six jobs could be approval-gated together is false under
+the enforced production limit.
+
+**Decision.** The protected release workflow retains one build, one twelve-file validated
+distribution artifact, two clean-install smoke tests, and one artifact-attestation boundary before
+any public upload. PyPI bootstrap then runs inside the same non-cancellable workflow in two strict
+waves:
+
+1. Wave one publishes only `attest-core`, `attest-collect`, and `attest-sign` through their
+   already registered protected environments.
+2. A separate job waits for PyPI propagation, verifies the six public files byte-for-byte against
+   the reviewed artifact, confirms that all three wave-two names still return not-found, retains
+   the evidence, and writes the exact second-wave registration values to the run summary.
+3. Only after that verification succeeds may the three wave-two jobs become eligible. The operator
+   registers `attest-store`, `attest-policy`, and `attest-cli` as pending publishers and then
+   approves their protected GitHub environments. Approval is forbidden before all three exact
+   pending configurations are visible on PyPI.
+4. Wave two publishes only those three distributions. Final GHCR tag promotion, six-package public
+   verification, clean installation, product dogfood, GitHub Release publication, and product and
+   Action tags remain blocked until every wave-two job succeeds.
+
+Both waves consume the same immutable workflow artifact, grant OIDC independently to one
+distribution per job, keep `skip-existing: false`, generate PyPI attestations, and record the
+bootstrap wave in retained publisher evidence. The workflow never stores or accepts a PyPI API
+token. A missing or incorrect second-wave publisher therefore fails at OIDC exchange before
+authorized upload. If such a pre-upload failure occurs, the publisher configuration is corrected
+and only the failed job is retried. Any ambiguous or partial file upload stops the release for
+evidence review and a recovery decision; the workflow never deletes, yanks, overwrites, or silently
+skips an uploaded file.
+
+**Rationale.** This is the only supported path that simultaneously uses the owner's single PyPI
+account, preserves the six first public versions as `0.1.0`, and retains short-lived,
+environment-scoped OIDC credentials. Verifying wave one before exposing wave two proves that the
+pending publishers converted successfully and that the public bytes equal the reviewed build.
+Making the individual wave-two environments the checkpoint prevents their OIDC jobs from starting
+while the operator is registering publishers. Deferring image and release records minimizes the
+externally visible partial-release surface to the three unavoidable PyPI projects.
+
+**Rejected alternatives.** A user-scoped or project-scoped API token creates durable release
+authority and violates the accepted security contract. A second PyPI account contradicts the
+owner-only operating model and merely moves the cap. Placeholder versions would make `0.1.0`
+cease to be the first release and leave permanent bootstrap artifacts. Separate workflow runs
+could rebuild or lose the reviewed artifact and cannot safely restart after immutable uploads.
+Publishing all six jobs concurrently guarantees three authentication failures. Depending on an
+unpublished exception from PyPI administrators is not a deterministic release mechanism.
+
+**Consequences.** For a bounded interval, the three wave-one projects are public while the other
+three are not; PyPI provides no atomic multi-project transaction or rollback. The operator must
+complete one precisely documented registration checkpoint during the live workflow and must not
+approve wave two early. Release evidence now proves the two publisher waves and the intermediate
+public hashes. ADR-047's distinct environments remain mandatory, but its simultaneous six-job
+bootstrap and no-operator-pause rationale are superseded by this decision.
+
+The hard limit was verified in the upstream
+[Warehouse account view](https://github.com/pypi/warehouse/blob/957088b4fc3e9ab15c6820e927188171c0454f68/warehouse/accounts/views.py#L1902-L1911),
+and pending-to-normal conversion was verified in
+[PyPI's Trusted Publisher documentation](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/),
+as read on 2026-09-23.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

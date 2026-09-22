@@ -92,8 +92,9 @@ the most persuasive demo available.
 
 Pin the verified `python:3.12-slim` base by digest. Multi-arch is `linux/amd64` and
 `linux/arm64`; publish SBOM, provenance, and GitHub artifact attestations with every image
-(`SEC-001 C-09`). PyPI uses the protected `pypi` environment and Trusted Publishing, never a
-long-lived token.
+(`SEC-001 C-09`). PyPI uses six protected per-package environments and Trusted Publishing, never a
+long-lived token. Bootstrap the first release in the two ordered, hash-verified three-package waves
+defined by `ADR-048`.
 
 **There is no single static binary and none is planned.** Do not build one speculatively.
 `ADR-011` holds the only trigger that could reopen it — M2 exit gate, installation friction ranked
@@ -126,9 +127,11 @@ Arbiter decides *whether* to release; Forge builds *what* gets released. The pip
 1. Build/test/scan a locked candidate image from the enumerated context and emit context/manifest
    digests, SBOM, provenance, and attestation after implementation lands on protected `dev`
 2. Land a second reviewed PR that pins that manifest in `action.yml`, outside the build context
-3. From protected `main`, verify context equality, promote that exact manifest, and build the six distributions once
-4. Publish from separate authority via PyPI Trusted Publishing and public GHCR
-5. Create immutable product Release/tag `v0.1.0` and Action tag `v1.0.0`, advance reviewed `v1`,
+3. From protected `main`, verify context equality and build the six distributions once
+4. Publish and verify the first three packages, register and approve the second three publishers,
+   then publish the second wave through per-package Trusted Publishing authority
+5. Only after all six packages succeed, promote the exact public GHCR manifest
+6. Create immutable product Release/tag `v0.1.0` and Action tag `v1.0.0`, advance reviewed `v1`,
    attest the release with attest, and verify the evidence publicly
 
 A release that cannot attest itself does not ship. That is not a slogan — it is a release gate in

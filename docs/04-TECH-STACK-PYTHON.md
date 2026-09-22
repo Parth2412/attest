@@ -327,9 +327,11 @@ is by far the most persuasive demo you will have.
 The candidate build records and pins the verified `python:3.12-slim` base digest; release builds
 from the committed lock with user-site/current-directory imports disabled. Multi-arch is
 `linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
-artifact attestation. PyPI publication uses Trusted Publishing from the protected `pypi`
-environment with build and publish jobs separated and no long-lived package token. The exact
-two-phase release and independent Action/product versions are governed by `ADR-046`.
+artifact attestation. PyPI publication uses per-package Trusted Publishing environments with build
+and publish jobs separated and no long-lived package token. Because PyPI permits only three pending
+publishers per account, the first release publishes two strictly ordered three-package waves with
+public hash verification and a protected registration checkpoint between them. The exact release
+and independent Action/product versions are governed by `ADR-046`, `ADR-047`, and `ADR-048`.
 
 ---
 
