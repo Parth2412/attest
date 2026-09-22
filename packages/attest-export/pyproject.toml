@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "attest-export"
+version = "0.1.0"
+description = "attest evidence export application layer"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "attest-core",
+  "attest-store",
+  "attest-sign",
+  "pyyaml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/attest_export"]

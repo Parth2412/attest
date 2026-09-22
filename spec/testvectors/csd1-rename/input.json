@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "path": "old/name.txt",
+      "changeType": "deleted",
+      "oldMode": "100644",
+      "newMode": null,
+      "oldBlob": "1111111111111111111111111111111111111111",
+      "newBlob": null
+    },
+    {
+      "path": "new/name.txt",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "100644",
+      "oldBlob": null,
+      "newBlob": "1111111111111111111111111111111111111111"
+    }
+  ]
+}

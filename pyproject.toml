@@ -1,0 +1,78 @@
+[project]
+name = "attest-workspace"
+version = "0.0.0"
+description = "Workspace root. Not published."
+requires-python = ">=3.12"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+attest-core = { workspace = true }
+attest-collect = { workspace = true }
+attest-sign = { workspace = true }
+attest-store = { workspace = true }
+attest-policy = { workspace = true }
+attest-export = { workspace = true }
+attest-cli = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "pytest-randomly",
+  "hypothesis",
+  "mypy",
+  "ruff",
+  "import-linter",
+  "pre-commit",
+  "bandit",
+  "pip-audit",
+  "mutmut",
+  "respx",
+  "pygit2==1.20.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["*.md"]
+src = ["packages/attest-core/src", "packages/attest-collect/src", "packages/attest-sign/src",
+       "packages/attest-store/src", "packages/attest-policy/src", "packages/attest-export/src",
+       "packages/attest-cli/src"]
+
+[tool.ruff.lint]
+select = ["E","F","W","I","N","UP","B","A","C4","DTZ","S","PT","RET","SIM","ARG","PTH","ERA","TRY","RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101","S","ARG"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = false
+enable_error_code = ["ignore-without-code","redundant-expr","truthy-bool"]
+exclude = ["(^|/)mutants/"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "action/tests"]
+addopts = "-q -m 'not container' --strict-markers --strict-config --import-mode=importlib --ignore=packages/attest-core/mutants --ignore=packages/attest-sign/mutants"
+markers = [
+  "ac(id): the acceptance criterion this test satisfies, e.g. AC-F01-050",
+  "vectors: normative test-vector conformance",
+  "adversarial: forgery, tampering, and replay tests",
+  "container: real container runtime contract tests",
+  "performance: wall-clock acceptance tests that require the designated CI baseline",
+  "slow: excluded from the default run",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["packages"]
+
+[tool.coverage.report]
+show_missing = true

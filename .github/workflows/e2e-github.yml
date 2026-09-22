@@ -1,0 +1,32 @@
+name: e2e-github
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  live-read:
+    name: live GitHub evidence collection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Read reviews, protection, and checks
+        env:
+          ATTEST_GITHUB_E2E: "1"
+          ATTEST_GITHUB_TOKEN: ${{ github.token }}
+          ATTEST_GITHUB_REPOSITORY: ${{ github.repository }}
+          ATTEST_GITHUB_PR: "19"
+          ATTEST_GITHUB_HEAD_SHA: "813d31838bdae960795a698ebaf41ecc5aa58c11"
+          ATTEST_GITHUB_BASE_BRANCH: "dev"
+        run: uv run pytest packages/attest-collect/tests/test_e2e_github.py -vv

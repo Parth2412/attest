@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "path": "latest",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "120000",
+      "oldBlob": null,
+      "newBlob": "1111111111111111111111111111111111111111"
+    }
+  ]
+}

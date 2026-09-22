@@ -1,0 +1,16 @@
+version: 1
+policies:
+  - id: ATTEST-RELEASE-001
+    description: "Require trusted, identity-bound release provenance"
+    match:
+      branches: ["main"]
+      paths: ["**"]
+    require:
+      attestation: true
+      environment:
+        trusted: true
+      signer:
+        issuer: "https://token.actions.githubusercontent.com"
+        identity: "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
+      transparencyLog: true
+    onViolation: block

@@ -1,0 +1,67 @@
+"""Public wire-format models governed by SPEC-001 and BRD-F01."""
+
+from attest_core.models.changeset import (
+    ChangeSetEntry,
+    ChangeSetInfo,
+    ChangeSetRecord,
+    ChangeSetStats,
+)
+from attest_core.models.enums import (
+    AuthorshipMode,
+    ChangeType,
+    CheckConclusion,
+    ClaimSourceKind,
+    EnvironmentKind,
+    ReviewState,
+    ReviewVerdict,
+)
+from attest_core.models.predicate import (
+    AgentRef,
+    Authorship,
+    AuthorshipClaim,
+    AutomatedReview,
+    Check,
+    ClaimScope,
+    ClaimSource,
+    Collection,
+    CollectorRef,
+    EnvironmentRef,
+    ModelRef,
+    Predicate,
+    Review,
+    Reviewer,
+    ReviewEvidence,
+)
+from attest_core.models.statement import DigestSet, Statement, Subject
+
+__all__ = [
+    "AgentRef",
+    "Authorship",
+    "AuthorshipClaim",
+    "AuthorshipMode",
+    "AutomatedReview",
+    "ChangeSetEntry",
+    "ChangeSetInfo",
+    "ChangeSetRecord",
+    "ChangeSetStats",
+    "ChangeType",
+    "Check",
+    "CheckConclusion",
+    "ClaimScope",
+    "ClaimSource",
+    "ClaimSourceKind",
+    "Collection",
+    "CollectorRef",
+    "DigestSet",
+    "EnvironmentKind",
+    "EnvironmentRef",
+    "ModelRef",
+    "Predicate",
+    "Review",
+    "ReviewEvidence",
+    "ReviewState",
+    "ReviewVerdict",
+    "Reviewer",
+    "Statement",
+    "Subject",
+]

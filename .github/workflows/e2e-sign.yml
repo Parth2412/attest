@@ -1,0 +1,59 @@
+name: e2e-sign
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - ".github/workflows/e2e-sign.yml"
+      - "packages/attest-core/**"
+      - "packages/attest-sign/**"
+      - "uv.lock"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      generate_f08_fixtures:
+        description: Generate provenance-pinned F-08 verification fixtures
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  staging-sign:
+    name: keyless signing (Sigstore staging)
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Sign and verify against Sigstore staging
+        run: >-
+          ATTEST_SIGSTORE_E2E=1 uv run pytest
+          packages/attest-sign/tests/test_e2e_staging.py -vv
+      - name: Generate F-08 verification fixtures
+        if: github.event_name == 'workflow_dispatch' && inputs.generate_f08_fixtures
+        run: >-
+          uv run python packages/attest-sign/tests/generate_f08_fixtures.py
+          "$RUNNER_TEMP/f08-fixtures"
+      - name: Upload F-08 verification fixtures
+        if: github.event_name == 'workflow_dispatch' && inputs.generate_f08_fixtures
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: f08-verification-fixtures
+          path: ${{ runner.temp }}/f08-fixtures
+          if-no-files-found: error
+          retention-days: 7

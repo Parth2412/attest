@@ -1,0 +1,18 @@
+{
+  "total_count": 2,
+  "check_suites": [
+    {
+      "id": 502,
+      "node_id": "CS_test_502",
+      "head_branch": "feature/change",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "status": "completed",
+      "conclusion": "failure",
+      "before": "1111111111111111111111111111111111111111",
+      "after": "2222222222222222222222222222222222222222",
+      "created_at": "2026-09-13T09:13:00Z",
+      "updated_at": "2026-09-13T09:18:00Z",
+      "app": {"id": 15368, "slug": "github-actions"}
+    }
+  ]
+}

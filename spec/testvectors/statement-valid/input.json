@@ -1,0 +1,116 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "changeset",
+      "digest": {
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "predicateType": "https://parth2412.github.io/attest/ai-authorship/v0.1",
+  "predicate": {
+    "schemaVersion": "0.1.0",
+    "changeSet": {
+      "repository": "https://github.com/example/repo",
+      "algorithm": "CSD-1",
+      "baseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "headCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "mergeBase": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stats": {
+        "filesChanged": 1,
+        "filesAdded": 1,
+        "filesModified": 0,
+        "filesDeleted": 0
+      },
+      "paths": [
+        "src/a.py"
+      ],
+      "pathsTruncated": false
+    },
+    "authorship": {
+      "mode": "ai-assisted",
+      "claimsPresent": true,
+      "claims": [
+        {
+          "claimId": "01J8ABCDEFGHJKMNPQRSTVWXYZ",
+          "agent": {
+            "name": "example-agent",
+            "version": "1.0.0"
+          },
+          "model": {
+            "provider": "example-provider",
+            "name": "example-model",
+            "version": "20260911"
+          },
+          "sessionId": "session-123",
+          "promptDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope": {
+            "paths": [
+              "src/a.py"
+            ]
+          },
+          "source": {
+            "kind": "sidecar",
+            "reference": ".attest/claims.d/01J8ABCDEFGHJKMNPQRSTVWXYZ.json",
+            "digest": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "claimedAt": "2026-09-11T06:00:00Z"
+        }
+      ]
+    },
+    "review": {
+      "required": true,
+      "state": "approved",
+      "humanApprovals": 1,
+      "reviewers": [
+        {
+          "identity": "github:12345:reviewer",
+          "identityProvider": "github",
+          "verdict": "approved",
+          "submittedAt": "2026-09-11T06:05:00Z",
+          "effective": true,
+          "isChangeAuthor": false,
+          "evidence": {
+            "kind": "forge-api",
+            "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        }
+      ],
+      "automatedReviews": [
+        {
+          "tool": "example-reviewer",
+          "verdict": "commented",
+          "findingsDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "submittedAt": "2026-09-11T06:04:00Z"
+        }
+      ],
+      "reviewLatencySeconds": 300
+    },
+    "checks": [
+      {
+        "name": "unit-tests",
+        "conclusion": "success",
+        "runId": "123456",
+        "detailsDigest": "5555555555555555555555555555555555555555555555555555555555555555"
+      }
+    ],
+    "collection": {
+      "collector": {
+        "name": "attest",
+        "version": "0.1.0"
+      },
+      "collectedAt": "2026-09-11T06:06:00Z",
+      "environment": {
+        "kind": "github-actions",
+        "trusted": true,
+        "runId": "123456",
+        "runAttempt": 1,
+        "workflowRef": "example/repo/.github/workflows/attest.yml@refs/heads/main",
+        "oidcIssuer": "https://token.actions.githubusercontent.com",
+        "eventName": "pull_request"
+      }
+    }
+  }
+}

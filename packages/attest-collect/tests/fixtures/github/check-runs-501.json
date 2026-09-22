@@ -1,0 +1,31 @@
+{
+  "total_count": 2,
+  "check_runs": [
+    {
+      "id": 9001,
+      "node_id": "CR_test_9001",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "name": "unit-tests",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-13T09:02:00Z",
+      "completed_at": "2026-09-13T09:11:00Z",
+      "output": {"title": "Tests", "summary": "Passed", "text": ""},
+      "check_suite": {"id": 501},
+      "app": {"id": 15368, "slug": "github-actions"}
+    },
+    {
+      "id": 9002,
+      "node_id": "CR_test_9002",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "name": "package",
+      "status": "in_progress",
+      "conclusion": null,
+      "started_at": "2026-09-13T09:09:00Z",
+      "completed_at": null,
+      "output": {"title": "Package", "summary": "Running", "text": ""},
+      "check_suite": {"id": 501},
+      "app": {"id": 15368, "slug": "github-actions"}
+    }
+  ]
+}

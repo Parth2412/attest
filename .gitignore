@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+mutants/
+dist/
+build/
+*.egg-info/
+
+# Claim sidecars are local, per-developer, and never committed
+.attest/claims.d/*.json
+
+# Local attestation output
+*.sigstore.json
+attest-out/

@@ -1,0 +1,47 @@
+name: attest
+description: Verify AI-authorship provenance and enforce human-review policy
+
+inputs:
+  mode:
+    description: "Operation to execute: run, verify, or gate."
+    required: false
+    default: run
+  policy:
+    description: Repository-relative policy YAML path for run or gate.
+    required: false
+  bundle:
+    description: Repository-relative Bundle JSON path for verify or gate.
+    required: false
+  push-attestation:
+    description: Whether run publishes to the configured durable store.
+    required: false
+  fail-on-violation:
+    description: Whether a policy violation fails run or gate.
+    required: false
+
+outputs:
+  changeset-digest:
+    description: Verified lowercase SHA-256 ChangeSet Digest.
+  attestation-ref:
+    description: Published attestation reference or validated Bundle path.
+  decision:
+    description: Verified policy decision or verification result.
+  log-index:
+    description: Verified Rekor log index when present.
+
+runs:
+  using: docker
+  image: docker://ghcr.io/parth2412/attest@sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+  args:
+    - --mode
+    - ${{ inputs.mode }}
+    - --policy
+    - ${{ inputs.policy }}
+    - --bundle
+    - ${{ inputs.bundle }}
+    - --push-attestation
+    - ${{ inputs.push-attestation }}
+    - --fail-on-violation
+    - ${{ inputs.fail-on-violation }}

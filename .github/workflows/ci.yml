@@ -1,0 +1,258 @@
+name: ci
+on:
+  push: { branches: [dev, main] }
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - name: Verify Python selection
+        run: >-
+          uv run python -c "import platform; expected='${{ matrix.python }}';
+          actual='.'.join(platform.python_version_tuple()[:2]);
+          raise SystemExit(0 if actual == expected else f'expected Python {expected}, got {actual}')"
+      - run: uv sync --locked --all-packages
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run python scripts/run_mypy.py
+      - run: uv run lint-imports
+      - run: >-
+          uv run pytest -m "not container and not performance"
+          --cov --cov-report=term-missing
+
+  vectors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/run_test_group.py vectors F-01 F-02
+
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/run_test_group.py adversarial F-08
+      - run: >-
+          uv run pytest packages/attest-sign/tests/test_verifier.py
+          packages/attest-sign/tests/test_inspection.py
+          --cov=attest_sign.verifier --cov-report=term-missing --cov-fail-under=95
+
+  github-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-04 collector coverage
+        run: >-
+          uv run pytest packages/attest-collect/tests/test_github_review.py
+          packages/attest-collect/tests/test_github_http.py
+          packages/attest-collect/tests/test_github_checks.py
+          packages/attest-collect/tests/test_github_context.py
+          --cov=attest_collect.github --cov=attest_collect._github_http
+          --cov-report=term-missing --cov-fail-under=90
+
+  policy-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-09 policy coverage
+        run: >-
+          uv run pytest packages/attest-policy/tests --cov=attest_policy
+          --cov-report=term-missing --cov-fail-under=95
+
+  storage-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-07 storage coverage
+        run: >-
+          uv run pytest packages/attest-store/tests --cov=attest_store
+          --cov-report=term-missing --cov-fail-under=90
+
+  cli-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-10 CLI coverage
+        run: >-
+          uv run pytest packages/attest-cli/tests -m "not performance" --cov=attest_cli
+          --cov-report=term-missing --cov-fail-under=90
+
+  cli-performance:
+    name: cli-performance (Ubuntu 24.04, Python 3.12)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Enforce F-10 CLI startup performance
+        run: >-
+          uv run pytest
+          packages/attest-cli/tests/test_cli_surface.py::test_ten_clean_installed_help_processes_each_finish_under_300ms
+          -m performance
+
+  package-contract:
+    name: package-contract (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - name: Build and validate the exact release artifacts
+        run: |
+          uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
+          uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
+          uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
+      - name: Install and smoke-test the wheels in a clean environment
+        run: |
+          uv venv build/release-smoke --python "${{ matrix.python }}" --clear
+          uv pip install --python build/release-smoke/bin/python --strict build/release-dist/*.whl
+          build/release-smoke/bin/python scripts/smoke_release_install.py
+
+  action-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Stage the enumerated Action build context
+        run: >-
+          uv run --no-project python scripts/prepare_action_context.py
+          build/action-context
+          --manifest-output build/action-context-manifest.json
+          --digest-output build/action-context.sha256
+      - name: Build the locked Action runtime
+        run: >-
+          docker build --tag attest-action-runtime:test
+          --file build/action-context/action/Dockerfile build/action-context
+      - name: Run the real-container Action contract
+        env:
+          ATTEST_ACTION_IMAGE: attest-action-runtime:test
+        run: uv run pytest action/tests/test_container.py -m container
+
+  storage-base-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --package attest-store --no-dev
+      - name: Verify base-install Git CLI backend
+        run: |
+          uv run --no-sync python - <<'PY'
+          import importlib.util
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          from attest_store import GitRefStore
+
+          assert importlib.util.find_spec("pygit2") is None
+          version = subprocess.run(
+              ["git", "version"], check=True, capture_output=True, text=True
+          ).stdout.split()[2]
+          assert tuple(int(part) for part in version.split(".")[:2]) >= (2, 40)
+          with tempfile.TemporaryDirectory() as directory:
+              repository = Path(directory) / "repository.git"
+              subprocess.run(
+                  ["git", "init", "--bare", str(repository)], check=True, capture_output=True
+              )
+              store = GitRefStore(repository)
+              reference = store.put("a" * 64, b"base-install")
+              assert store.backend == "subprocess"
+              assert store.get(reference.digest) == [b"base-install"]
+          PY
+
+  schema-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - name: Check generated schema drift
+        run: uv run python scripts/write_schema.py --check
+
+  banned-language:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/check_banned_language.py
+
+  traceability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run python scripts/check_traceability.py
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - run: uv run bandit -r packages action --exclude "*/tests/*" -c pyproject.toml
+      - run: uv run pip-audit

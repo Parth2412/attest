@@ -1,0 +1,375 @@
+# attest — BRD Index, Build Order, and Traceability
+
+| Field | Value |
+|---|---|
+| Document ID | `BRD-INDEX` |
+| Version | `2.6.0` |
+| Status | Baselined |
+| Last updated | 2026-09-16 |
+
+---
+
+## 1. How to use the BRDs
+
+Each `BRD-Fxx` is a self-contained work package. Each contains:
+
+1. **Purpose** — one paragraph, why this feature exists
+2. **Scope trace** — which `SCOPE-xx` items it satisfies
+3. **Dependencies** — which features must exist first
+4. **Data contracts** — exact inputs and outputs
+5. **Requirements** — `REQ-Fxx-NNN`, each testable
+6. **Acceptance criteria** — `AC-Fxx-NNN`, matched one-to-one to requirements
+7. **Error codes** — what this feature can raise
+8. **Out of scope** — explicit exclusions to prevent creep
+9. **Definition of Done** — the checklist
+
+**Rule for implementation (including AI agents):** do not begin a feature until (a) every feature
+in its dependency list is Done, and (b) every challenge blocking it in `CHALLENGE-001 §2` is
+closed in `CHALLENGE-001 §12`. Later features consume earlier contracts. Building out of order
+means inventing the contracts, which is precisely how drift starts.
+
+---
+
+## 2. Build order (NORMATIVE)
+
+```
+M1 ─────────────────────────────────────────────────────────────
+  F-01  Core domain and predicate schema          (no deps)
+  F-02  Git ChangeSet collector                   (F-01)
+  F-03  Authorship claim collector                (F-01)
+  F-05  Attestation builder                       (F-01, F-02, F-03)
+  F-06  Sigstore signing                          (F-01, F-05)
+  F-08  Verification                              (F-01, F-06)
+M2 ─────────────────────────────────────────────────────────────
+  F-04  Review record collector (GitHub)          (F-01)
+  F-07  Storage and retrieval                     (F-01, F-06)
+  F-09  Policy engine and CI gate                 (F-01, F-04, F-08)
+  F-10  CLI                                       (F-01…F-09)
+  F-11  GitHub Action packaging                   (F-06, F-07, F-09, F-10)
+
+M3 ─────────────────────────────────────────────────────────────
+  F-12  Evidence export and control mapping       (F-07, F-08)
+```
+
+### 2.1 Dependency graph
+
+```
+F-01 ─┬─▶ F-02 ─┐
+      ├─▶ F-03 ─┴─▶ F-05 ─▶ F-06 ─▶ F-08 ─┬─▶ F-09 ─▶ F-10 ─▶ F-11
+      ├─▶ F-04 ────────────────────────────┘      ▲       ▲
+      └─▶ F-07 ──────────────────────────────────┼───────┘
+                                                 │
+F-01 through F-08 ───────────────────────────────┘
+
+F-07 + F-08 ─▶ F-12
+F-06 + F-07 + F-09 + F-10 ─▶ F-11
+```
+
+---
+
+## 3. Feature summary
+
+| ID | Feature | Milestone | Depends on | Primary package |
+|---|---|---|---|---|
+| `F-01` | Core domain model and predicate schema | M1 | — · gated by `CH-01`, `CH-02` | `attest-core` |
+| `F-02` | Git ChangeSet collector (`CSD-1`) | M1 | F-01 · gated by `CH-01`, `CH-08` | `attest-collect` |
+| `F-03` | Authorship claim collector | M1 | F-01 | `attest-collect` |
+| `F-04` | Review record collector (GitHub) | M2 | F-01 | `attest-collect` |
+| `F-05` | Attestation builder | M1 | F-01, F-02, F-03 | `attest-core`, `attest-collect` |
+| `F-06` | Sigstore signing | M1 | F-01, F-05 · gated by `CH-02` | `attest-sign` |
+| `F-07` | Storage and retrieval | M2 | F-01, F-06 | `attest-store` |
+| `F-08` | Verification | M1 | F-01, F-06 · gated by `CH-02` | `attest-sign` |
+| `F-09` | Policy engine and CI gate | M2 | F-01, F-04, F-08 | `attest-policy` |
+| `F-10` | CLI | M2 | F-01…F-09 | `attest-cli` |
+| `F-11` | GitHub Action packaging | M2 | F-06, F-07, F-09, F-10 | `action/` |
+| `F-12` | Evidence export and control mapping | M3 | F-07, F-08 · DoD gated by `CH-04` | `attest-export` |
+
+---
+
+## 4. Scope traceability matrix
+
+Every scope item maps to at least one feature. Every feature maps to at least one scope item. No
+orphans in either direction.
+
+| Scope | Description | Features |
+|---|---|---|
+| `SCOPE-01` | Deterministic ChangeSet digest | F-01, F-02 |
+| `SCOPE-02` | Authorship claim collection | F-03 |
+| `SCOPE-03` | Review record collection | F-04 |
+| `SCOPE-04` | in-toto Statement construction | F-01, F-05 |
+| `SCOPE-05` | Keyless signing, DSSE, bundle | F-06 |
+| `SCOPE-06` | Git-ref and OCI storage | F-07 |
+| `SCOPE-07` | Full verification | F-08 |
+| `SCOPE-08` | Policy engine and gate | F-09 |
+| `SCOPE-09` | CLI with deterministic exit codes | F-10 |
+| `SCOPE-10` | GitHub Action packaging | F-11 |
+| `SCOPE-11` | Evidence export | F-12 |
+
+### 4.1 Reverse trace
+
+| Feature | Satisfies |
+|---|---|
+| F-01 | SCOPE-01, SCOPE-04 |
+| F-02 | SCOPE-01 |
+| F-03 | SCOPE-02 |
+| F-04 | SCOPE-03 |
+| F-05 | SCOPE-04 |
+| F-06 | SCOPE-05 |
+| F-07 | SCOPE-06 |
+| F-08 | SCOPE-07 |
+| F-09 | SCOPE-08 |
+| F-10 | SCOPE-09 |
+| F-11 | SCOPE-10 |
+| F-12 | SCOPE-11 |
+
+---
+
+## 5. Specification traceability
+
+Which BRD implements which normative section of `SPEC-001`. Every normative section must have
+explicit ownership. Shared sections distinguish the F-01 wire structure from the downstream
+features that populate it, so no responsibility is orphaned or ambiguous.
+
+| `SPEC-001` section | Subject | Implemented by |
+|---|---|---|
+| §3 | Statement structure | F-01, F-05 |
+| §4 | Canonicalisation | F-01 |
+| §5 | `CSD-1` digest algorithm | F-01 (algorithm), F-02 (entry extraction) |
+| §6.1 | Predicate structure | F-01 (structure), F-05 (population) |
+| §6.2 | `changeSet` field | F-01 (structure), F-02 and F-05 (population) |
+| §6.3 | `authorship` field | F-01 (structure), F-03 and F-05 (population) |
+| §6.4 | `review` field | F-01 (structure), F-04 and F-05 (population) |
+| §6.5 | `checks` field | F-01 (structure), F-04 and F-05 (population) |
+| §6.6 | `collection` field | F-01 (structure), F-05 (population) |
+| §7 | Signing | F-06 |
+| §8 | Verification pipeline | F-08 |
+| §8.1 | Mandatory identity check | F-08 |
+| §9 | Storage and discovery | F-07 |
+| §11 | JSON Schema generation | F-01 |
+| §12 | Test vectors | F-01, F-02 |
+
+---
+
+## 6. Cross-cutting obligations
+
+These apply to **every** feature and are part of every Definition of Done. They are listed once
+here rather than repeated in each BRD.
+
+| ID | Obligation |
+|---|---|
+| `X-01` | `mypy --strict` passes; no new `type: ignore` without a coded justification |
+| `X-02` | `ruff check` and `ruff format --check` pass |
+| `X-03` | import-linter contract passes (no boundary violations) |
+| `X-04` | Unit test coverage ≥ 90% for the feature's package; ≥ 95% for `attest-core` |
+| `X-05` | Every attest-defined domain error escaping a public feature-operation boundary raises a coded error from `GLOSS-001 §6` with a remediation hint; direct Pydantic model diagnostics follow `ADR-030` |
+| `X-06` | No banned language from `GLOSS-001 §2.2` in code, docs, or messages |
+| `X-07` | No naive datetimes; all timestamps timezone-aware UTC |
+| `X-08` | No network calls in `attest-core`; no I/O in pure modules |
+| `X-09` | Public API documented with docstrings that reference the governing `REQ-` id |
+| `X-10` | CHANGELOG entry added |
+
+---
+
+## 7. Requirement traceability matrix (to be maintained)
+
+### 7.1 Feature completion status
+
+This is the repository's machine-readable feature lifecycle registry. Valid values are `Planned`,
+`In progress`, and `Done`. Only `Done` activates completeness gates for that feature. Update the
+status in the same commit that starts or completes the feature; readiness and challenge gates
+remain governed by the individual BRD and `CHALLENGE-001`.
+
+| Feature | Status |
+|---|---|
+| `F-01` | Done |
+| `F-02` | Done |
+| `F-03` | Done |
+| `F-04` | Done |
+| `F-05` | Done |
+| `F-06` | Done |
+| `F-07` | Done |
+| `F-08` | Done |
+| `F-09` | Done |
+| `F-10` | Done |
+| `F-11` | In progress |
+| `F-12` | Planned |
+
+### 7.2 Requirement-to-test mapping
+
+Maintained as features are completed. Each row: requirement → acceptance criterion → test. CI
+fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
+
+| Requirement | Acceptance | Test module | Status |
+|---|---|---|---|
+| `REQ-F01-010` | `AC-F01-010` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-020` | `AC-F01-020` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-030` | `AC-F01-030` | `packages/attest-core/tests/test_canonical.py` | ✓ |
+| `REQ-F01-040` | `AC-F01-040` | `packages/attest-core/tests/test_canonical.py` | ✓ |
+| `REQ-F01-050` | `AC-F01-050` | `packages/attest-core/tests/test_digest.py` | ✓ |
+| `REQ-F01-060` | `AC-F01-060` | `packages/attest-core/tests/test_digest.py` | ✓ |
+| `REQ-F01-070` | `AC-F01-070` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-080` | `AC-F01-080` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-090` | `AC-F01-090` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-100` | `AC-F01-100` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-110` | `AC-F01-110` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-120` | `AC-F01-120` | `packages/attest-core/tests/test_schema.py` | ✓ |
+| `REQ-F01-130` | `AC-F01-130` | `packages/attest-core/tests/test_schema.py` | ✓ |
+| `REQ-F01-140` | `AC-F01-140` | `packages/attest-core/tests/test_boundaries.py` | ✓ |
+| `REQ-F01-150` | `AC-F01-150` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-160` | `AC-F01-160` | `packages/attest-core/tests/test_vectors.py` | ✓ |
+| `REQ-F01-170` | `AC-F01-170` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-180` | `AC-F01-180` | `packages/attest-core/tests/test_path.py` | ✓ |
+| `REQ-F01-190` | `AC-F01-190` | `packages/attest-core/tests/test_models.py` | ✓ |
+| `REQ-F01-200` | `AC-F01-200` | `packages/attest-core/tests/test_identity.py` | ✓ |
+| `REQ-F02-010` | `AC-F02-010` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-020` | `AC-F02-020` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-030` | `AC-F02-030` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-040` | `AC-F02-040` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-050` | `AC-F02-050` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-060` | `AC-F02-060` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-070` | `AC-F02-070` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-080` | `AC-F02-080` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-090` | `AC-F02-090` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-100` | `AC-F02-100` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-110` | `AC-F02-110` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-120` | `AC-F02-120` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-130` | `AC-F02-130` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-140` | `AC-F02-140` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-150` | `AC-F02-150` | `packages/attest-collect/tests/test_backends.py` | ✓ |
+| `REQ-F02-160` | `AC-F02-160` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-170` | `AC-F02-170` | `packages/attest-collect/tests/test_conformance.py` | ✓ |
+| `REQ-F02-180` | `AC-F02-180` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F02-190` | `AC-F02-190` | `packages/attest-collect/tests/test_changeset.py` | ✓ |
+| `REQ-F03-010` | `AC-F03-010` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-020` | `AC-F03-020` | `packages/attest-collect/tests/test_sidecar.py`, `test_trailers.py`, `test_gitnotes.py` | ✓ |
+| `REQ-F03-030` | `AC-F03-030` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-040` | `AC-F03-040` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-050` | `AC-F03-050` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-060` | `AC-F03-060` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-070` | `AC-F03-070` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-080` | `AC-F03-080` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-090` | `AC-F03-090` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-100` | `AC-F03-100` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-110` | `AC-F03-110` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-120` | `AC-F03-120` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-130` | `AC-F03-130` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F03-140` | `AC-F03-140` | `packages/attest-collect/tests/test_authorship.py` | ✓ |
+| `REQ-F04-010` | `AC-F04-010` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-020` | `AC-F04-020` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-030` | `AC-F04-030` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-040` | `AC-F04-040` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-050` | `AC-F04-050` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-060` | `AC-F04-060` | `packages/attest-collect/tests/test_github_review.py`, `test_github_checks.py` | ✓ |
+| `REQ-F04-070` | `AC-F04-070` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-080` | `AC-F04-080` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-090` | `AC-F04-090` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-100` | `AC-F04-100` | `packages/attest-collect/tests/test_github_review.py`, `test_github_checks.py` | ✓ |
+| `REQ-F04-110` | `AC-F04-110` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-120` | `AC-F04-120` | `packages/attest-collect/tests/test_github_http.py` | ✓ |
+| `REQ-F04-130` | `AC-F04-130` | `packages/attest-collect/tests/test_github_review.py` | ✓ |
+| `REQ-F04-140` | `AC-F04-140` | `packages/attest-collect/tests/test_github_checks.py` | ✓ |
+| `REQ-F04-150` | `AC-F04-150` | `packages/attest-collect/tests/test_github_context.py` | ✓ |
+| `REQ-F05-010` | `AC-F05-010` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-020` | `AC-F05-020` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-030` | `AC-F05-030` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-040` | `AC-F05-040` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-050` | `AC-F05-050` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-060` | `AC-F05-060` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-070` | `AC-F05-070` | `packages/attest-collect/tests/test_environment.py` | ✓ |
+| `REQ-F05-080` | `AC-F05-080` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-090` | `AC-F05-090` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-100` | `AC-F05-100` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F05-110` | `AC-F05-110` | `packages/attest-core/tests/test_builder.py` | ✓ |
+| `REQ-F06-010` | `AC-F06-010` | `packages/attest-sign/tests/test_dsse.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-020` | `AC-F06-020` | `packages/attest-sign/tests/test_dsse.py` | ✓ |
+| `REQ-F06-030` | `AC-F06-030` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-040` | `AC-F06-040` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-050` | `AC-F06-050` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-060` | `AC-F06-060` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-070` | `AC-F06-070` | `packages/attest-sign/tests/test_protocols.py` | ✓ |
+| `REQ-F06-080` | `AC-F06-080` | `packages/attest-sign/tests/test_sigstore_signer.py`, `test_e2e_staging.py` | ✓ |
+| `REQ-F06-090` | `AC-F06-090` | `packages/attest-sign/tests/test_protocols.py` | ✓ |
+| `REQ-F06-100` | `AC-F06-100` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
+| `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
+| `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F08-010` | `AC-F08-010` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-020` | `AC-F08-020` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-030` | `AC-F08-030` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
+| `REQ-F08-040` | `AC-F08-040` | `packages/attest-sign/tests/test_verifier_boundaries.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-050` | `AC-F08-050` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-060` | `AC-F08-060` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-070` | `AC-F08-070` | `packages/attest-sign/tests/test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-080` | `AC-F08-080` | `packages/attest-sign/tests/test_verifier_offline.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-090` | `AC-F08-090` | `packages/attest-sign/tests/test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-100` | `AC-F08-100` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-110` | `AC-F08-110` | `packages/attest-sign/tests/test_repository.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-120` | `AC-F08-120` | `packages/attest-sign/tests/test_verifier.py`, `test_verifier_adversarial.py` | ✓ |
+| `REQ-F08-130` | `AC-F08-130` | `packages/attest-sign/tests/test_verifier_boundaries.py` | ✓ |
+| `REQ-F08-140` | `AC-F08-140` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-150` | `AC-F08-150` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
+| `REQ-F08-160` | `AC-F08-160` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
+| `REQ-F08-170` | `AC-F08-170` | `packages/attest-sign/tests/test_inspection.py` | ✓ |
+| `REQ-F09-010` | `AC-F09-010` | `packages/attest-policy/tests/test_boundaries.py` | ✓ |
+| `REQ-F09-020` | `AC-F09-020` | `packages/attest-policy/tests/test_models.py`, `test_schema.py` | ✓ |
+| `REQ-F09-030` | `AC-F09-030` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-040` | `AC-F09-040` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-050` | `AC-F09-050` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-060` | `AC-F09-060` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-070` | `AC-F09-070` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-080` | `AC-F09-080` | `packages/attest-policy/tests/test_glob.py` | ✓ |
+| `REQ-F09-090` | `AC-F09-090` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-100` | `AC-F09-100` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-110` | `AC-F09-110` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-120` | `AC-F09-120` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-130` | `AC-F09-130` | `packages/attest-policy/tests/test_loader.py` | ✓ |
+| `REQ-F09-140` | `AC-F09-140` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-150` | `AC-F09-150` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F09-160` | `AC-F09-160` | `packages/attest-policy/tests/test_boundaries.py`, `test_evaluate.py` | ✓ |
+| `REQ-F09-170` | `AC-F09-170` | `packages/attest-policy/tests/test_models.py` | ✓ |
+| `REQ-F09-180` | `AC-F09-180` | `packages/attest-policy/tests/test_evaluate.py` | ✓ |
+| `REQ-F10-010` | `AC-F10-010` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-020` | `AC-F10-020` | `packages/attest-cli/tests/test_models_output.py`, `test_cli_surface.py` | ✓ |
+| `REQ-F10-030` | `AC-F10-030` | `packages/attest-cli/tests/test_cli_surface.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-040` | `AC-F10-040` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-050` | `AC-F10-050` | `packages/attest-cli/tests/test_config.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-060` | `AC-F10-060` | `packages/attest-cli/tests/test_cli_surface.py`, `test_config.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-070` | `AC-F10-070` | `packages/attest-cli/tests/test_error_mapping.py`, `test_commands_verify_gate.py`, `test_commands_sign_push.py` | ✓ |
+| `REQ-F10-080` | `AC-F10-080` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-090` | `AC-F10-090` | `packages/attest-cli/tests/test_models_output.py` | ✓ |
+| `REQ-F10-100` | `AC-F10-100` | `packages/attest-cli/tests/test_commands_verify_gate.py` | ✓ |
+| `REQ-F10-110` | `AC-F10-110` | `packages/attest-cli/tests/test_commands_collect_build.py`, `test_commands_sign_push.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-120` | `AC-F10-120` | `packages/attest-cli/tests/test_commands_doctor.py` | ✓ |
+| `REQ-F10-130` | `AC-F10-130` | `packages/attest-cli/tests/conftest.py`, `test_commands_doctor.py` | ✓ |
+| `REQ-F10-140` | `AC-F10-140` | `packages/attest-cli/tests/test_commands_verify_gate.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-150` | `AC-F10-150` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-160` | `AC-F10-160` | `packages/attest-cli/tests/test_safe_io.py`, `test_init.py`, `test_config.py` | ✓ |
+| `REQ-F10-170` | `AC-F10-170` | `packages/attest-cli/tests/test_commands_basic.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-180` | `AC-F10-180` | `packages/attest-cli/tests/test_commands_collect_build.py` | ✓ |
+| `REQ-F10-190` | `AC-F10-190` | `packages/attest-cli/tests/test_init.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-200` | `AC-F10-200` | `packages/attest-cli/tests/test_config.py`, `test_models_output.py` | ✓ |
+| `REQ-F10-210` | `AC-F10-210` | `packages/attest-cli/tests/test_commands_sign_push.py`, `test_error_mapping.py` | ✓ |
+| `REQ-F10-220` | `AC-F10-220` | `packages/attest-cli/tests/test_models_output.py`, `test_commands_basic.py` | ✓ |
+| `REQ-F10-230` | `AC-F10-230` | `packages/attest-cli/tests/conftest.py`, `test_cli_surface.py`, `test_commands_sign_push.py`, `test_commands_run.py` | ✓ |
+| `REQ-F10-240` | `AC-F10-240` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
+| `REQ-F10-250` | `AC-F10-250` | `packages/attest-cli/tests/test_cli_surface.py`, `test_safe_io.py` | ✓ |
+
+> Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
+> is a gap, visibly.
+
+---
+
+## 8. Anti-gap checklist
+
+Run this before declaring any milestone complete.
+
+- [ ] Every `SCOPE-xx` traced to a feature, and vice versa (§4)
+- [ ] Every normative `SPEC-001` section traced to a feature (§5)
+- [ ] Every `REQ-` has a matching `AC-` with the same number
+- [ ] Every `AC-` has at least one test referencing its ID
+- [ ] Every error code raised in code appears in a BRD error table
+- [ ] Every challenge `CH-xx` blocking a built feature is closed in `CHALLENGE-001 §12`
+- [ ] All `OQ-xx` remain closed; no new one added without an ADR
+- [ ] Every cross-cutting obligation `X-01`…`X-10` satisfied for each completed feature
+- [ ] Committed JSON Schema matches regenerated schema
+- [ ] All `spec/testvectors/` pass on both git backends

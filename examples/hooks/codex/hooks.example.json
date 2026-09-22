@@ -1,0 +1,18 @@
+{
+  "description": "Emit attest sidecars after Codex apply_patch file edits.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$(git rev-parse --show-toplevel)/examples/hooks/codex/post-tool-use.sh\"",
+            "timeout": 5,
+            "statusMessage": "Recording authorship claim"
+          }
+        ]
+      }
+    ]
+  }
+}

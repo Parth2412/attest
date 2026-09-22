@@ -1,0 +1,902 @@
+name: release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-v0.1.0
+  cancel-in-progress: false
+
+env:
+  PRODUCT_VERSION: "0.1.0"
+  PRODUCT_TAG: v0.1.0
+  ACTION_VERSION_TAG: v1.0.0
+  ACTION_MAJOR_TAG: v1
+  IMAGE_NAME: ghcr.io/parth2412/attest
+  REVIEWED_CANDIDATE_RUN_ID: 35699845779
+  REVIEWED_CANDIDATE_SOURCE_SHA: 22839b23597f741cb091cf10289739c7787841e7
+  REVIEWED_IMAGE_DIGEST: sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3
+  REVIEWED_CONTEXT_DIGEST: sha256:272e91a6ac5eb29b0646017d8e2a54ed782a69ab07ccf12467c5195bc665e914
+
+jobs:
+  preflight:
+    if: github.repository == 'Parth2412/attest' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Validate release source and repository controls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_SHA}" = "$(git rev-parse HEAD)"
+          test "$(git branch --show-current)" = "main"
+
+          mkdir -p "${RUNNER_TEMP}/release-preflight"
+          gh api "repos/${GITHUB_REPOSITORY}/rulesets" \
+            > "${RUNNER_TEMP}/release-preflight/rulesets.json"
+          ruleset_id="$(jq -er \
+            '.[] | select(.name == "Protect immutable release tags" and .target == "tag" and .enforcement == "active") | .id' \
+            "${RUNNER_TEMP}/release-preflight/rulesets.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}" \
+            > "${RUNNER_TEMP}/release-preflight/tag-ruleset.json"
+          jq -e '
+            (.bypass_actors // []) == [] and
+            (.conditions.ref_name.include | sort) ==
+              (["refs/tags/v0.1.0", "refs/tags/v1.0.0"] | sort) and
+            .conditions.ref_name.exclude == [] and
+            ([.rules[].type] | sort) == (["deletion", "update"] | sort)
+          ' "${RUNNER_TEMP}/release-preflight/tag-ruleset.json" > /dev/null
+
+          for environment in \
+            pypi \
+            pypi-attest-collect \
+            pypi-attest-sign \
+            pypi-attest-store \
+            pypi-attest-policy \
+            pypi-attest-cli; do
+            gh api "repos/${GITHUB_REPOSITORY}/environments/${environment}" \
+              > "${RUNNER_TEMP}/release-preflight/${environment}-environment.json"
+            jq -e \
+              --arg environment "${environment}" \
+              --arg owner "${GITHUB_REPOSITORY_OWNER}" '
+                .name == $environment and
+                .can_admins_bypass == false and
+                .deployment_branch_policy.protected_branches == true and
+                .deployment_branch_policy.custom_branch_policies == false and
+                ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
+                ([
+                  .protection_rules[] |
+                  select(.type == "required_reviewers") |
+                  .prevent_self_review
+                ] == [false]) and
+                ([
+                  .protection_rules[] |
+                  select(.type == "required_reviewers") |
+                  .reviewers[] |
+                  {type, login: .reviewer.login}
+                ] == [{type: "User", login: $owner}])
+              ' "${RUNNER_TEMP}/release-preflight/${environment}-environment.json" > /dev/null
+          done
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=100" \
+            > "${RUNNER_TEMP}/release-preflight/main-ci-runs.json"
+          jq -e --arg sha "${GITHUB_SHA}" \
+            'any(.workflow_runs[]; .head_sha == $sha and .conclusion == "success")' \
+            "${RUNNER_TEMP}/release-preflight/main-ci-runs.json" > /dev/null
+
+          for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}" "${ACTION_MAJOR_TAG}"; do
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" > /dev/null 2>&1; then
+              echo "release preflight: tag already exists: ${tag}" >&2
+              exit 1
+            fi
+          done
+          if gh release view "${PRODUCT_TAG}" > /dev/null 2>&1; then
+            echo "release preflight: release already exists: ${PRODUCT_TAG}" >&2
+            exit 1
+          fi
+
+          for distribution in \
+            attest-core attest-collect attest-sign attest-store attest-policy attest-cli; do
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              "https://pypi.org/pypi/${distribution}/json")"
+            if test "${status}" != "404"; then
+              echo "release preflight: PyPI name is no longer unclaimed: ${distribution}" >&2
+              exit 1
+            fi
+          done
+      - name: Validate the reviewed candidate run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEWED_CANDIDATE_RUN_ID}" \
+            > "${RUNNER_TEMP}/release-preflight/candidate-run.json"
+          jq -e \
+            --arg source "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --arg repository "${GITHUB_REPOSITORY}" '
+              .name == "action-candidate" and
+              .path == ".github/workflows/action-candidate.yml" and
+              .event == "push" and
+              .head_branch == "dev" and
+              .head_sha == $source and
+              .repository.full_name == $repository and
+              .status == "completed" and
+              .conclusion == "success" and
+              .run_attempt == 1
+            ' "${RUNNER_TEMP}/release-preflight/candidate-run.json" > /dev/null
+      - name: Download the reviewed candidate evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-build-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-evidence
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Prove final context equality and immutable image identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --no-project python scripts/prepare_action_context.py \
+            "${RUNNER_TEMP}/release-action-context" \
+            --manifest-output "${RUNNER_TEMP}/release-preflight/current-context-manifest.json" \
+            --digest-output "${RUNNER_TEMP}/release-preflight/current-context-digest.txt"
+          uv run --no-project python scripts/validate_release_candidate.py \
+            --evidence-directory "${RUNNER_TEMP}/candidate-evidence" \
+            --current-context-manifest \
+              "${RUNNER_TEMP}/release-preflight/current-context-manifest.json" \
+            --action-manifest action/action.yml \
+            --expected-context-digest "${REVIEWED_CONTEXT_DIGEST}" \
+            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}"
+          docker buildx imagetools inspect \
+            "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" --raw \
+            > "${RUNNER_TEMP}/release-preflight/live-image-manifest.json"
+          cmp --silent \
+            "${RUNNER_TEMP}/candidate-evidence/manifest.json" \
+            "${RUNNER_TEMP}/release-preflight/live-image-manifest.json"
+      - name: Verify the candidate attestation identity again
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh attestation verify \
+            "oci://${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/action-candidate.yml" \
+            --source-digest "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --source-ref refs/heads/dev \
+            --deny-self-hosted-runners \
+            --format json \
+            > "${RUNNER_TEMP}/release-preflight/candidate-attestation-verification.json"
+      - name: Retain release preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-preflight-${{ github.sha }}
+          path: ${{ runner.temp }}/release-preflight
+          if-no-files-found: error
+          retention-days: 90
+
+  build-distributions:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - name: Build the exact distribution set once
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv build --package attest-core --out-dir build/release-dist \
+            --clear --no-create-gitignore
+          uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
+          uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
+          uv run --no-project python scripts/validate_release_artifacts.py \
+            build/release-dist --hash-output build/SHA256SUMS
+          mkdir -p build/release-assets
+          cp build/release-dist/* build/release-assets/
+          cp build/SHA256SUMS build/release-assets/SHA256SUMS
+          git archive \
+            --format=tar.gz \
+            --prefix="attest-${PRODUCT_VERSION}/" \
+            --output="build/release-assets/attest-${PRODUCT_VERSION}-source.tar.gz" \
+            "${GITHUB_SHA}"
+          cd build/release-assets
+          sha256sum "attest-${PRODUCT_VERSION}-source.tar.gz" >> SHA256SUMS
+          LC_ALL=C sort --key=2 --output=SHA256SUMS SHA256SUMS
+          LC_ALL=C sort --check=quiet --key=2 SHA256SUMS
+      - name: Upload the six Python distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-distributions-v0.1.0
+          path: build/release-dist
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload the complete release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets-v0.1.0
+          path: build/release-assets
+          if-no-files-found: error
+          retention-days: 90
+
+  smoke-distributions:
+    needs: build-distributions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions-v0.1.0
+          path: dist
+      - name: Install and smoke-test the release wheels
+        shell: bash
+        run: |
+          uv venv build/release-smoke --python "${{ matrix.python }}" --clear
+          uv pip install --python build/release-smoke/bin/python --strict dist/*.whl
+          build/release-smoke/bin/python scripts/smoke_release_install.py
+
+  attest-artifacts:
+    needs: [build-distributions, smoke-distributions]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets-v0.1.0
+          path: release-assets
+      - name: Attest the source and release artifacts
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-assets/*
+      - name: Publicly verify every GitHub artifact attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-attestation-evidence
+          for subject in release-assets/*; do
+            name="$(basename "${subject}")"
+            gh attestation verify "${subject}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release.yml" \
+              --source-digest "${GITHUB_SHA}" \
+              --source-ref refs/heads/main \
+              --deny-self-hosted-runners \
+              --format json \
+              > "release-attestation-evidence/${name}.verification.json"
+          done
+          cp "${{ steps.attest.outputs.bundle-path }}" \
+            release-attestation-evidence/github-artifact-attestations.jsonl
+      - name: Retain artifact attestation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-attestation-evidence-v0.1.0
+          path: release-attestation-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-pypi-bootstrap-wave-1:
+    needs: [attest-artifacts, smoke-distributions]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distribution: attest-core
+            artifact_prefix: attest_core
+            environment: pypi
+          - distribution: attest-collect
+            artifact_prefix: attest_collect
+            environment: pypi-attest-collect
+          - distribution: attest-sign
+            artifact_prefix: attest_sign
+            environment: pypi-attest-sign
+    environment:
+      name: ${{ matrix.environment }}
+      url: https://pypi.org/p/${{ matrix.distribution }}
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions-v0.1.0
+          path: dist
+      - name: Select one validated distribution for bounded publication
+        env:
+          ARTIFACT_PREFIX: ${{ matrix.artifact_prefix }}
+          BOOTSTRAP_WAVE: "1"
+          DISTRIBUTION: ${{ matrix.distribution }}
+          PUBLISH_ENVIRONMENT: ${{ matrix.environment }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish-dist trusted-publisher-evidence
+          wheel="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"
+          sdist="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"
+          for artifact in "${wheel}" "${sdist}"; do
+            test -f "${artifact}"
+            test ! -L "${artifact}"
+            cp "${artifact}" publish-dist/
+          done
+          test "$(find publish-dist -maxdepth 1 -type f | wc -l)" -eq 2
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schemaVersion": 1,
+              "authentication": "oidc-trusted-publishing",
+              "bootstrapWave": int(os.environ["BOOTSTRAP_WAVE"]),
+              "environment": os.environ["PUBLISH_ENVIRONMENT"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": os.environ["GITHUB_SHA"],
+              "releaseRef": os.environ["GITHUB_REF"],
+              "releaseRunAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "releaseRunId": int(os.environ["GITHUB_RUN_ID"]),
+              "workflowRef": os.environ["GITHUB_WORKFLOW_REF"],
+              "publisherAction": (
+                  "pypa/gh-action-pypi-publish@"
+                  "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+              ),
+              "distributions": [os.environ["DISTRIBUTION"]],
+          }
+          evidence_path = Path(
+              "trusted-publisher-evidence"
+          ) / f"{os.environ['DISTRIBUTION']}.json"
+          evidence_path.write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          PY
+      - name: Retain the Trusted Publishing context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0
+          path: trusted-publisher-evidence
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish one distribution with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: publish-dist/
+          verify-metadata: true
+          skip-existing: false
+          print-hash: true
+          attestations: true
+
+  verify-pypi-bootstrap-wave-1:
+    needs: publish-pypi-bootstrap-wave-1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets-v0.1.0
+          path: release-assets
+      - name: Verify wave one and expose the second-wave checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pypi-bootstrap-wave-one-evidence
+          uv run --no-project python scripts/verify_published_release.py \
+            release-assets --version "${PRODUCT_VERSION}" \
+            --distribution attest-core \
+            --distribution attest-collect \
+            --distribution attest-sign \
+            | tee pypi-bootstrap-wave-one-evidence/public-verification.txt
+
+          : > pypi-bootstrap-wave-one-evidence/second-wave-name-status.tsv
+          for distribution in attest-store attest-policy attest-cli; do
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              "https://pypi.org/pypi/${distribution}/json")"
+            printf '%s\t%s\n' "${distribution}" "${status}" \
+              | tee -a pypi-bootstrap-wave-one-evidence/second-wave-name-status.tsv
+            if test "${status}" != "404"; then
+              echo "bootstrap checkpoint: second-wave name is no longer unclaimed: ${distribution}" >&2
+              exit 1
+            fi
+          done
+
+          cat >> "${GITHUB_STEP_SUMMARY}" <<'SUMMARY'
+          ## Register the second PyPI publisher wave
+
+          Wave one is public and byte-for-byte verified. PyPI has released the three pending slots.
+          Register these pending publishers from the PyPI account Publishing page:
+
+          | Project | Owner | Repository | Workflow | Environment |
+          | --- | --- | --- | --- | --- |
+          | `attest-store` | `Parth2412` | `attest` | `release.yml` | `pypi-attest-store` |
+          | `attest-policy` | `Parth2412` | `attest` | `release.yml` | `pypi-attest-policy` |
+          | `attest-cli` | `Parth2412` | `attest` | `release.yml` | `pypi-attest-cli` |
+
+          Do not approve the waiting GitHub environments until all three pending publishers are
+          visible with these exact values. No API token is required.
+          SUMMARY
+      - name: Retain first-wave public verification evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi-bootstrap-wave-one-evidence-v0.1.0
+          path: pypi-bootstrap-wave-one-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-pypi-bootstrap-wave-2:
+    needs: verify-pypi-bootstrap-wave-1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distribution: attest-store
+            artifact_prefix: attest_store
+            environment: pypi-attest-store
+          - distribution: attest-policy
+            artifact_prefix: attest_policy
+            environment: pypi-attest-policy
+          - distribution: attest-cli
+            artifact_prefix: attest_cli
+            environment: pypi-attest-cli
+    environment:
+      name: ${{ matrix.environment }}
+      url: https://pypi.org/p/${{ matrix.distribution }}
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions-v0.1.0
+          path: dist
+      - name: Select one validated distribution for bounded publication
+        env:
+          ARTIFACT_PREFIX: ${{ matrix.artifact_prefix }}
+          BOOTSTRAP_WAVE: "2"
+          DISTRIBUTION: ${{ matrix.distribution }}
+          PUBLISH_ENVIRONMENT: ${{ matrix.environment }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish-dist trusted-publisher-evidence
+          wheel="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"
+          sdist="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"
+          for artifact in "${wheel}" "${sdist}"; do
+            test -f "${artifact}"
+            test ! -L "${artifact}"
+            cp "${artifact}" publish-dist/
+          done
+          test "$(find publish-dist -maxdepth 1 -type f | wc -l)" -eq 2
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schemaVersion": 1,
+              "authentication": "oidc-trusted-publishing",
+              "bootstrapWave": int(os.environ["BOOTSTRAP_WAVE"]),
+              "environment": os.environ["PUBLISH_ENVIRONMENT"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": os.environ["GITHUB_SHA"],
+              "releaseRef": os.environ["GITHUB_REF"],
+              "releaseRunAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "releaseRunId": int(os.environ["GITHUB_RUN_ID"]),
+              "workflowRef": os.environ["GITHUB_WORKFLOW_REF"],
+              "publisherAction": (
+                  "pypa/gh-action-pypi-publish@"
+                  "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+              ),
+              "distributions": [os.environ["DISTRIBUTION"]],
+          }
+          evidence_path = Path(
+              "trusted-publisher-evidence"
+          ) / f"{os.environ['DISTRIBUTION']}.json"
+          evidence_path.write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          PY
+      - name: Retain the Trusted Publishing context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0
+          path: trusted-publisher-evidence
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish one distribution with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: publish-dist/
+          verify-metadata: true
+          skip-existing: false
+          print-hash: true
+          attestations: true
+
+  promote-image:
+    needs: publish-pypi-bootstrap-wave-2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Promote the exact candidate manifest without rebuilding
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_image="${IMAGE_NAME}:${PRODUCT_VERSION}"
+          if docker buildx imagetools inspect "${release_image}" > /dev/null 2>&1; then
+            echo "image promotion: release tag already exists" >&2
+            exit 1
+          fi
+          docker buildx imagetools create \
+            --tag "${release_image}" \
+            "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"
+          mkdir -p image-promotion-evidence
+          docker buildx imagetools inspect "${release_image}" --raw \
+            > image-promotion-evidence/promoted-manifest.json
+          observed="sha256:$(sha256sum image-promotion-evidence/promoted-manifest.json | cut -d ' ' -f 1)"
+          test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
+          printf '%s\n' "${release_image}@${observed}" \
+            > image-promotion-evidence/release-image.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(
+              Path("image-promotion-evidence/promoted-manifest.json").read_text(encoding="utf-8")
+          )
+          platforms = {
+              f"{item['platform']['os']}/{item['platform']['architecture']}"
+              for item in manifest["manifests"]
+              if item["platform"]["os"] != "unknown"
+          }
+          if platforms != {"linux/amd64", "linux/arm64"}:
+              raise SystemExit(f"unexpected promoted platforms: {sorted(platforms)}")
+          PY
+      - name: Retain exact image-promotion evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-promotion-evidence-v0.1.0
+          path: image-promotion-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  verify-published:
+    needs: [publish-pypi-bootstrap-wave-2, promote-image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.2"
+          python-version: ${{ matrix.python }}
+          enable-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets-v0.1.0
+          path: release-assets
+      - name: Verify the public six-package release and clean installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public-release-evidence
+          uv run --no-project python scripts/verify_published_release.py \
+            release-assets --version "${PRODUCT_VERSION}" \
+            | tee "public-release-evidence/pypi-verification-python-${{ matrix.python }}.txt"
+          uv venv build/public-release-smoke --python "${{ matrix.python }}" --clear
+          uv pip install \
+            --python build/public-release-smoke/bin/python \
+            --strict \
+            --no-cache \
+            "attest-cli==${PRODUCT_VERSION}"
+          uv pip freeze --python build/public-release-smoke/bin/python \
+            > "public-release-evidence/installed-python-${{ matrix.python }}.txt"
+          build/public-release-smoke/bin/python scripts/smoke_release_install.py \
+            | tee "public-release-evidence/clean-install-python-${{ matrix.python }}.txt"
+      - name: Retain public package and installation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-release-evidence-python-${{ matrix.python }}
+          path: public-release-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  dogfood:
+    needs: verify-published
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    env:
+      RELEASE_IDENTITY: https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - name: Install the public CLI release in isolation
+        shell: bash
+        run: |
+          uv venv build/release-dogfood --python 3.12 --clear
+          uv pip install \
+            --python build/release-dogfood/bin/python \
+            --strict \
+            --no-cache \
+            "attest-cli==${PRODUCT_VERSION}"
+      - name: Attest and publicly verify this release with attest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/release-evidence
+          base_sha="$(git rev-parse "${GITHUB_SHA}^")"
+          build/release-dogfood/bin/attest run \
+            --output "build/release-evidence/attest-${PRODUCT_TAG}.bundle.json" \
+            --repository . \
+            --work-directory build/release-evidence/work \
+            --policy release/attest-release-policy.yaml \
+            --base "${base_sha}" \
+            --head "${GITHUB_SHA}" \
+            --target-branch main \
+            --git-backend subprocess \
+            --signing-environment production \
+            --identity "${RELEASE_IDENTITY}" \
+            --issuer "${OIDC_ISSUER}" \
+            --verify-environment production \
+            --online \
+            --store-backend filesystem \
+            --store-directory build/release-evidence/store \
+            --fallback-directory build/release-evidence/fallback \
+            --config release/attest-release-config.yaml \
+            --json \
+            > build/release-evidence/attest-run-report.json
+          build/release-dogfood/bin/attest verify \
+            --input "build/release-evidence/attest-${PRODUCT_TAG}.bundle.json" \
+            --repository . \
+            --base "${base_sha}" \
+            --head "${GITHUB_SHA}" \
+            --identity "${RELEASE_IDENTITY}" \
+            --issuer "${OIDC_ISSUER}" \
+            --verify-environment production \
+            --online \
+            --config release/attest-release-config.yaml \
+            --json \
+            > build/release-evidence/public-verification.json
+      - name: Retain attest dogfood evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: attest-release-evidence-v0.1.0
+          path: build/release-evidence
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
+
+  publish-release:
+    needs: [attest-artifacts, dogfood, verify-published]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets-v0.1.0
+          path: release-assets
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: "*-evidence-*"
+          path: retained-evidence
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-preflight-${{ github.sha }}
+          path: retained-evidence/release-preflight
+      - name: Assemble the retained release evidence index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p final-release-assets
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path("final-release-assets")
+          for source_root in (Path("release-assets"), Path("retained-evidence")):
+              for path in sorted(source_root.rglob("*"), key=lambda item: item.as_posix()):
+                  if path.is_dir() and not path.is_symlink():
+                      continue
+                  if not path.is_file() or path.is_symlink():
+                      raise SystemExit(f"invalid retained evidence: {path}")
+                  target = root / path.name
+                  if target.exists():
+                      raise SystemExit(f"duplicate release asset name: {path.name}")
+                  shutil.copyfile(path, target)
+
+          assets = []
+          for path in sorted(root.iterdir(), key=lambda item: item.name):
+              if not path.is_file() or path.is_symlink():
+                  raise SystemExit(f"invalid release asset: {path}")
+              content = path.read_bytes()
+              assets.append(
+                  {"name": path.name, "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}
+              )
+          index = {
+              "schemaVersion": 1,
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": os.environ["GITHUB_SHA"],
+              "releaseRunId": os.environ["GITHUB_RUN_ID"],
+              "candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"]),
+              "candidateSource": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
+              "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
+              "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
+              "tags": [
+                  os.environ["PRODUCT_TAG"],
+                  os.environ["ACTION_VERSION_TAG"],
+                  os.environ["ACTION_MAJOR_TAG"],
+              ],
+              "assets": assets,
+          }
+          (root / "release-evidence-index.json").write_text(
+              json.dumps(index, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          PY
+      - name: Create, verify, and publish the immutable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${PRODUCT_TAG}" \
+            --target "${GITHUB_SHA}" \
+            --draft \
+            --title "attest ${PRODUCT_VERSION}" \
+            --notes-file release/RELEASE_NOTES-v0.1.0.md
+          gh release upload "${PRODUCT_TAG}" final-release-assets/*
+
+          for attempt in $(seq 1 30); do
+            gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"${PRODUCT_TAG}\" and .draft == true)" \
+              > release-draft.json
+            if python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          release = json.loads(Path("release-draft.json").read_text(encoding="utf-8"))
+          remote = {item["name"]: item["digest"] for item in release["assets"]}
+          local = {
+              path.name: f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+              for path in Path("final-release-assets").iterdir()
+              if path.is_file()
+          }
+          if remote != local:
+              raise SystemExit("draft release assets differ from the retained local evidence")
+          PY
+            then
+              break
+            fi
+            if test "${attempt}" = "30"; then
+              echo "release publication: draft asset digests were not observed" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          gh release edit "${PRODUCT_TAG}" --draft=false --latest
+          for attempt in $(seq 1 30); do
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
+              > release-published.json
+            if jq -e '
+              .draft == false and
+              .prerelease == false and
+              .immutable == true
+            ' release-published.json > /dev/null; then
+              break
+            fi
+            if test "${attempt}" = "30"; then
+              echo "release publication: immutable state was not observed" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          for ref in \
+            "refs/tags/${ACTION_VERSION_TAG}" \
+            "refs/tags/${ACTION_MAJOR_TAG}"; do
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --field ref="${ref}" \
+              --field sha="${GITHUB_SHA}" > /dev/null
+          done
+          for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}" "${ACTION_MAJOR_TAG}"; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')" \
+              = "${GITHUB_SHA}"
+          done

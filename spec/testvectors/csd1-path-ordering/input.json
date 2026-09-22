@@ -1,0 +1,36 @@
+{
+  "entries": [
+    {
+      "path": "%FF.txt",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "100644",
+      "oldBlob": null,
+      "newBlob": "4444444444444444444444444444444444444444"
+    },
+    {
+      "path": "%C3%A9.txt",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "100644",
+      "oldBlob": null,
+      "newBlob": "3333333333333333333333333333333333333333"
+    },
+    {
+      "path": "z.txt",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "100644",
+      "oldBlob": null,
+      "newBlob": "2222222222222222222222222222222222222222"
+    },
+    {
+      "path": "A.txt",
+      "changeType": "added",
+      "oldMode": null,
+      "newMode": "100644",
+      "oldBlob": null,
+      "newBlob": "1111111111111111111111111111111111111111"
+    }
+  ]
+}
