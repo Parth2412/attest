@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.2@sha256:c4f5de312ee66d46810635ffc5df34a1973ba753e7241ce3a08ef979ddd7bea5 AS uv
 
-FROM python:3.12.14-slim-trixie@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea AS build
+FROM python:3.12.14-slim-trixie@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9 AS build
 
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /build
@@ -19,7 +19,7 @@ ENV UV_LINK_MODE=copy \
 
 RUN uv sync --frozen --no-dev --package attest-cli --no-editable --compile-bytecode
 
-FROM python:3.12.14-slim-trixie@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+FROM python:3.12.14-slim-trixie@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends git=1:2.47.3-0+deb13u1 \

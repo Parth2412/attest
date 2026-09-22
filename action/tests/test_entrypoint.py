@@ -801,7 +801,11 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
 
-    assert "python:3.12.14-slim-trixie@sha256:" in dockerfile
+    python_base = (
+        "python:3.12.14-slim-trixie@"
+        "sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9"
+    )
+    assert dockerfile.count(python_base) == 2
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
     assert 'ENTRYPOINT ["/opt/venv/bin/python", "-I", "/opt/attest/entrypoint.py"]' in dockerfile
     assert "COPY action/action.yml" not in dockerfile
