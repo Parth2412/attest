@@ -34,7 +34,7 @@ RELEASE_IDENTITY: Final[str] = (
     "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
 )
 OIDC_ISSUER: Final[str] = "https://token.actions.githubusercontent.com"
-PYPI_PUBLISHERS: Final[list[dict[str, str]]] = [
+PYPI_BOOTSTRAP_WAVE_ONE: Final[list[dict[str, str]]] = [
     {
         "distribution": "attest-core",
         "artifact_prefix": "attest_core",
@@ -50,6 +50,8 @@ PYPI_PUBLISHERS: Final[list[dict[str, str]]] = [
         "artifact_prefix": "attest_sign",
         "environment": "pypi-attest-sign",
     },
+]
+PYPI_BOOTSTRAP_WAVE_TWO: Final[list[dict[str, str]]] = [
     {
         "distribution": "attest-store",
         "artifact_prefix": "attest_store",
@@ -65,6 +67,10 @@ PYPI_PUBLISHERS: Final[list[dict[str, str]]] = [
         "artifact_prefix": "attest_cli",
         "environment": "pypi-attest-cli",
     },
+]
+PYPI_PUBLISHERS: Final[list[dict[str, str]]] = [
+    *PYPI_BOOTSTRAP_WAVE_ONE,
+    *PYPI_BOOTSTRAP_WAVE_TWO,
 ]
 
 
@@ -116,7 +122,9 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "build-distributions",
         "smoke-distributions",
         "attest-artifacts",
-        "publish-pypi",
+        "publish-pypi-bootstrap-wave-1",
+        "verify-pypi-bootstrap-wave-1",
+        "publish-pypi-bootstrap-wave-2",
         "promote-image",
         "verify-published",
         "dogfood",
@@ -125,9 +133,17 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     assert jobs["build-distributions"]["needs"] == "preflight"
     assert jobs["smoke-distributions"]["needs"] == "build-distributions"
     assert jobs["attest-artifacts"]["needs"] == ["build-distributions", "smoke-distributions"]
-    assert jobs["publish-pypi"]["needs"] == ["attest-artifacts", "smoke-distributions"]
-    assert jobs["promote-image"]["needs"] == ["attest-artifacts", "smoke-distributions"]
-    assert jobs["verify-published"]["needs"] == ["publish-pypi", "promote-image"]
+    assert jobs["publish-pypi-bootstrap-wave-1"]["needs"] == [
+        "attest-artifacts",
+        "smoke-distributions",
+    ]
+    assert jobs["verify-pypi-bootstrap-wave-1"]["needs"] == ("publish-pypi-bootstrap-wave-1")
+    assert jobs["publish-pypi-bootstrap-wave-2"]["needs"] == ("verify-pypi-bootstrap-wave-1")
+    assert jobs["promote-image"]["needs"] == "publish-pypi-bootstrap-wave-2"
+    assert jobs["verify-published"]["needs"] == [
+        "publish-pypi-bootstrap-wave-2",
+        "promote-image",
+    ]
     assert jobs["dogfood"]["needs"] == "verify-published"
     assert jobs["publish-release"]["needs"] == [
         "attest-artifacts",
@@ -146,9 +162,17 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "packages": "read",
     }
     assert jobs["build-distributions"]["permissions"] == {"contents": "read"}
-    assert jobs["publish-pypi"]["permissions"] == {
+    for publish_job in (
+        "publish-pypi-bootstrap-wave-1",
+        "publish-pypi-bootstrap-wave-2",
+    ):
+        assert jobs[publish_job]["permissions"] == {
+            "actions": "read",
+            "id-token": "write",
+        }
+    assert jobs["verify-pypi-bootstrap-wave-1"]["permissions"] == {
         "actions": "read",
-        "id-token": "write",
+        "contents": "read",
     }
     assert jobs["promote-image"]["permissions"] == {
         "contents": "read",
@@ -257,46 +281,88 @@ def test_release_builds_once_and_publishes_only_the_six_closed_distributions() -
         step.get("run", "") for step in smoke["steps"] if isinstance(step, dict)
     )
     assert "scripts/smoke_release_install.py" in smoke_commands
+    assert len(PYPI_PUBLISHERS) == 6
+    assert {publisher["distribution"] for publisher in PYPI_PUBLISHERS} == {
+        "attest-core",
+        "attest-collect",
+        "attest-sign",
+        "attest-store",
+        "attest-policy",
+        "attest-cli",
+    }
 
-    publish = jobs["publish-pypi"]
-    assert publish["strategy"] == {
-        "fail-fast": False,
-        "matrix": {"include": PYPI_PUBLISHERS},
-    }
-    assert publish["environment"] == {
-        "name": "${{ matrix.environment }}",
-        "url": "https://pypi.org/p/${{ matrix.distribution }}",
-    }
-    selection = _step(publish, "Select one validated distribution for bounded publication")
-    assert selection["env"] == {
-        "ARTIFACT_PREFIX": "${{ matrix.artifact_prefix }}",
-        "DISTRIBUTION": "${{ matrix.distribution }}",
-        "PUBLISH_ENVIRONMENT": "${{ matrix.environment }}",
-    }
-    for fragment in (
-        '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"',
-        '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"',
-        '"distributions": [os.environ["DISTRIBUTION"]]',
-        '"environment": os.environ["PUBLISH_ENVIRONMENT"]',
+    for job_name, wave, expected_publishers in (
+        ("publish-pypi-bootstrap-wave-1", "1", PYPI_BOOTSTRAP_WAVE_ONE),
+        ("publish-pypi-bootstrap-wave-2", "2", PYPI_BOOTSTRAP_WAVE_TWO),
     ):
-        assert fragment in selection["run"]
+        publish = jobs[job_name]
+        assert publish["strategy"] == {
+            "fail-fast": False,
+            "matrix": {"include": expected_publishers},
+        }
+        assert publish["environment"] == {
+            "name": "${{ matrix.environment }}",
+            "url": "https://pypi.org/p/${{ matrix.distribution }}",
+        }
+        selection = _step(publish, "Select one validated distribution for bounded publication")
+        assert selection["env"] == {
+            "ARTIFACT_PREFIX": "${{ matrix.artifact_prefix }}",
+            "BOOTSTRAP_WAVE": wave,
+            "DISTRIBUTION": "${{ matrix.distribution }}",
+            "PUBLISH_ENVIRONMENT": "${{ matrix.environment }}",
+        }
+        for fragment in (
+            '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"',
+            '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"',
+            '"bootstrapWave": int(os.environ["BOOTSTRAP_WAVE"])',
+            '"distributions": [os.environ["DISTRIBUTION"]]',
+            '"environment": os.environ["PUBLISH_ENVIRONMENT"]',
+        ):
+            assert fragment in selection["run"]
 
-    publication = _step(publish, "Publish one distribution with Trusted Publishing")
-    assert publication["uses"] == (
-        "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        publication = _step(publish, "Publish one distribution with Trusted Publishing")
+        assert publication["uses"] == (
+            "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        )
+        assert publication["with"] == {
+            "packages-dir": "publish-dist/",
+            "verify-metadata": True,
+            "skip-existing": False,
+            "print-hash": True,
+            "attestations": True,
+        }
+        assert publish["steps"][-1] == publication
+        trusted_context = _step(publish, "Retain the Trusted Publishing context")
+        assert trusted_context["with"] == {
+            "name": "trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0",
+            "path": "trusted-publisher-evidence",
+            "if-no-files-found": "error",
+            "retention-days": 90,
+        }
+
+    bootstrap_verification = jobs["verify-pypi-bootstrap-wave-1"]
+    bootstrap_commands = _step(
+        bootstrap_verification,
+        "Verify wave one and expose the second-wave checkpoint",
+    )["run"]
+    for fragment in (
+        "--distribution attest-core",
+        "--distribution attest-collect",
+        "--distribution attest-sign",
+        "attest-store attest-policy attest-cli",
+        "second-wave-name-status.tsv",
+        'test "${status}" != "404"',
+        "Register the second PyPI publisher wave",
+        "Do not approve the waiting GitHub environments",
+    ):
+        assert fragment in bootstrap_commands
+    bootstrap_evidence = _step(
+        bootstrap_verification,
+        "Retain first-wave public verification evidence",
     )
-    assert publication["with"] == {
-        "packages-dir": "publish-dist/",
-        "verify-metadata": True,
-        "skip-existing": False,
-        "print-hash": True,
-        "attestations": True,
-    }
-    assert publish["steps"][-1] == publication
-    trusted_context = _step(publish, "Retain the Trusted Publishing context")
-    assert trusted_context["with"] == {
-        "name": "trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0",
-        "path": "trusted-publisher-evidence",
+    assert bootstrap_evidence["with"] == {
+        "name": "pypi-bootstrap-wave-one-evidence-v0.1.0",
+        "path": "pypi-bootstrap-wave-one-evidence",
         "if-no-files-found": "error",
         "retention-days": 90,
     }
@@ -557,21 +623,28 @@ def _published_fixture(root: Path) -> tuple[Path, Path]:
     return artifacts, root / "index"
 
 
-def _verify_published(artifacts: Path, index: Path) -> subprocess.CompletedProcess[str]:
+def _verify_published(
+    artifacts: Path,
+    index: Path,
+    *distributions: str,
+) -> subprocess.CompletedProcess[str]:
+    arguments = [
+        sys.executable,
+        str(PUBLISHED_VERIFIER),
+        str(artifacts),
+        "--version",
+        "0.1.0",
+        "--index-base-url",
+        index.as_uri(),
+        "--attempts",
+        "1",
+        "--delay-seconds",
+        "0",
+    ]
+    for distribution in distributions:
+        arguments.extend(("--distribution", distribution))
     return subprocess.run(
-        [
-            sys.executable,
-            str(PUBLISHED_VERIFIER),
-            str(artifacts),
-            "--version",
-            "0.1.0",
-            "--index-base-url",
-            index.as_uri(),
-            "--attempts",
-            "1",
-            "--delay-seconds",
-            "0",
-        ],
+        arguments,
         check=False,
         capture_output=True,
         text=True,
@@ -585,6 +658,35 @@ def test_published_release_verifier_accepts_exact_public_artifacts(tmp_path: Pat
     result = _verify_published(artifacts, index)
     assert result.returncode == 0, result.stderr
     assert "published release: verified 6 distributions and 12 artifacts" in result.stdout
+
+
+@pytest.mark.ac("AC-F11-140")
+def test_published_release_verifier_accepts_strict_bootstrap_subset(tmp_path: Path) -> None:
+    artifacts, index = _published_fixture(tmp_path)
+    result = _verify_published(
+        artifacts,
+        index,
+        "attest-core",
+        "attest-collect",
+        "attest-sign",
+    )
+    assert result.returncode == 0, result.stderr
+    assert "published release: verified 3 distributions and 6 artifacts" in result.stdout
+
+
+@pytest.mark.ac("AC-F11-140")
+@pytest.mark.parametrize(
+    "distributions",
+    [("attest-core", "attest-core"), ("attest-export",)],
+)
+def test_published_release_verifier_rejects_invalid_bootstrap_subset(
+    tmp_path: Path,
+    distributions: tuple[str, ...],
+) -> None:
+    artifacts, index = _published_fixture(tmp_path)
+    result = _verify_published(artifacts, index, *distributions)
+    assert result.returncode == 1
+    assert "requested distributions are not a unique release-package subset" in result.stderr
 
 
 @pytest.mark.ac("AC-F11-140")

@@ -1036,8 +1036,10 @@ NON-NEGOTIABLES
 
 Also delivers action-candidate.yml and release.yml under ADR-046's two-phase contract:
 candidate on protected dev, reviewed manifest-digest pin, then exact-manifest promotion and
-Trusted Publishing from a manual dispatch on protected main. Publish the six implemented 0.1.0
-distributions only; Action version is independently v1.0.0/v1.
+Trusted Publishing from a manual dispatch on protected main. Under ADR-048, publish and publicly
+verify the first three packages before exposing the protected registration checkpoint for the
+remaining three; promote the release image only after both OIDC waves succeed. Publish the six
+implemented 0.1.0 distributions only; Action version is independently v1.0.0/v1.
 
 DoD: the quickstart works UNMODIFIED on a genuinely fresh repository.
 EOF

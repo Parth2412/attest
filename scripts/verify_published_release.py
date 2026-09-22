@@ -239,6 +239,12 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifact_directory", type=Path)
     parser.add_argument("--version", required=True)
+    parser.add_argument(
+        "--distribution",
+        action="append",
+        default=[],
+        help="verify one release distribution; repeat to verify a strict subset",
+    )
     parser.add_argument("--index-base-url", default=PYPI_BASE_URL)
     parser.add_argument("--attempts", type=int, default=30)
     parser.add_argument("--delay-seconds", type=float, default=10.0)
@@ -255,16 +261,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         version, distributions = _release_contract()
         if arguments.version != version:
             _fail("requested version differs from the release package manifest")
+        requested_distributions = tuple(arguments.distribution)
+        if requested_distributions:
+            if len(requested_distributions) != len(set(requested_distributions)) or any(
+                item not in distributions for item in requested_distributions
+            ):
+                _fail("requested distributions are not a unique release-package subset")
+            verified_distributions = requested_distributions
+        else:
+            verified_distributions = distributions
         base_url = _validated_base_url(arguments.index_base_url)
         expected_types = _expected_files(version, distributions)
         local_hashes = _artifact_hashes(arguments.artifact_directory, expected_types)
         documents = _load_public_documents(
             base_url,
-            distributions,
+            verified_distributions,
             arguments.attempts,
             arguments.delay_seconds,
         )
-        for distribution in distributions:
+        for distribution in verified_distributions:
             _validate_distribution(
                 distribution,
                 version,
@@ -278,8 +293,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"published release error: {error}\n")
         return 1
     sys.stdout.write(
-        f"published release: verified {len(distributions)} distributions "
-        f"and {len(expected_types)} artifacts\n"
+        f"published release: verified {len(verified_distributions)} distributions "
+        f"and {len(verified_distributions) * 2} artifacts\n"
     )
     return 0
 

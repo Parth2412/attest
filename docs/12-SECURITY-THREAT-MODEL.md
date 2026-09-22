@@ -153,10 +153,12 @@ attest runs in privileged CI jobs across many organisations.
 provenance, and GitHub artifact attestation per release; releases attested and publicly verified by
 attest itself; the Action pins the image by immutable manifest digest, not tag
 (`REQ-F11-010`). A two-phase candidate/review/release flow prevents an unreviewed digest from
-entering the Action. PyPI uses environment-protected Trusted Publishing with separated build and
-publish jobs and no long-lived package token. CI consumes external Actions only at reviewed full
-commit SHAs, pins its base image and uv version, and installs exclusively from the committed lock
-(`ADR-027`, `ADR-046`).
+entering the Action. PyPI uses per-package, environment-protected Trusted Publishing with separated
+build and publish jobs and no long-lived package token. Its first release uses two ordered waves;
+the second receives no OIDC authority until the first is publicly hash-verified and the operator
+completes the protected publisher-registration checkpoint. CI consumes external Actions only at
+reviewed full commit SHAs, pins its base image and uv version, and installs exclusively from the
+committed lock (`ADR-027`, `ADR-046`, `ADR-047`, `ADR-048`).
 
 ---
 

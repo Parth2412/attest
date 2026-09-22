@@ -230,7 +230,8 @@ A release **MUST NOT** ship unless:
 - [ ] No untriaged surviving mutant in the verifier
 - [ ] `pip-audit` reports no unmitigated high-severity advisory
 - [ ] Candidate and protected release workflows prove final build-context equality, exact candidate manifest promotion, both target architectures, a pinned base, SBOM, provenance, and GitHub artifact attestations
-- [ ] Build and publish authority are separated; PyPI Trusted Publishing is bound to the protected `pypi` environment and no long-lived package token exists
+- [ ] Build and publish authority are separated; PyPI Trusted Publishing uses the six protected per-package environments and no long-lived package token exists
+- [ ] The first-release PyPI bootstrap verifies wave one publicly before exposing the protected second-wave registration checkpoint; image promotion and final release remain blocked until all six publications succeed
 - [ ] Clean environments install and smoke-test exactly the six approved `0.1.0` distributions; `attest-export` is neither published nor a CLI dependency
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated
