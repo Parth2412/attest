@@ -16,6 +16,7 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 CONTEXT_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/prepare_action_context.py"
 SCAN_CHECK_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/check_action_scan.py"
 CANDIDATE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-candidate.yml"
+ACTION_MANIFEST: Final[Path] = REPOSITORY_ROOT / "action/action.yml"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
@@ -28,6 +29,10 @@ EXPECTED_ACTIONS: Final[set[str]] = {
     "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
     "docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
 }
+REVIEWED_IMAGE: Final[str] = (
+    "docker://ghcr.io/parth2412/attest@"
+    "sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3"
+)
 
 
 def _run_context(
@@ -254,6 +259,65 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     action_references = _uses(workflow)
     assert action_references == EXPECTED_ACTIONS
     assert all(FULL_SHA.fullmatch(reference) for reference in action_references)
+
+
+@pytest.mark.ac("AC-F11-010")
+def test_public_action_manifest_pins_the_reviewed_candidate() -> None:
+    """REQ-F11-010: the closed public Action executes only the reviewed immutable image."""
+    manifest: dict[str, Any] = yaml.safe_load(ACTION_MANIFEST.read_text(encoding="utf-8"))
+    assert manifest == {
+        "name": "attest",
+        "description": "Verify AI-authorship provenance and enforce human-review policy",
+        "inputs": {
+            "mode": {
+                "description": "Operation to execute: run, verify, or gate.",
+                "required": False,
+                "default": "run",
+            },
+            "policy": {
+                "description": "Repository-relative policy YAML path for run or gate.",
+                "required": False,
+            },
+            "bundle": {
+                "description": "Repository-relative Bundle JSON path for verify or gate.",
+                "required": False,
+            },
+            "push-attestation": {
+                "description": "Whether run publishes to the configured durable store.",
+                "required": False,
+            },
+            "fail-on-violation": {
+                "description": "Whether a policy violation fails run or gate.",
+                "required": False,
+            },
+        },
+        "outputs": {
+            "changeset-digest": {"description": "Verified lowercase SHA-256 ChangeSet Digest."},
+            "attestation-ref": {
+                "description": "Published attestation reference or validated Bundle path."
+            },
+            "decision": {"description": "Verified policy decision or verification result."},
+            "log-index": {"description": "Verified Rekor log index when present."},
+        },
+        "runs": {
+            "using": "docker",
+            "image": REVIEWED_IMAGE,
+            "env": {"GITHUB_TOKEN": "${{ github.token }}"},
+            "args": [
+                "--mode",
+                "${{ inputs.mode }}",
+                "--policy",
+                "${{ inputs.policy }}",
+                "--bundle",
+                "${{ inputs.bundle }}",
+                "--push-attestation",
+                "${{ inputs.push-attestation }}",
+                "--fail-on-violation",
+                "${{ inputs.fail-on-violation }}",
+            ],
+        },
+    }
+    assert re.fullmatch(r"docker://ghcr\.io/parth2412/attest@sha256:[0-9a-f]{64}", REVIEWED_IMAGE)
 
 
 @pytest.mark.ac("AC-F11-150")
