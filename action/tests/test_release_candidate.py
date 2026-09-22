@@ -14,6 +14,7 @@ import yaml  # type: ignore[import-untyped]  # PyYAML lacks typing metadata.
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 CONTEXT_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/prepare_action_context.py"
+SCAN_CHECK_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/check_action_scan.py"
 CANDIDATE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-candidate.yml"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -86,6 +87,23 @@ def _uses(value: object) -> set[str]:
         for child in value:
             found.update(_uses(child))
     return found
+
+
+def _run_scan_check(
+    tmp_path: Path, results: list[dict[str, Any]]
+) -> subprocess.CompletedProcess[str]:
+    report = tmp_path / "trivy.json"
+    report.write_text(
+        json.dumps({"SchemaVersion": 2, "Results": results}),
+        encoding="utf-8",
+    )
+    return subprocess.run(
+        [sys.executable, str(SCAN_CHECK_SCRIPT), str(report)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
 
 
 @pytest.mark.ac("AC-F11-150")
@@ -193,6 +211,22 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/amd64", "slug": "linux-amd64"},
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
+    assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
+    scan_steps = jobs["scan"]["steps"]
+    upload_index = next(
+        index
+        for index, step in enumerate(scan_steps)
+        if step.get("name") == "Upload platform scan evidence"
+    )
+    gate_index = next(
+        index
+        for index, step in enumerate(scan_steps)
+        if step.get("name") == "Enforce the candidate security gate"
+    )
+    assert upload_index < gate_index
+    assert scan_steps[gate_index]["run"] == (
+        'python3 scripts/check_action_scan.py "trivy-${{ matrix.slug }}.json"'
+    )
     assert jobs["attest"]["permissions"] == {
         "attestations": "write",
         "contents": "read",
@@ -220,6 +254,99 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     action_references = _uses(workflow)
     assert action_references == EXPECTED_ACTIONS
     assert all(FULL_SHA.fullmatch(reference) for reference in action_references)
+
+
+@pytest.mark.ac("AC-F11-150")
+@pytest.mark.parametrize(
+    ("results", "expected_exit", "expected_fragment"),
+    [
+        ([], 0, "security gate passed"),
+        (
+            [
+                {
+                    "Target": "candidate",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-UNFIXED-HIGH",
+                            "PkgName": "base-package",
+                            "InstalledVersion": "1",
+                            "FixedVersion": "",
+                            "Severity": "HIGH",
+                        }
+                    ],
+                }
+            ],
+            0,
+            "unfixed high=1",
+        ),
+        (
+            [
+                {
+                    "Target": "candidate",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-FIXABLE-HIGH",
+                            "PkgName": "base-package",
+                            "InstalledVersion": "1",
+                            "FixedVersion": "2",
+                            "Severity": "HIGH",
+                        }
+                    ],
+                }
+            ],
+            1,
+            "fixable high=1",
+        ),
+        (
+            [
+                {
+                    "Target": "candidate",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-UNFIXED-CRITICAL",
+                            "PkgName": "base-package",
+                            "InstalledVersion": "1",
+                            "Severity": "CRITICAL",
+                        }
+                    ],
+                }
+            ],
+            1,
+            "critical=1",
+        ),
+        (
+            [{"Target": "candidate", "Secrets": [{"RuleID": "private-key"}]}],
+            1,
+            "secrets=1",
+        ),
+    ],
+)
+def test_candidate_scan_gate_is_fail_closed(
+    tmp_path: Path,
+    results: list[dict[str, Any]],
+    expected_exit: int,
+    expected_fragment: str,
+) -> None:
+    """REQ-F11-150: candidates cannot attest known actionable security findings."""
+    completed = _run_scan_check(tmp_path, results)
+    assert completed.returncode == expected_exit
+    assert expected_fragment in completed.stdout + completed.stderr
+
+
+@pytest.mark.ac("AC-F11-150")
+def test_candidate_scan_gate_rejects_malformed_report(tmp_path: Path) -> None:
+    """REQ-F11-150: missing or malformed scanner output cannot become an attested candidate."""
+    report = tmp_path / "trivy.json"
+    report.write_text('{"SchemaVersion": 2, "Results": {}}', encoding="utf-8")
+    completed = subprocess.run(
+        [sys.executable, str(SCAN_CHECK_SCRIPT), str(report)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 2
+    assert completed.stderr == "invalid Trivy report\n"
 
 
 @pytest.mark.ac("AC-F11-150")
