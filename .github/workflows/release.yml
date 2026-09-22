@@ -69,14 +69,36 @@ jobs:
             ([.rules[].type] | sort) == (["deletion", "update"] | sort)
           ' "${RUNNER_TEMP}/release-preflight/tag-ruleset.json" > /dev/null
 
-          gh api "repos/${GITHUB_REPOSITORY}/environments/pypi" \
-            > "${RUNNER_TEMP}/release-preflight/pypi-environment.json"
-          jq -e '
-            .name == "pypi" and
-            .deployment_branch_policy.protected_branches == true and
-            .deployment_branch_policy.custom_branch_policies == false and
-            any(.protection_rules[]; .type == "required_reviewers")
-          ' "${RUNNER_TEMP}/release-preflight/pypi-environment.json" > /dev/null
+          for environment in \
+            pypi \
+            pypi-attest-collect \
+            pypi-attest-sign \
+            pypi-attest-store \
+            pypi-attest-policy \
+            pypi-attest-cli; do
+            gh api "repos/${GITHUB_REPOSITORY}/environments/${environment}" \
+              > "${RUNNER_TEMP}/release-preflight/${environment}-environment.json"
+            jq -e \
+              --arg environment "${environment}" \
+              --arg owner "${GITHUB_REPOSITORY_OWNER}" '
+                .name == $environment and
+                .can_admins_bypass == false and
+                .deployment_branch_policy.protected_branches == true and
+                .deployment_branch_policy.custom_branch_policies == false and
+                ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
+                ([
+                  .protection_rules[] |
+                  select(.type == "required_reviewers") |
+                  .prevent_self_review
+                ] == [false]) and
+                ([
+                  .protection_rules[] |
+                  select(.type == "required_reviewers") |
+                  .reviewers[] |
+                  {type, login: .reviewer.login}
+                ] == [{type: "User", login: $owner}])
+              ' "${RUNNER_TEMP}/release-preflight/${environment}-environment.json" > /dev/null
+          done
 
           gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=100" \
             > "${RUNNER_TEMP}/release-preflight/main-ci-runs.json"
@@ -310,9 +332,31 @@ jobs:
     needs: [attest-artifacts, smoke-distributions]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distribution: attest-core
+            artifact_prefix: attest_core
+            environment: pypi
+          - distribution: attest-collect
+            artifact_prefix: attest_collect
+            environment: pypi-attest-collect
+          - distribution: attest-sign
+            artifact_prefix: attest_sign
+            environment: pypi-attest-sign
+          - distribution: attest-store
+            artifact_prefix: attest_store
+            environment: pypi-attest-store
+          - distribution: attest-policy
+            artifact_prefix: attest_policy
+            environment: pypi-attest-policy
+          - distribution: attest-cli
+            artifact_prefix: attest_cli
+            environment: pypi-attest-cli
     environment:
-      name: pypi
-      url: https://pypi.org/p/attest-cli
+      name: ${{ matrix.environment }}
+      url: https://pypi.org/p/${{ matrix.distribution }}
     permissions:
       actions: read
       id-token: write
@@ -321,11 +365,23 @@ jobs:
         with:
           name: python-distributions-v0.1.0
           path: dist
-      - name: Record the bounded Trusted Publishing authority
+      - name: Select one validated distribution for bounded publication
+        env:
+          ARTIFACT_PREFIX: ${{ matrix.artifact_prefix }}
+          DISTRIBUTION: ${{ matrix.distribution }}
+          PUBLISH_ENVIRONMENT: ${{ matrix.environment }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p trusted-publisher-evidence
+          mkdir -p publish-dist trusted-publisher-evidence
+          wheel="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"
+          sdist="dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"
+          for artifact in "${wheel}" "${sdist}"; do
+            test -f "${artifact}"
+            test ! -L "${artifact}"
+            cp "${artifact}" publish-dist/
+          done
+          test "$(find publish-dist -maxdepth 1 -type f | wc -l)" -eq 2
           python3 - <<'PY'
           import json
           import os
@@ -334,7 +390,7 @@ jobs:
           evidence = {
               "schemaVersion": 1,
               "authentication": "oidc-trusted-publishing",
-              "environment": "pypi",
+              "environment": os.environ["PUBLISH_ENVIRONMENT"],
               "repository": os.environ["GITHUB_REPOSITORY"],
               "releaseCommit": os.environ["GITHUB_SHA"],
               "releaseRef": os.environ["GITHUB_REF"],
@@ -345,30 +401,26 @@ jobs:
                   "pypa/gh-action-pypi-publish@"
                   "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
               ),
-              "distributions": [
-                  "attest-core",
-                  "attest-collect",
-                  "attest-sign",
-                  "attest-store",
-                  "attest-policy",
-                  "attest-cli",
-              ],
+              "distributions": [os.environ["DISTRIBUTION"]],
           }
-          Path("trusted-publisher-evidence/context.json").write_text(
+          evidence_path = Path(
+              "trusted-publisher-evidence"
+          ) / f"{os.environ['DISTRIBUTION']}.json"
+          evidence_path.write_text(
               json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
           )
           PY
       - name: Retain the Trusted Publishing context
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: trusted-publisher-evidence-v0.1.0
+          name: trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0
           path: trusted-publisher-evidence
           if-no-files-found: error
           retention-days: 90
-      - name: Publish the six distributions with Trusted Publishing
+      - name: Publish one distribution with Trusted Publishing
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
-          packages-dir: dist/
+          packages-dir: publish-dist/
           verify-metadata: true
           skip-existing: false
           print-hash: true

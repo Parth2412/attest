@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Isolated first-release PyPI Trusted Publishing by distribution so all six pending projects can
+  be bootstrapped without long-lived credentials while preserving build-once release artifacts.
 - Added the protected F-11 release workflow for exact candidate promotion, six-package Trusted
   Publishing, clean public verification, production self-attestation, immutable release evidence,
   and independent product and Action tags.

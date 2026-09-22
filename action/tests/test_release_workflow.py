@@ -34,6 +34,38 @@ RELEASE_IDENTITY: Final[str] = (
     "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
 )
 OIDC_ISSUER: Final[str] = "https://token.actions.githubusercontent.com"
+PYPI_PUBLISHERS: Final[list[dict[str, str]]] = [
+    {
+        "distribution": "attest-core",
+        "artifact_prefix": "attest_core",
+        "environment": "pypi",
+    },
+    {
+        "distribution": "attest-collect",
+        "artifact_prefix": "attest_collect",
+        "environment": "pypi-attest-collect",
+    },
+    {
+        "distribution": "attest-sign",
+        "artifact_prefix": "attest_sign",
+        "environment": "pypi-attest-sign",
+    },
+    {
+        "distribution": "attest-store",
+        "artifact_prefix": "attest_store",
+        "environment": "pypi-attest-store",
+    },
+    {
+        "distribution": "attest-policy",
+        "artifact_prefix": "attest_policy",
+        "environment": "pypi-attest-policy",
+    },
+    {
+        "distribution": "attest-cli",
+        "artifact_prefix": "attest_cli",
+        "environment": "pypi-attest-cli",
+    },
+]
 
 
 def _workflow() -> dict[Any, Any]:
@@ -175,7 +207,14 @@ def test_release_preflight_revalidates_the_reviewed_candidate_and_controls() -> 
     for fragment in (
         "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEWED_CANDIDATE_RUN_ID}",
         "repos/${GITHUB_REPOSITORY}/rulesets",
-        "repos/${GITHUB_REPOSITORY}/environments/pypi",
+        "repos/${GITHUB_REPOSITORY}/environments/${environment}",
+        "pypi-attest-collect",
+        "pypi-attest-sign",
+        "pypi-attest-store",
+        "pypi-attest-policy",
+        "pypi-attest-cli",
+        ".can_admins_bypass == false",
+        "login: .reviewer.login",
         "scripts/prepare_action_context.py",
         "scripts/validate_release_candidate.py",
         "gh attestation verify",
@@ -220,16 +259,34 @@ def test_release_builds_once_and_publishes_only_the_six_closed_distributions() -
     assert "scripts/smoke_release_install.py" in smoke_commands
 
     publish = jobs["publish-pypi"]
-    assert publish["environment"] == {
-        "name": "pypi",
-        "url": "https://pypi.org/p/attest-cli",
+    assert publish["strategy"] == {
+        "fail-fast": False,
+        "matrix": {"include": PYPI_PUBLISHERS},
     }
-    publication = _step(publish, "Publish the six distributions with Trusted Publishing")
+    assert publish["environment"] == {
+        "name": "${{ matrix.environment }}",
+        "url": "https://pypi.org/p/${{ matrix.distribution }}",
+    }
+    selection = _step(publish, "Select one validated distribution for bounded publication")
+    assert selection["env"] == {
+        "ARTIFACT_PREFIX": "${{ matrix.artifact_prefix }}",
+        "DISTRIBUTION": "${{ matrix.distribution }}",
+        "PUBLISH_ENVIRONMENT": "${{ matrix.environment }}",
+    }
+    for fragment in (
+        '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}-py3-none-any.whl"',
+        '"dist/${ARTIFACT_PREFIX}-${PRODUCT_VERSION}.tar.gz"',
+        '"distributions": [os.environ["DISTRIBUTION"]]',
+        '"environment": os.environ["PUBLISH_ENVIRONMENT"]',
+    ):
+        assert fragment in selection["run"]
+
+    publication = _step(publish, "Publish one distribution with Trusted Publishing")
     assert publication["uses"] == (
         "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
     )
     assert publication["with"] == {
-        "packages-dir": "dist/",
+        "packages-dir": "publish-dist/",
         "verify-metadata": True,
         "skip-existing": False,
         "print-hash": True,
@@ -238,7 +295,7 @@ def test_release_builds_once_and_publishes_only_the_six_closed_distributions() -
     assert publish["steps"][-1] == publication
     trusted_context = _step(publish, "Retain the Trusted Publishing context")
     assert trusted_context["with"] == {
-        "name": "trusted-publisher-evidence-v0.1.0",
+        "name": "trusted-publisher-evidence-${{ matrix.distribution }}-v0.1.0",
         "path": "trusted-publisher-evidence",
         "if-no-files-found": "error",
         "retention-days": 90,
