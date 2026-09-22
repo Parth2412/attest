@@ -2321,6 +2321,71 @@ unsupported corner case.
 
 ---
 
+## ADR-047 — Isolate first-release PyPI publisher identities
+
+**Status:** Accepted · **Date:** 2026-09-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `F-11` · **Amends:** `ADR-046`
+
+**Context.** ADR-046 requires the six `0.1.0` distributions to be built once and published without
+a long-lived credential from a protected GitHub environment. The release workflow originally
+assigned the same pending PyPI Trusted Publisher identity—repository owner, repository, workflow,
+and environment—to all six projects. Live registration accepted `attest-core` and rejected
+`attest-collect` because Warehouse deliberately makes that four-field identity unique across
+pending publishers; the pending-project name is not part of the uniqueness constraint. PyPI
+supports one publisher identity for multiple existing projects, but all six first-release projects
+are intentionally absent and therefore cannot use that many-to-many relationship for bootstrap.
+
+**Decision.** The first release keeps one build job, one validated twelve-file distribution
+artifact, one two-version smoke test, and one artifact-attestation boundary. Publication fans out
+only after those gates into six matrix jobs. Each job selects exactly the wheel and source archive
+for one distribution, records its bounded authority, uploads uniquely named evidence, and invokes
+the full-SHA PyPA publisher as its final step. The matrix uses these protected environments:
+
+- `attest-core` → `pypi`
+- `attest-collect` → `pypi-attest-collect`
+- `attest-sign` → `pypi-attest-sign`
+- `attest-store` → `pypi-attest-store`
+- `attest-policy` → `pypi-attest-policy`
+- `attest-cli` → `pypi-attest-cli`
+
+Every environment permits only protected branches, requires the repository owner as its sole
+reviewer, allows that sole owner to approve the owner's dispatch, and forbids administrator bypass.
+Release preflight verifies all six live configurations exactly. Each PyPI pending publisher uses
+`Parth2412/attest`, `release.yml`, and its mapped environment. No package job receives another
+package's artifacts, and downstream public verification starts only after every matrix job and the
+exact image promotion succeed. This amends only ADR-046's singular-environment assumption; all
+build-once, OIDC-only, package-set, ordering, and evidence requirements remain unchanged.
+
+**Rationale.** Distinct environment claims are the smallest identities that Warehouse accepts for
+six pending projects while preserving one reviewed workflow. Per-package jobs reduce the token and
+upload blast radius: each short-lived credential can create and publish only its matching project.
+The design also keeps the first release deterministic—no operator must pause a partially published
+release to register the next project—and preserves the already valid `attest-core` registration.
+The enforced Warehouse constraint was verified against its account registration implementation,
+and the post-bootstrap many-to-many model was verified against PyPI's Trusted Publishing internals.
+
+**Rejected alternatives.** A user-scoped or project API token would violate the no-long-lived-secret
+contract. Publishing one project, registering the next, and resuming would create an unrecoverable
+partially published release procedure. Placeholder or bootstrap versions would make `0.1.0` cease
+to be the first public release. Six workflow files would duplicate privileged release logic and
+expand the review surface. Omitting environments would weaken the OIDC identity and still provide
+too few distinct pending identities. Replacing the existing `attest-core` environment would add a
+destructive account step without improving isolation.
+
+**Consequences.** Five additional protected GitHub environments and five additional pending PyPI
+publisher registrations are required. The first release exposes six approval-gated matrix jobs,
+but a single approval review can cover the jobs presented together by GitHub. Retained release
+evidence contains six unique Trusted Publishing context records. Consolidating publisher identities
+after project creation is optional and requires another reviewed decision; it is not performed as
+an unrecorded post-release cleanup.
+
+The constraint and model were checked against the upstream
+[Warehouse registration path](https://github.com/pypi/warehouse/blob/1e5bf8e79a5d1b8be305681d118d7f22297454e2/warehouse/accounts/views.py#L1960-L1974)
+and [PyPI Trusted Publishing internals](https://docs.pypi.org/trusted-publishers/internals/), as
+read on 2026-09-22.
+
+---
+
 ## Template for new ADRs
 
 ```markdown
