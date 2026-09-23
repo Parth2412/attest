@@ -9,7 +9,6 @@ from importlib import metadata
 from pathlib import Path
 from typing import Final, NoReturn
 
-PRODUCT_VERSION: Final[str] = "0.1.0"
 PUBLISHED_IMPORTS: Final[dict[str, str]] = {
     "attest-core": "attest_core",
     "attest-collect": "attest_collect",
@@ -17,6 +16,10 @@ PUBLISHED_IMPORTS: Final[dict[str, str]] = {
     "attest-store": "attest_store",
     "attest-policy": "attest_policy",
     "attest-cli": "attest_cli",
+}
+EXPECTED_VERSIONS: Final[dict[str, str]] = {
+    distribution: "0.1.1" if distribution == "attest-cli" else "0.1.0"
+    for distribution in PUBLISHED_IMPORTS
 }
 
 
@@ -40,7 +43,7 @@ def main() -> int:
         _fail("clean environment does not contain the exact attest release set")
 
     for distribution, import_name in PUBLISHED_IMPORTS.items():
-        if metadata.version(distribution) != PRODUCT_VERSION:
+        if metadata.version(distribution) != EXPECTED_VERSIONS[distribution]:
             _fail(f"{distribution} has the wrong installed version")
         module = importlib.import_module(import_name)
         module_path = getattr(module, "__file__", None)
