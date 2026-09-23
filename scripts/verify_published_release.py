@@ -128,8 +128,15 @@ def _validated_base_url(value: str) -> str:
     return value.rstrip("/")
 
 
-def _endpoint(base_url: str, distribution: str) -> str:
+def _project_endpoint(base_url: str, distribution: str) -> str:
     return f"{base_url}/pypi/{urllib.parse.quote(distribution, safe='')}/json"
+
+
+def _release_endpoint(base_url: str, distribution: str, version: str) -> str:
+    return (
+        f"{base_url}/pypi/{urllib.parse.quote(distribution, safe='')}"
+        f"/{urllib.parse.quote(version, safe='')}/json"
+    )
 
 
 def _validated_artifact_url(value: object, base_url: str) -> str:
@@ -231,14 +238,10 @@ def _read_endpoint(url: str) -> dict[str, object] | None:
     return document
 
 
-def _file_records(document: dict[str, object], version: str) -> tuple[dict[str, object], ...]:
+def _file_records(document: dict[str, object]) -> tuple[dict[str, object], ...]:
     urls = document.get("urls")
-    releases = document.get("releases")
-    if not isinstance(urls, list) or not isinstance(releases, dict):
+    if not isinstance(urls, list) or "releases" in document:
         _fail("package index response has invalid release records")
-    version_records = releases.get(version)
-    if not isinstance(version_records, list) or urls != version_records:
-        _fail("package index current and version release records differ")
     if not all(isinstance(item, dict) for item in urls):
         _fail("package index release record is invalid")
     return tuple(urls)
@@ -263,7 +266,7 @@ def _validate_distribution(
 
     prefix = distribution.replace("-", "_") + f"-{version}"
     expected_names = {name for name in expected_types if name.startswith(prefix)}
-    records = _file_records(document, version)
+    records = _file_records(document)
     observed_names = {record.get("filename") for record in records}
     if observed_names != expected_names or len(records) != 2:
         _fail(f"public artifact set mismatch for {distribution}")
@@ -286,27 +289,40 @@ def _validate_distribution(
             _fail(f"downloaded public artifact mismatch for {filename}")
 
 
-def _load_public_documents(
+def _verify_public_release(
     base_url: str,
     distributions: tuple[str, ...],
+    version: str,
+    expected_types: dict[str, str],
+    local_hashes: dict[str, str],
+    artifact_directory: Path,
     attempts: int,
     delay_seconds: float,
-) -> dict[str, dict[str, object]]:
+) -> None:
     last_error: PublishedReleaseError | None = None
     for attempt in range(1, attempts + 1):
         try:
-            documents: dict[str, dict[str, object]] = {}
             for distribution in distributions:
-                document = _read_endpoint(_endpoint(base_url, distribution))
+                document = _read_endpoint(_release_endpoint(base_url, distribution, version))
                 if document is None:
                     _fail(f"public distribution is unavailable: {distribution}")
-                documents[distribution] = document
+                _validate_distribution(
+                    distribution,
+                    version,
+                    document,
+                    expected_types,
+                    local_hashes,
+                    artifact_directory,
+                    base_url,
+                )
+            if _read_endpoint(_project_endpoint(base_url, FORBIDDEN_DISTRIBUTION)) is not None:
+                _fail("attest-export must remain unpublished")
         except PublishedReleaseError as error:
             last_error = error
             if attempt < attempts:
                 time.sleep(delay_seconds)
         else:
-            return documents
+            return
     if last_error is None:
         _fail("public package verification did not run")
     raise last_error
@@ -351,24 +367,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         base_url = _validated_base_url(arguments.index_base_url)
         expected_types = _expected_files(version, distributions)
         local_hashes = _artifact_hashes(arguments.artifact_directory, expected_types)
-        documents = _load_public_documents(
+        _verify_public_release(
             base_url,
             verified_distributions,
+            version,
+            expected_types,
+            local_hashes,
+            arguments.artifact_directory,
             arguments.attempts,
             arguments.delay_seconds,
         )
-        for distribution in verified_distributions:
-            _validate_distribution(
-                distribution,
-                version,
-                documents[distribution],
-                expected_types,
-                local_hashes,
-                arguments.artifact_directory,
-                base_url,
-            )
-        if _read_endpoint(_endpoint(base_url, FORBIDDEN_DISTRIBUTION)) is not None:
-            _fail("attest-export must remain unpublished")
     except (PublishedReleaseError, OSError) as error:
         sys.stderr.write(f"published release error: {error}\n")
         return 1
