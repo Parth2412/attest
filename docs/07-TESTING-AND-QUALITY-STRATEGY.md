@@ -233,7 +233,7 @@ A release **MUST NOT** ship unless:
 - [ ] Build and publish authority are separated; PyPI Trusted Publishing uses the six protected per-package environments and no long-lived package token exists
 - [ ] The first-release PyPI bootstrap verifies wave one publicly before exposing the protected second-wave registration checkpoint; image promotion and final release remain blocked until all six publications succeed
 - [ ] Clean environments install and smoke-test exactly the six approved `0.1.0` distributions; `attest-export` is neither published nor a CLI dependency
-- [ ] The `0.1.1` correction builds and publishes only `attest-cli`, proves its five exact `0.1.0` library pins in clean Python 3.12/3.13 environments, and verifies both public files byte-for-byte
+- [ ] The `0.1.1` correction builds and publishes only `attest-cli`, proves its five exact `0.1.0` library pins in clean Python 3.12/3.13 environments, and verifies both public files byte-for-byte through version-specific PyPI metadata; an exact recovery imports the prior OIDC evidence and never re-uploads
 - [ ] The `0.1.1` correction proves the public `0.1.0` image digest and immutable `v1.0.0` record are unchanged, creates protected immutable `v0.1.1`/`v1.0.1` records, and does not move `v1` before the replacement public proof succeeds
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
