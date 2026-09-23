@@ -78,7 +78,17 @@ def _step(job: dict[str, Any], name: str) -> dict[str, Any]:
 def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> None:
     """REQ-F11-170: patch publication is manual, ordered, and least privileged."""
     workflow = _workflow()
-    assert _triggers(workflow) == {"workflow_dispatch": None}
+    assert _triggers(workflow) == {
+        "workflow_dispatch": {
+            "inputs": {
+                "prior_publication_run_id": {
+                    "description": "Prior release run that published the exact PyPI artifacts",
+                    "required": False,
+                    "type": "string",
+                }
+            }
+        }
+    }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
         "group": "release-v0.1.1",
@@ -91,6 +101,7 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "build-cli",
         "smoke-cli",
         "attest-artifacts",
+        "inspect-publication",
         "publish-cli",
         "verify-published-cli",
         "dogfood",
@@ -99,11 +110,17 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     assert jobs["build-cli"]["needs"] == "preflight"
     assert jobs["smoke-cli"]["needs"] == "build-cli"
     assert jobs["attest-artifacts"]["needs"] == ["build-cli", "smoke-cli"]
+    assert jobs["inspect-publication"]["needs"] == ["build-cli", "smoke-cli"]
     assert jobs["publish-cli"]["needs"] == [
         "attest-artifacts",
+        "inspect-publication",
         "smoke-cli",
     ]
-    assert jobs["verify-published-cli"]["needs"] == "publish-cli"
+    assert jobs["verify-published-cli"]["needs"] == [
+        "attest-artifacts",
+        "inspect-publication",
+        "publish-cli",
+    ]
     assert jobs["dogfood"]["needs"] == "verify-published-cli"
     assert jobs["publish-release"]["needs"] == [
         "attest-artifacts",
@@ -120,6 +137,10 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "contents": "read",
     }
     assert jobs["build-cli"]["permissions"] == {"contents": "read"}
+    assert jobs["inspect-publication"]["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+    }
     assert jobs["publish-cli"]["permissions"] == {
         "actions": "read",
         "id-token": "write",
@@ -178,8 +199,7 @@ def test_release_preflight_revalidates_the_patch_scope_and_controls() -> None:
         "actions/workflows/ci.yml/runs?branch=main&event=push",
         "releases/tags/v0.1.0",
         ".immutable == true",
-        "https://pypi.org/pypi/attest-cli/json",
-        'index("0.1.1") | not',
+        "https://pypi.org/pypi/attest-cli/0.1.0/json",
         'test "$(git tag --points-at "${FIRST_RELEASE_SHA}"',
         'test "${current_image}" = "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"',
         'if grep -F "github." action/action.yml',
@@ -224,6 +244,7 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
         assert fragment in smoke_commands
 
     publish = jobs["publish-cli"]
+    assert publish["if"] == ("needs.inspect-publication.outputs.publication-required == 'true'")
     publication = _step(publish, "Publish the CLI patch with Trusted Publishing")
     assert publication["uses"] == (
         "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
@@ -238,6 +259,12 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
     assert publish["steps"][-1] == publication
 
     verify = jobs["verify-published-cli"]
+    assert verify["if"] == (
+        "always() && needs.attest-artifacts.result == 'success' && "
+        "needs.inspect-publication.result == 'success' && "
+        "(needs.publish-cli.result == 'success' || "
+        "needs.publish-cli.result == 'skipped')"
+    )
     assert verify["strategy"]["matrix"] == {"python": ["3.12", "3.13"]}
     verify_commands = _step(verify, "Verify public CLI bytes and clean installation")["run"]
     for fragment in (
@@ -249,6 +276,40 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
         'metadata.version(distribution) == "0.1.0"',
     ):
         assert fragment in verify_commands
+
+
+@pytest.mark.ac("AC-F11-170")
+def test_release_recovery_proves_exact_public_bytes_and_prior_oidc_authority() -> None:
+    """REQ-F11-170: an accepted patch resumes without acquiring upload authority again."""
+    workflow = _workflow()
+    inspection = workflow["jobs"]["inspect-publication"]
+    commands = "\n".join(
+        step.get("run", "") for step in inspection["steps"] if isinstance(step, dict)
+    )
+    for fragment in (
+        "https://pypi.org/pypi/attest-cli/0.1.1/json",
+        "scripts/verify_published_release.py",
+        "publication_required=false",
+        "publication_required=true",
+        "an existing patch requires its prior run ID",
+        "prior run ID supplied for an absent patch",
+        "actions/runs/${PRIOR_PUBLICATION_RUN_ID}",
+        'git merge-base --is-ancestor "${prior_sha}" "${GITHUB_SHA}"',
+        '.name == "publish-cli" and .conclusion == "success"',
+        '"authentication": "oidc-trusted-publishing"',
+        '"environment": "pypi-attest-cli"',
+        "prior Trusted Publishing evidence mismatch",
+    ):
+        assert fragment in commands
+
+    retrieval = _step(inspection, "Retrieve the prior Trusted Publishing evidence")
+    assert retrieval["if"] == "steps.inspect.outputs.publication-required == 'false'"
+    assert retrieval["with"] == {
+        "name": "trusted-publisher-evidence-attest-cli-v0.1.1",
+        "path": "prior-trusted-publisher",
+        "run-id": "${{ inputs.prior_publication_run_id }}",
+        "github-token": "${{ github.token }}",
+    }
 
 
 @pytest.mark.ac("AC-F11-170")
@@ -523,10 +584,9 @@ def _published_fixture(root: Path) -> tuple[Path, Path]:
             )
         document = {
             "info": {"name": distribution, "version": "0.1.0"},
-            "releases": {"0.1.0": urls},
             "urls": urls,
         }
-        endpoint = index / distribution
+        endpoint = index / distribution / "0.1.0"
         endpoint.mkdir(parents=True)
         (endpoint / "json").write_text(json.dumps(document), encoding="utf-8")
     return artifacts, root / "index"
@@ -568,7 +628,7 @@ def _verify_published(
 @pytest.mark.ac("AC-F11-170")
 def test_published_release_verifier_accepts_exact_cli_patch(tmp_path: Path) -> None:
     artifacts = tmp_path / "release-assets"
-    index = tmp_path / "index" / "pypi" / "attest-cli"
+    index = tmp_path / "index" / "pypi" / "attest-cli" / "0.1.1"
     public_files = tmp_path / "public-files"
     artifacts.mkdir()
     index.mkdir(parents=True)
@@ -596,7 +656,6 @@ def test_published_release_verifier_accepts_exact_cli_patch(tmp_path: Path) -> N
         json.dumps(
             {
                 "info": {"name": "attest-cli", "version": "0.1.1"},
-                "releases": {"0.1.1": records},
                 "urls": records,
             }
         ),
@@ -675,10 +734,9 @@ def test_published_release_verifier_rejects_invalid_bootstrap_subset(
 @pytest.mark.ac("AC-F11-140")
 def test_published_release_verifier_rejects_a_public_hash_mismatch(tmp_path: Path) -> None:
     artifacts, index = _published_fixture(tmp_path)
-    document_path = index / "pypi/attest-cli/json"
+    document_path = index / "pypi/attest-cli/0.1.0/json"
     document = json.loads(document_path.read_text(encoding="utf-8"))
     document["urls"][0]["digests"]["sha256"] = "0" * 64
-    document["releases"]["0.1.0"][0]["digests"]["sha256"] = "0" * 64
     document_path.write_text(json.dumps(document), encoding="utf-8")
     result = _verify_published(artifacts, index)
     assert result.returncode == 1
@@ -688,7 +746,7 @@ def test_published_release_verifier_rejects_a_public_hash_mismatch(tmp_path: Pat
 @pytest.mark.ac("AC-F11-170")
 def test_published_release_verifier_rejects_tampered_downloaded_bytes(tmp_path: Path) -> None:
     artifacts, index = _published_fixture(tmp_path)
-    document = json.loads((index / "pypi/attest-cli/json").read_text(encoding="utf-8"))
+    document = json.loads((index / "pypi/attest-cli/0.1.0/json").read_text(encoding="utf-8"))
     public_file = Path(document["urls"][0]["url"].removeprefix("file://"))
     public_file.write_bytes(b"tampered")
 

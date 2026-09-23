@@ -2530,6 +2530,64 @@ as read on 2026-09-23.
 
 ---
 
+## ADR-050 — Verify and resume exact PyPI publications without re-uploading
+
+**Status:** Accepted · **Date:** 2026-09-23 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `F-11` · **Amends:** `ADR-046`, `ADR-049`
+
+**Context.** Protected release run `35847307513` uploaded both `attest-cli==0.1.1` files through
+Trusted Publishing and received `200 OK` for each. Its immediate verification then read PyPI's
+project-level `/pypi/attest-cli/json` response, which still described `0.1.0` at serial
+`41342355`, and failed before dogfood, tags, or a GitHub Release. At the same time, the
+release-specific `/pypi/attest-cli/0.1.1/json` response at serial `41364773` exposed both new files
+with the exact reviewed SHA-256 digests. PyPI documents that its APIs are CDN cached and that the
+release-specific endpoint returns metadata for the requested immutable version without the
+project endpoint's cross-version `releases` field. The verifier retried transport and not-found
+errors, but it did not retry a stale metadata mismatch after the first successful response.
+
+**Decision.** Public release verification reads each distribution from
+`/pypi/<project>/<version>/json`, requires that response to omit the project-level `releases`
+field, and validates the requested name, version, exact two-file set, package types, yank state,
+sizes, SHA-256 digests, and downloaded bytes. The whole fetch-and-validation transaction is
+retried so a partially converged CDN response cannot bypass or prematurely fail the gate. The
+separate project endpoint remains used only to prove that `attest-export` does not exist.
+
+Before acquiring PyPI publication authority, the protected workflow now compares a fresh,
+deterministic build with the release-specific public record. An absent version follows the normal
+reviewed Trusted Publishing path with `skip-existing: false`. An exact existing version skips the
+publisher entirely and requires an explicit prior release-run ID. The workflow validates that run
+belongs to this repository, used `release.yml` on `main`, is an ancestor of the recovery commit,
+and contains a successful `publish-cli` job; it then imports and validates the retained OIDC
+publisher evidence. Any public file, metadata, run, or evidence mismatch fails closed. Public
+verification on Python 3.12 and 3.13, production dogfood, immutable release creation, and tag
+creation remain downstream of the recovered evidence path.
+
+**Rationale.** A version-specific record is the authoritative bounded observation for an immutable
+release and avoids dependence on the project endpoint's independently cached latest-version view.
+Rebuilding and comparing every byte proves that recovery continues the same publication rather
+than accepting an unrelated artifact. Skipping the OIDC publisher job when the exact files already
+exist prevents duplicate-upload ambiguity while preserving the original authority record.
+
+**Rejected alternatives.** Retrying the failed jobs unchanged could wait indefinitely on a stale
+project-level response and leaves the defect in future releases. Setting the publisher action's
+`skip-existing` flag would trust filenames without independently proving bytes or provenance.
+Deleting, yanking, or replacing the accepted files would destroy an accurate immutable public
+record. Creating tags manually would bypass the release's public verification and self-dogfood
+gates. Treating every successful HTTP response as current would repeat the original failure.
+
+**Consequences.** A recovery dispatch for `0.1.1` must supply run ID `35847307513`; a normal first
+publication must leave that input empty. The immutable GitHub Release retains both the original
+Trusted Publishing record and the recovery inspection evidence. The recovery commit may differ
+from the initial publication commit only when its fresh package build reproduces the accepted
+wheel and source archive exactly. No recovery path can upload an existing version, and `v1`
+remains unmoved until the replacement public proof required by ADR-049 succeeds.
+
+The API behavior was checked against PyPI's
+[JSON API](https://docs.pypi.org/api/json/) and
+[API caching policy](https://docs.pypi.org/api/#caching), as read on 2026-09-23.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

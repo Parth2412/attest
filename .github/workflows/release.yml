@@ -2,6 +2,11 @@ name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      prior_publication_run_id:
+        description: Prior release run that published the exact PyPI artifacts
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -114,13 +119,17 @@ jobs:
           ' patch-preflight-evidence/first-release.json > /dev/null
 
           curl --fail --silent --show-error \
-            https://pypi.org/pypi/attest-cli/json \
+            https://pypi.org/pypi/attest-cli/0.1.0/json \
             > patch-preflight-evidence/attest-cli-pypi.json
           jq -e '
             .info.name == "attest-cli" and
             .info.version == "0.1.0" and
-            (.releases | keys) == ["0.1.0"] and
-            (.releases | keys | index("0.1.1") | not)
+            ([.urls[].filename] | sort) == (
+              [
+                "attest_cli-0.1.0-py3-none-any.whl",
+                "attest_cli-0.1.0.tar.gz"
+              ] | sort
+            )
           ' patch-preflight-evidence/attest-cli-pypi.json > /dev/null
 
           uv run --no-project python - <<'PY'
@@ -336,8 +345,175 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  inspect-publication:
+    needs: [build-cli, smoke-cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      publication-required: ${{ steps.inspect.outputs.publication-required }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: cli-distributions-v0.1.1
+          path: dist
+      - name: Inspect the exact public CLI patch
+        id: inspect
+        env:
+          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publication-state-evidence
+          status="$(curl \
+            --silent \
+            --show-error \
+            --output publication-state-evidence/attest-cli-0.1.1.json \
+            --write-out '%{http_code}' \
+            https://pypi.org/pypi/attest-cli/0.1.1/json)"
+          case "${status}" in
+            200)
+              if ! [[ "${PRIOR_PUBLICATION_RUN_ID}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "publication inspection: an existing patch requires its prior run ID" >&2
+                exit 1
+              fi
+              uv run --no-project python scripts/verify_published_release.py \
+                dist \
+                --manifest release/patches/0.1.1.toml \
+                --version "${PRODUCT_VERSION}" \
+                | tee publication-state-evidence/existing-publication-verification.txt
+              publication_required=false
+              publication_state=existing-exact
+              ;;
+            404)
+              if test -n "${PRIOR_PUBLICATION_RUN_ID}"; then
+                echo "publication inspection: prior run ID supplied for an absent patch" >&2
+                exit 1
+              fi
+              publication_required=true
+              publication_state=absent
+              ;;
+            *)
+              echo "publication inspection: PyPI returned HTTP ${status}" >&2
+              exit 1
+              ;;
+          esac
+          sha256sum dist/* | LC_ALL=C sort --key=2 \
+            > publication-state-evidence/rebuilt-cli-sha256.txt
+          export publication_required publication_state
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schemaVersion": 1,
+              "distribution": "attest-cli",
+              "version": os.environ["PRODUCT_VERSION"],
+              "state": os.environ["publication_state"],
+              "publicationRequired": os.environ["publication_required"] == "true",
+              "priorPublicationRunId": os.environ["PRIOR_PUBLICATION_RUN_ID"] or None,
+              "inspectionCommit": os.environ["GITHUB_SHA"],
+              "inspectionRunId": int(os.environ["GITHUB_RUN_ID"]),
+          }
+          Path("publication-state-evidence/publication-state.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          echo "publication-required=${publication_required}" >> "${GITHUB_OUTPUT}"
+      - name: Validate the prior Trusted Publishing run
+        if: steps.inspect.outputs.publication-required == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_PUBLICATION_RUN_ID}" \
+            > publication-state-evidence/prior-publication-run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_PUBLICATION_RUN_ID}/jobs?per_page=100" \
+            > publication-state-evidence/prior-publication-jobs.json
+          jq -e --arg repository "${GITHUB_REPOSITORY}" '
+            .repository.full_name == $repository and
+            .path == ".github/workflows/release.yml" and
+            .event == "workflow_dispatch" and
+            .head_branch == "main" and
+            (.conclusion == "success" or .conclusion == "failure")
+          ' publication-state-evidence/prior-publication-run.json > /dev/null
+          prior_sha="$(jq -er .head_sha publication-state-evidence/prior-publication-run.json)"
+          git merge-base --is-ancestor "${prior_sha}" "${GITHUB_SHA}"
+          jq -e '
+            any(.jobs[]; .name == "publish-cli" and .conclusion == "success")
+          ' publication-state-evidence/prior-publication-jobs.json > /dev/null
+      - name: Retrieve the prior Trusted Publishing evidence
+        if: steps.inspect.outputs.publication-required == 'false'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: trusted-publisher-evidence-attest-cli-v0.1.1
+          path: prior-trusted-publisher
+          run-id: ${{ inputs.prior_publication_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate and retain the prior Trusted Publishing evidence
+        if: steps.inspect.outputs.publication-required == 'false'
+        env:
+          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          source = Path("prior-trusted-publisher/attest-cli.json")
+          evidence = json.loads(source.read_text(encoding="utf-8"))
+          run = json.loads(
+              Path("publication-state-evidence/prior-publication-run.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          expected = {
+              "authentication": "oidc-trusted-publishing",
+              "distribution": "attest-cli",
+              "environment": "pypi-attest-cli",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": run["head_sha"],
+              "releaseRef": "refs/heads/main",
+              "releaseRunId": int(os.environ["PRIOR_PUBLICATION_RUN_ID"]),
+          }
+          for key, value in expected.items():
+              if evidence.get(key) != value:
+                  raise SystemExit(f"prior Trusted Publishing evidence mismatch: {key}")
+          if evidence.get("workflowRef") != (
+              f"{os.environ['GITHUB_REPOSITORY']}/.github/workflows/"
+              "release.yml@refs/heads/main"
+          ):
+              raise SystemExit("prior Trusted Publishing workflow identity mismatch")
+          shutil.copyfile(
+              source,
+              "publication-state-evidence/prior-trusted-publisher-attest-cli.json",
+          )
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publication-state-evidence-v0.1.1
+          path: publication-state-evidence
+          if-no-files-found: error
+          retention-days: 90
+
   publish-cli:
-    needs: [attest-artifacts, smoke-cli]
+    needs: [attest-artifacts, inspect-publication, smoke-cli]
+    if: needs.inspect-publication.outputs.publication-required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:
@@ -399,7 +575,11 @@ jobs:
           attestations: true
 
   verify-published-cli:
-    needs: publish-cli
+    needs: [attest-artifacts, inspect-publication, publish-cli]
+    if: >-
+      always() && needs.attest-artifacts.result == 'success' &&
+      needs.inspect-publication.result == 'success' &&
+      (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
