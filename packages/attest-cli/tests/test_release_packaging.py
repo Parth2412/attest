@@ -14,6 +14,7 @@ import pytest
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
 PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
+PATCH_LIBRARY_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-libraries.toml"
 FIRST_RELEASE_VERSION: Final[str] = "0.1.0"
 PATCH_VERSION: Final[str] = "0.1.1"
 PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
@@ -78,6 +79,12 @@ def test_release_package_set_and_metadata_are_closed() -> None:
                 "0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3"
             ),
         },
+    }
+    assert _toml(PATCH_LIBRARY_MANIFEST) == {
+        "release": {
+            "version": FIRST_RELEASE_VERSION,
+            "distributions": list(PUBLISHED_PACKAGES[:-1]),
+        }
     }
 
     root_license = (REPOSITORY_ROOT / "LICENSE").read_bytes()

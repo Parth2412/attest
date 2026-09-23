@@ -15,6 +15,7 @@ import yaml  # type: ignore[import-untyped]  # PyYAML lacks typing metadata.
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
+CI_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/ci.yml"
 PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
 RELEASE_CONFIG: Final[Path] = REPOSITORY_ROOT / "release/attest-release-config.yaml"
 RELEASE_POLICY: Final[Path] = REPOSITORY_ROOT / "release/attest-release-policy.yaml"
@@ -38,6 +39,12 @@ OIDC_ISSUER: Final[str] = "https://token.actions.githubusercontent.com"
 
 def _workflow() -> dict[Any, Any]:
     workflow = yaml.safe_load(RELEASE_WORKFLOW.read_text(encoding="utf-8"))
+    assert isinstance(workflow, dict)
+    return workflow
+
+
+def _ci_workflow() -> dict[Any, Any]:
+    workflow = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
     assert isinstance(workflow, dict)
     return workflow
 
@@ -242,6 +249,24 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
         'metadata.version(distribution) == "0.1.0"',
     ):
         assert fragment in verify_commands
+
+
+@pytest.mark.ac("AC-F11-170")
+def test_ci_validates_the_split_library_and_cli_versions() -> None:
+    """REQ-F11-170: CI validates both immutable libraries and the corrected CLI."""
+    package_job = _ci_workflow()["jobs"]["package-contract"]
+    build_commands = _step(package_job, "Build and validate the exact package artifacts")["run"]
+    for fragment in (
+        "build/library-dist",
+        "--manifest release/patches/0.1.1-libraries.toml",
+        "build/cli-dist",
+        "--manifest release/patches/0.1.1.toml",
+    ):
+        assert fragment in build_commands
+    smoke_step = _step(package_job, "Install and smoke-test the wheels in a clean environment")
+    install_commands = smoke_step["run"]
+    assert "build/library-dist/*.whl" in install_commands
+    assert "build/cli-dist/*.whl" in install_commands
 
 
 @pytest.mark.ac("AC-F11-170")
