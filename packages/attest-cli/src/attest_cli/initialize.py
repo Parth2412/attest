@@ -253,7 +253,7 @@ def initialize(
     checkout = _validate_action_ref(checkout_ref)
     action = _validate_action_ref(action_ref)
     identity = (
-        f"https://github.com/{repository_name}/.github/workflows/attest.yml@refs/heads/{branch}"
+        f"https://github.com/{repository_name}/.github/workflows/attest.yml@refs/pull/*/merge"
     )
     targets = (
         root / ".attest" / "config.yaml",

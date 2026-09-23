@@ -10,10 +10,11 @@ import pytest
 from attest_cli.errors import CliError, cli_error
 from attest_cli.initialize import initialize
 from attest_cli.safe_io import write_atomic
+from attest_core import identity_pattern_matches
 
 CHECKOUT = "actions/checkout@" + "1" * 40
 ACTION = "parth2412/attest/action@" + "2" * 40
-IDENTITY = "https://github.com/example/repo/.github/workflows/attest.yml@refs/heads/main"
+IDENTITY = "https://github.com/example/repo/.github/workflows/attest.yml@refs/pull/*/merge"
 
 EXPECTED_CONFIG = f"""version: 1
 repository:
@@ -108,6 +109,35 @@ def test_init_writes_the_three_exact_golden_files(tmp_path: Path) -> None:
     assert (tmp_path / ".attest" / "policy.yaml").read_bytes() == EXPECTED_POLICY
     assert (tmp_path / ".github" / "workflows" / "attest.yml").read_bytes() == EXPECTED_WORKFLOW
     assert b"pull_request_target" not in EXPECTED_WORKFLOW
+
+
+@pytest.mark.ac("AC-F10-190")
+@pytest.mark.ac("AC-F11-180")
+def test_init_identity_matches_only_the_generated_pull_request_workflow(tmp_path: Path) -> None:
+    result = initialize(
+        repository=tmp_path,
+        github_repository="example/repo",
+        default_branch="main",
+        checkout_ref=CHECKOUT,
+        action_ref=ACTION,
+    )
+
+    assert identity_pattern_matches(
+        result.workflow_identity,
+        "https://github.com/example/repo/.github/workflows/attest.yml@refs/pull/2/merge",
+    )
+    assert not identity_pattern_matches(
+        result.workflow_identity,
+        "https://github.com/example/repo/.github/workflows/attest.yml@refs/heads/main",
+    )
+    assert not identity_pattern_matches(
+        result.workflow_identity,
+        "https://github.com/example/other/.github/workflows/attest.yml@refs/pull/2/merge",
+    )
+    assert not identity_pattern_matches(
+        result.workflow_identity,
+        "https://github.com/example/repo/.github/workflows/other.yml@refs/pull/2/merge",
+    )
 
 
 @pytest.mark.ac("AC-F10-190")

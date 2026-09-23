@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Corrected generated pull-request workflow identities to the bounded
+  `refs/pull/*/merge` certificate ref, preserved known verification failures at the Action
+  boundary without emitting unverified facts, and prepared the `attest-cli 0.1.2` / Action
+  `v1.0.2` candidate with a newly reviewed runtime image.
 - Hardened patch publication recovery with version-specific PyPI metadata, full metadata/hash/byte
   retries, deterministic exact-publication detection, validated retention of the original OIDC
   publishing evidence without duplicate uploads, and explicit fail-closed continuation across the

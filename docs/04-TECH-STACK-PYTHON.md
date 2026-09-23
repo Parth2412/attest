@@ -319,9 +319,9 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | `0.1.0` for core, collect, sign, store, and policy; CLI `0.1.1` after the Action token-boundary correction | Python-native teams; CLI retains exact internal `0.1.0` pins, no export package until F-12 |
-| GHCR | `ghcr.io/parth2412/attest:0.1.0` multi-platform slim container plus immutable digest | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.1`, reviewed moving `v1`; `v1.0.0` remains immutable and documented as defective | Most users — hides Python entirely; generated workflows pin a commit |
+| PyPI | `0.1.0` for core, collect, sign, store, and policy; CLI `0.1.2` after the token-boundary and pull-request-identity corrections | Python-native teams; CLI retains exact internal `0.1.0` pins, no export package until F-12 |
+| GHCR | `ghcr.io/parth2412/attest:0.1.2` reviewed multi-platform slim container plus immutable digest; `0.1.0` remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.2`, reviewed moving `v1`; `v1.0.0` and `v1.0.1` remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The candidate build records and pins the verified `python:3.12-slim` base digest; release builds
@@ -331,8 +331,9 @@ artifact attestation. PyPI publication uses per-package Trusted Publishing envir
 and publish jobs separated and no long-lived package token. Because PyPI permits only three pending
 publishers per account, the first release publishes two strictly ordered three-package waves with
 public hash verification and a protected registration checkpoint between them. The first-release
-procedure is governed by `ADR-046`, `ADR-047`, and `ADR-048`. The bounded CLI/Action correction,
-unchanged image digest, and independent patch versions are governed by `ADR-049`.
+procedure is governed by `ADR-046`, `ADR-047`, and `ADR-048`. The token-boundary correction and
+its unchanged image digest are governed by `ADR-049`; the pull-request identity/runtime
+correction, new reviewed image, and independent patch versions are governed by `ADR-051`.
 
 ---
 
