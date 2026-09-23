@@ -2461,8 +2461,8 @@ as read on 2026-09-23.
 
 ## ADR-049 — Pass the automatic token at the caller step boundary
 
-**Status:** Accepted · **Date:** 2026-09-23 · **Affects:** `GLOSS-001`, `TECH-001`, `BRD-F10`,
-`BRD-F11`, `F-10`, `F-11` · **Amends:** `ADR-045`, `ADR-046`
+**Status:** Accepted · **Date:** 2026-09-23 · **Affects:** `GLOSS-001`, `TECH-001`, `QA-001`,
+`BRD-F10`, `BRD-F11`, `F-10`, `F-11` · **Amends:** `ADR-045`, `ADR-046`
 
 **Context.** The first public release completed, but its fresh-repository proof exposed an Action
 metadata defect before the container could start. Run
@@ -2494,6 +2494,14 @@ internal pins, retains hashes and publication evidence, and verifies the public 
 byte. The immutable `v0.1.1` and `v1.0.1` tags are protected before creation. No workflow may
 overwrite a PyPI file, immutable tag, or release record.
 
+Because the correction changes CLI package metadata included in the candidate container context,
+the reviewed `dev` squash commit uses GitHub's documented `[skip ci]` directive only after every
+required pull-request check succeeds and its resulting tree is proved identical to the checked
+head. This bounded integration control prevents the push-only `action-candidate` workflow from
+rebuilding or publishing an image that this decision requires to remain unchanged. The subsequent
+`main` release commit contains no skip directive and must pass the complete CI suite at its exact
+commit SHA before the release workflow can run.
+
 **Rationale.** Step-level `env` is the narrow supported boundary where the caller can evaluate the
 automatic token and the container can consume the existing `GITHUB_TOKEN` runtime contract. It
 preserves zero-secret onboarding and the closed public Action input set. Independent patch versions
@@ -2516,7 +2524,8 @@ blocked, denied, approved, malicious-repository, and fork state before F-11 can 
 The evaluation boundary was checked against GitHub's
 [contexts reference](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context),
 [automatic token documentation](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token),
-and [Action metadata syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax),
+[Action metadata syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax),
+and [workflow-skip documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs),
 as read on 2026-09-23.
 
 ---
