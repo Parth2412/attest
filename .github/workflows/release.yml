@@ -750,7 +750,7 @@ jobs:
           name: attest-release-evidence-v0.1.0
           path: build/release-evidence
           if-no-files-found: error
-          include-hidden-files: true
+          include-hidden-files: false
           retention-days: 90
 
   publish-release:
@@ -792,6 +792,9 @@ jobs:
           root = Path("final-release-assets")
           for source_root in (Path("release-assets"), Path("retained-evidence")):
               for path in sorted(source_root.rglob("*"), key=lambda item: item.as_posix()):
+                  relative = path.relative_to(source_root)
+                  if any(part.startswith(".") for part in relative.parts):
+                      raise SystemExit(f"hidden retained evidence is forbidden: {path}")
                   if path.is_dir() and not path.is_symlink():
                       continue
                   if not path.is_file() or path.is_symlink():

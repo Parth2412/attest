@@ -408,6 +408,22 @@ def test_release_attests_artifacts_and_dogfoods_production_identity() -> None:
     ):
         assert fragment in dogfood_commands
 
+    dogfood_evidence = _step(jobs["dogfood"], "Retain attest dogfood evidence")
+    assert dogfood_evidence["with"] == {
+        "name": "attest-release-evidence-v0.1.0",
+        "path": "build/release-evidence",
+        "if-no-files-found": "error",
+        "include-hidden-files": False,
+        "retention-days": 90,
+    }
+
+    retained_index = _step(
+        jobs["publish-release"],
+        "Assemble the retained release evidence index",
+    )["run"]
+    assert 'any(part.startswith(".") for part in relative.parts)' in retained_index
+    assert "hidden retained evidence is forbidden" in retained_index
+
     config = yaml.safe_load(RELEASE_CONFIG.read_text(encoding="utf-8"))
     assert config == {
         "version": 1,
