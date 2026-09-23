@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Corrected the Docker Action token evaluation boundary, added exact caller-step token handoff,
+  and prepared the bounded `attest-cli 0.1.1` / Action `v1.0.1` release without rebuilding the
+  five `0.1.0` libraries or the reviewed multi-platform image.
 - Added a two-wave, approval-gated PyPI bootstrap that respects the three-pending-publisher limit,
   verifies the first public wave byte-for-byte, and blocks final image and release publication
   until all six OIDC-only package jobs succeed.

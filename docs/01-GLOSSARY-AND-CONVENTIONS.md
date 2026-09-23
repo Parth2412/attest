@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `GLOSS-001` |
-| Version | `1.0.7` |
+| Version | `1.0.8` |
 | Status | **NORMATIVE** for terminology and identifiers |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-09-23 |
 
 > **Why this document exists.** Ambiguous vocabulary is the single largest source of drift in
 > AI-assisted implementation. If "attestation", "claim", and "record" are used loosely, an
@@ -133,8 +133,8 @@ are marked `DEPRECATED`, never reused.
 | Artefact | Scheme | Rule |
 |---|---|---|
 | `attest` CLI | SemVer | Breaking CLI or exit-code change = major |
-| Python distributions and container | SemVer | Released together for v0.1; first public version is `0.1.0` |
-| GitHub Action | SemVer tags plus moving major | Independent of product version; immutable `v1.0.0` and reviewed `v1` for the first release (`ADR-046`) |
+| Python distributions and container | SemVer | First public family is `0.1.0`; a changed distribution **MAY** receive an independent patch while its exact compatible internal pins remain unchanged (`ADR-049`) |
+| GitHub Action | SemVer tags plus moving major | Independent of product version; immutable patch tags and reviewed `v1` moving major (`ADR-046`, `ADR-049`) |
 | Predicate (`SPEC-001`) | `vMAJOR.MINOR` in the type URI | Any field removal or semantic change = major, new URI |
 | Digest algorithm | `CSD-N` | Any change to the algorithm = new N. Old N remains verifiable forever. |
 | Policy schema | `version:` integer field | Increment on breaking change; old versions still evaluated |

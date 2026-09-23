@@ -78,6 +78,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: {ACTION}
+        env:
+          GITHUB_TOKEN: ${{{{ github.token }}}}
         with:
           mode: run
           policy: .attest/policy.yaml

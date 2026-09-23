@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import stat
 import sys
 import time
@@ -21,6 +22,7 @@ from typing import Final, NoReturn
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
 PYPI_BASE_URL: Final[str] = "https://pypi.org"
+PYPI_ARTIFACT_HOST: Final[str] = "files.pythonhosted.org"
 FORBIDDEN_DISTRIBUTION: Final[str] = "attest-export"
 WHEEL_TAG: Final[str] = "py3-none-any"
 MAX_RESPONSE_BYTES: Final[int] = 8 * 1024 * 1024
@@ -38,9 +40,9 @@ def _normalized(value: str) -> str:
     return value.lower().replace("_", "-").replace(".", "-")
 
 
-def _release_contract() -> tuple[str, tuple[str, ...]]:
+def _release_contract(manifest: Path) -> tuple[str, tuple[str, ...]]:
     try:
-        with RELEASE_MANIFEST.open("rb") as stream:
+        with manifest.open("rb") as stream:
             document = tomllib.load(stream)
         release = document["release"]
         version = release["version"]
@@ -51,12 +53,16 @@ def _release_contract() -> tuple[str, tuple[str, ...]]:
         not isinstance(version, str)
         or not version
         or not isinstance(distributions, list)
-        or len(distributions) != 6
+        or not distributions
         or not all(isinstance(item, str) and item for item in distributions)
         or len(distributions) != len(set(distributions))
         or FORBIDDEN_DISTRIBUTION in distributions
     ):
-        _fail("release package manifest is not the closed six-package set")
+        _fail("release package manifest is not a closed package set")
+    if any(
+        re.fullmatch(r"attest-[a-z0-9]+(?:-[a-z0-9]+)*", item) is None for item in distributions
+    ):
+        _fail("release package manifest contains an invalid distribution name")
     return version, tuple(distributions)
 
 
@@ -126,6 +132,70 @@ def _endpoint(base_url: str, distribution: str) -> str:
     return f"{base_url}/pypi/{urllib.parse.quote(distribution, safe='')}/json"
 
 
+def _validated_artifact_url(value: object, base_url: str) -> str:
+    if not isinstance(value, str) or not value:
+        _fail("public artifact URL is invalid")
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        base = urllib.parse.urlsplit(base_url)
+        port = parsed.port
+    except ValueError as error:
+        raise PublishedReleaseError("public artifact URL is invalid") from error
+    if (
+        parsed.query
+        or parsed.fragment
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        _fail("public artifact URL is invalid")
+    if base.scheme == "file":
+        if parsed.scheme != "file" or parsed.netloc or not parsed.path.startswith("/"):
+            _fail("fixture artifact URL is invalid")
+    elif (
+        parsed.scheme != "https"
+        or parsed.hostname != PYPI_ARTIFACT_HOST
+        or port not in (None, 443)
+        or not parsed.path.startswith("/packages/")
+    ):
+        _fail("public artifact URL is outside the package index artifact host")
+    return value
+
+
+def _read_public_artifact(url: object, base_url: str) -> bytes:
+    validated = _validated_artifact_url(url, base_url)
+    parsed = urllib.parse.urlsplit(validated)
+    if parsed.scheme == "file":
+        path = Path(urllib.request.url2pathname(parsed.path))
+        try:
+            metadata = path.lstat()
+            raw = path.read_bytes()
+        except OSError as error:
+            raise PublishedReleaseError("public artifact fixture cannot be read") from error
+        if path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
+            _fail("public artifact fixture must be a regular file")
+    else:
+        request = urllib.request.Request(  # noqa: S310  # Strict HTTPS host validated above.
+            validated,
+            headers={
+                "Accept": "application/octet-stream",
+                "User-Agent": "attest-release-verifier/0.1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310  # nosec B310
+                _validated_artifact_url(response.geturl(), base_url)
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
+        except urllib.error.HTTPError as error:
+            raise PublishedReleaseError(
+                f"public artifact download returned HTTP {error.code}"
+            ) from error
+        except (OSError, urllib.error.URLError) as error:
+            raise PublishedReleaseError("public artifact download failed") from error
+    if not raw or len(raw) > MAX_RESPONSE_BYTES:
+        _fail("public artifact download has an invalid size")
+    return raw
+
+
 def _read_endpoint(url: str) -> dict[str, object] | None:
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme == "file":
@@ -180,6 +250,8 @@ def _validate_distribution(
     document: dict[str, object],
     expected_types: dict[str, str],
     local_hashes: dict[str, str],
+    artifact_directory: Path,
+    base_url: str,
 ) -> None:
     info = document.get("info")
     if (
@@ -200,13 +272,18 @@ def _validate_distribution(
         if not isinstance(filename, str):
             _fail(f"public artifact name is invalid for {distribution}")
         digests = record.get("digests")
+        local_path = artifact_directory / filename
+        local_size = local_path.stat().st_size
         if (
             record.get("packagetype") != expected_types[filename]
             or record.get("yanked") is not False
+            or record.get("size") != local_size
             or not isinstance(digests, dict)
             or digests.get("sha256") != local_hashes[filename]
         ):
             _fail(f"public artifact hash mismatch for {filename}")
+        if _read_public_artifact(record.get("url"), base_url) != local_path.read_bytes():
+            _fail(f"downloaded public artifact mismatch for {filename}")
 
 
 def _load_public_documents(
@@ -238,6 +315,7 @@ def _load_public_documents(
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifact_directory", type=Path)
+    parser.add_argument("--manifest", type=Path, default=RELEASE_MANIFEST)
     parser.add_argument("--version", required=True)
     parser.add_argument(
         "--distribution",
@@ -258,7 +336,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write("published release error: retry settings are invalid\n")
         return 1
     try:
-        version, distributions = _release_contract()
+        version, distributions = _release_contract(arguments.manifest)
         if arguments.version != version:
             _fail("requested version differs from the release package manifest")
         requested_distributions = tuple(arguments.distribution)
@@ -286,6 +364,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 documents[distribution],
                 expected_types,
                 local_hashes,
+                arguments.artifact_directory,
+                base_url,
             )
         if _read_endpoint(_endpoint(base_url, FORBIDDEN_DISTRIBUTION)) is not None:
             _fail("attest-export must remain unpublished")
