@@ -302,7 +302,6 @@ def test_public_action_manifest_pins_the_reviewed_candidate() -> None:
         "runs": {
             "using": "docker",
             "image": REVIEWED_IMAGE,
-            "env": {"GITHUB_TOKEN": "${{ github.token }}"},
             "args": [
                 "--mode",
                 "${{ inputs.mode }}",
@@ -317,6 +316,7 @@ def test_public_action_manifest_pins_the_reviewed_candidate() -> None:
             ],
         },
     }
+    assert "github." not in ACTION_MANIFEST.read_text(encoding="utf-8")
     assert re.fullmatch(r"docker://ghcr\.io/parth2412/attest@sha256:[0-9a-f]{64}", REVIEWED_IMAGE)
 
 

@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-cli` |
 | Depends on | `F-01`…`F-09`, including `REQ-F04-150` and `REQ-F08-170` |
-| Status | Done · governed by `ADR-045` |
+| Status | Done · governed by `ADR-045`, amended by `ADR-049` |
 
 ---
 
@@ -241,7 +241,9 @@ exit `0`.
 `init` creates `.attest/config.yaml`, `.attest/policy.yaml`, and
 `.github/workflows/attest.yml`. The workflow triggers only on `pull_request`, never
 `pull_request_target`; declares only `contents: write`, `pull-requests: read`, `checks: read`, and
-`id-token: write`; and invokes only the exact caller-supplied full-SHA checkout and attest Actions.
+`id-token: write`; passes the automatic `${{ github.token }}` to the attest step only as the
+`GITHUB_TOKEN` step environment variable; and invokes only the exact caller-supplied full-SHA
+checkout and attest Actions. The token is not a public Action input or output.
 Its identity is exactly
 `https://github.com/<owner>/<repo>/.github/workflows/attest.yml@refs/heads/<default-branch>`, matching
 `GITHUB_WORKFLOW_REF`. F-10 snapshots and locally integration-tests these bytes. F-11 owns the
@@ -327,6 +329,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: <action-ref>
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           mode: run
           policy: .attest/policy.yaml
