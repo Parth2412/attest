@@ -217,6 +217,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
+    assert "org.opencontainers.image.version=0.1.1-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index
