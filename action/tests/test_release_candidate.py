@@ -217,6 +217,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
+    assert "org.opencontainers.image.version=0.1.1-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index
@@ -302,7 +303,6 @@ def test_public_action_manifest_pins_the_reviewed_candidate() -> None:
         "runs": {
             "using": "docker",
             "image": REVIEWED_IMAGE,
-            "env": {"GITHUB_TOKEN": "${{ github.token }}"},
             "args": [
                 "--mode",
                 "${{ inputs.mode }}",
@@ -317,6 +317,7 @@ def test_public_action_manifest_pins_the_reviewed_candidate() -> None:
             ],
         },
     }
+    assert "github." not in ACTION_MANIFEST.read_text(encoding="utf-8")
     assert re.fullmatch(r"docker://ghcr\.io/parth2412/attest@sha256:[0-9a-f]{64}", REVIEWED_IMAGE)
 
 

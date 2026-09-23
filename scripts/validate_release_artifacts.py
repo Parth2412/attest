@@ -9,6 +9,7 @@ import base64
 import csv
 import hashlib
 import os
+import re
 import stat
 import sys
 import tarfile
@@ -55,14 +56,18 @@ def _strings(value: object, label: str) -> tuple[str, ...]:
     return strings
 
 
-def _release_contract() -> tuple[str, tuple[str, ...]]:
-    release = _table(_toml(RELEASE_MANIFEST).get("release"), "release")
+def _release_contract(manifest: Path) -> tuple[str, tuple[str, ...]]:
+    release = _table(_toml(manifest).get("release"), "release")
     version = release.get("version")
     if not isinstance(version, str) or not version:
         raise ArtifactValidationError("release.version must be a non-empty string")
     distributions = _strings(release.get("distributions"), "release.distributions")
     if not distributions:
         raise ArtifactValidationError("release.distributions must not be empty")
+    if any(
+        re.fullmatch(r"attest-[a-z0-9]+(?:-[a-z0-9]+)*", item) is None for item in distributions
+    ):
+        raise ArtifactValidationError("release.distributions contains an invalid name")
     return version, distributions
 
 
@@ -295,11 +300,15 @@ def _write_hashes(output: Path, artifacts: Sequence[Path]) -> None:
         raise ArtifactValidationError(f"cannot write {output.name}") from error
 
 
-def validate(directory: Path, hash_output: Path | None = None) -> tuple[int, int]:
+def validate(
+    directory: Path,
+    hash_output: Path | None = None,
+    manifest: Path = RELEASE_MANIFEST,
+) -> tuple[int, int]:
     """Validate exact wheel/sdist bytes and optionally write their SHA-256 manifest."""
     if not directory.is_dir():
         raise ArtifactValidationError("artifact path must be a directory")
-    version, distributions = _release_contract()
+    version, distributions = _release_contract(manifest)
     expected_names = _archive_names(version, distributions)
     try:
         actual_names = tuple(sorted(path.name for path in directory.iterdir() if path.is_file()))
@@ -329,6 +338,7 @@ def validate(directory: Path, hash_output: Path | None = None) -> tuple[int, int
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--manifest", type=Path, default=RELEASE_MANIFEST)
     parser.add_argument("--hash-output", type=Path)
     return parser
 
@@ -337,7 +347,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Validate release artifacts without emitting artifact-controlled content."""
     arguments = _parser().parse_args(argv)
     try:
-        wheels, source_distributions = validate(arguments.directory, arguments.hash_output)
+        wheels, source_distributions = validate(
+            arguments.directory,
+            hash_output=arguments.hash_output,
+            manifest=arguments.manifest,
+        )
     except ArtifactValidationError as error:
         print(f"release artifact error: {error}", file=sys.stderr)
         return 1
