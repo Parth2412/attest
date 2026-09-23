@@ -73,6 +73,14 @@ def test_release_package_set_and_metadata_are_closed() -> None:
             "version": PATCH_VERSION,
             "distributions": ["attest-cli"],
         },
+        "compatibility": {
+            "library-version": FIRST_RELEASE_VERSION,
+            "action-version": "v1.0.2",
+            "image": (
+                "ghcr.io/parth2412/attest@sha256:"
+                "50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
+            ),
+        },
     }
     assert _toml(PREVIOUS_PATCH_RELEASE_MANIFEST) == {
         "release": {

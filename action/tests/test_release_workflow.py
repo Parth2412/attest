@@ -16,7 +16,7 @@ import yaml  # type: ignore[import-untyped]  # PyYAML lacks typing metadata.
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 CI_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/ci.yml"
-PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
+PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2.toml"
 RELEASE_CONFIG: Final[Path] = REPOSITORY_ROOT / "release/attest-release-config.yaml"
 RELEASE_POLICY: Final[Path] = REPOSITORY_ROOT / "release/attest-release-policy.yaml"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
@@ -28,6 +28,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d",
+    "docker/login-action@dbcb813823bdd20940b903addbd779551569679f",
     "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
     "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
 }
@@ -91,7 +92,7 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
-        "group": "release-v0.1.1",
+        "group": "release-v0.1.2",
         "cancel-in-progress": False,
     }
 
@@ -104,6 +105,7 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "inspect-publication",
         "publish-cli",
         "verify-published-cli",
+        "promote-image",
         "dogfood",
         "publish-release",
     }
@@ -121,16 +123,22 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "inspect-publication",
         "publish-cli",
     ]
-    assert jobs["dogfood"]["needs"] == "verify-published-cli"
+    assert jobs["promote-image"]["needs"] == "verify-published-cli"
+    assert jobs["dogfood"]["needs"] == ["promote-image", "verify-published-cli"]
     assert jobs["publish-release"]["needs"] == [
         "attest-artifacts",
         "dogfood",
+        "promote-image",
         "verify-published-cli",
     ]
-    assert jobs["dogfood"]["if"] == ("always() && needs.verify-published-cli.result == 'success'")
+    assert jobs["dogfood"]["if"] == (
+        "always() && needs.promote-image.result == 'success' && "
+        "needs.verify-published-cli.result == 'success'"
+    )
     assert jobs["publish-release"]["if"] == (
         "always() && needs.attest-artifacts.result == 'success' && "
         "needs.dogfood.result == 'success' && "
+        "needs.promote-image.result == 'success' && "
         "needs.verify-published-cli.result == 'success'"
     )
 
@@ -140,7 +148,9 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     )
     assert jobs["preflight"]["permissions"] == {
         "actions": "read",
+        "attestations": "read",
         "contents": "read",
+        "packages": "read",
     }
     assert jobs["build-cli"]["permissions"] == {"contents": "read"}
     assert jobs["inspect-publication"]["permissions"] == {
@@ -154,6 +164,10 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     assert jobs["publish-cli"]["environment"] == {
         "name": "pypi-attest-cli",
         "url": "https://pypi.org/p/attest-cli",
+    }
+    assert jobs["promote-image"]["permissions"] == {
+        "contents": "read",
+        "packages": "write",
     }
     assert jobs["dogfood"]["permissions"] == {
         "actions": "read",
@@ -172,7 +186,7 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
     assert "secrets." not in rendered
     assert "pull_request_target" not in rendered
     assert "docker build " not in rendered
-    assert "imagetools create" not in rendered
+    assert rendered.count("docker buildx imagetools create") == 1
 
 
 @pytest.mark.ac("AC-F11-170")
@@ -181,14 +195,20 @@ def test_release_preflight_revalidates_the_patch_scope_and_controls() -> None:
     workflow = _workflow()
     preflight = workflow["jobs"]["preflight"]
     assert workflow["env"] == {
-        "PRODUCT_VERSION": "0.1.1",
-        "PRODUCT_TAG": "v0.1.1",
-        "ACTION_VERSION_TAG": "v1.0.1",
+        "PRODUCT_VERSION": "0.1.2",
+        "PRODUCT_TAG": "v0.1.2",
+        "ACTION_VERSION_TAG": "v1.0.2",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
+        "REVIEWED_CANDIDATE_RUN_ID": 35886884855,
+        "REVIEWED_CANDIDATE_SOURCE_SHA": "e50457c8b99aaf33b70a5df7c319430d9189d87d",
         "REVIEWED_IMAGE_DIGEST": (
-            "sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3"
+            "sha256:50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
+        ),
+        "REVIEWED_CONTEXT_DIGEST": (
+            "sha256:1000bc7cc5402e442536ba6d94630da39433b41bdfcea01ebb9b1dc1b0882944"
         ),
         "FIRST_RELEASE_SHA": "a1c59cc67bf67aba22ffca876309f855ea8663af",
+        "PRIOR_RELEASE_SHA": "9aa18c1d5af6659c4dbc79443dfda93208395dff",
     }
     commands = "\n".join(
         step.get("run", "") for step in preflight["steps"] if isinstance(step, dict)
@@ -200,16 +220,22 @@ def test_release_preflight_revalidates_the_patch_scope_and_controls() -> None:
         '"refs/tags/v1.0.0"',
         '"refs/tags/v0.1.1"',
         '"refs/tags/v1.0.1"',
+        '"refs/tags/v0.1.2"',
+        '"refs/tags/v1.0.2"',
         ".can_admins_bypass == false",
         "login: .reviewer.login",
         "actions/workflows/ci.yml/runs?branch=main&event=push",
         "releases/tags/v0.1.0",
         ".immutable == true",
-        "https://pypi.org/pypi/attest-cli/0.1.0/json",
+        "https://pypi.org/pypi/attest-cli/0.1.1/json",
         'test "$(git tag --points-at "${FIRST_RELEASE_SHA}"',
         'test "${current_image}" = "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"',
         'if grep -F "github." action/action.yml',
         "docker buildx imagetools inspect",
+        "actions/runs/${REVIEWED_CANDIDATE_RUN_ID}",
+        "scripts/validate_release_candidate.py",
+        "gh attestation verify",
+        "--source-ref refs/heads/dev",
     ):
         assert fragment in commands
 
@@ -233,7 +259,7 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
     ):
         assert f"uv build --package {distribution}" not in build_commands
     assert "scripts/validate_release_artifacts.py" in build_commands
-    assert "--manifest release/patches/0.1.1.toml" in build_commands
+    assert "--manifest release/patches/0.1.2.toml" in build_commands
     assert "sort --key=2 --output=SHA256SUMS SHA256SUMS" in build_commands
 
     smoke = jobs["smoke-cli"]
@@ -242,8 +268,8 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
         step.get("run", "") for step in smoke["steps"] if isinstance(step, dict)
     )
     for fragment in (
-        "dist/attest_cli-0.1.1-py3-none-any.whl",
-        'metadata.version("attest-cli") == "0.1.1"',
+        "dist/attest_cli-0.1.2-py3-none-any.whl",
+        'metadata.version("attest-cli") == "0.1.2"',
         'metadata.version(distribution) == "0.1.0"',
         "attest --help",
     ):
@@ -275,10 +301,10 @@ def test_release_builds_once_and_publishes_only_the_cli_patch() -> None:
     verify_commands = _step(verify, "Verify public CLI bytes and clean installation")["run"]
     for fragment in (
         "scripts/verify_published_release.py",
-        "--manifest release/patches/0.1.1.toml",
+        "--manifest release/patches/0.1.2.toml",
         '--version "${PRODUCT_VERSION}"',
         '"attest-cli==${PRODUCT_VERSION}"',
-        'metadata.version("attest-cli") == "0.1.1"',
+        'metadata.version("attest-cli") == "0.1.2"',
         'metadata.version(distribution) == "0.1.0"',
     ):
         assert fragment in verify_commands
@@ -293,7 +319,7 @@ def test_release_recovery_proves_exact_public_bytes_and_prior_oidc_authority() -
         step.get("run", "") for step in inspection["steps"] if isinstance(step, dict)
     )
     for fragment in (
-        "https://pypi.org/pypi/attest-cli/0.1.1/json",
+        "https://pypi.org/pypi/attest-cli/0.1.2/json",
         "scripts/verify_published_release.py",
         "publication_required=false",
         "publication_required=true",
@@ -311,7 +337,7 @@ def test_release_recovery_proves_exact_public_bytes_and_prior_oidc_authority() -
     retrieval = _step(inspection, "Retrieve the prior Trusted Publishing evidence")
     assert retrieval["if"] == "steps.inspect.outputs.publication-required == 'false'"
     assert retrieval["with"] == {
-        "name": "trusted-publisher-evidence-attest-cli-v0.1.1",
+        "name": "trusted-publisher-evidence-attest-cli-v0.1.2",
         "path": "prior-trusted-publisher",
         "run-id": "${{ inputs.prior_publication_run_id }}",
         "github-token": "${{ github.token }}",
@@ -334,6 +360,37 @@ def test_ci_validates_the_split_library_and_cli_versions() -> None:
     install_commands = smoke_step["run"]
     assert "build/library-dist/*.whl" in install_commands
     assert "build/cli-dist/*.whl" in install_commands
+
+
+@pytest.mark.ac("AC-F11-170")
+def test_release_promotes_or_recovers_only_the_reviewed_image_manifest() -> None:
+    """REQ-F11-170: image publication copies or recovers one exact reviewed manifest."""
+    workflow = _workflow()
+    promotion = workflow["jobs"]["promote-image"]
+    commands = _step(
+        promotion,
+        "Promote or recover the exact candidate manifest without rebuilding",
+    )["run"]
+    for fragment in (
+        'release_image="${IMAGE_NAME}:${PRODUCT_VERSION}"',
+        "inspection_state=present",
+        "inspection_state=absent",
+        "registry state remained indeterminate",
+        "promotion_state=existing-exact",
+        "docker buildx imagetools create",
+        '"${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"',
+        'test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"',
+        '{"linux/amd64", "linux/arm64"}',
+    ):
+        assert fragment in commands
+    assert "docker build " not in commands
+    evidence = _step(promotion, "Retain exact image-promotion evidence")
+    assert evidence["with"] == {
+        "name": "image-promotion-evidence-v0.1.2",
+        "path": "image-promotion-evidence",
+        "if-no-files-found": "error",
+        "retention-days": 90,
+    }
 
 
 @pytest.mark.ac("AC-F11-170")
@@ -362,7 +419,7 @@ def test_release_attests_artifacts_and_dogfoods_production_identity() -> None:
 
     dogfood_evidence = _step(jobs["dogfood"], "Retain attest dogfood evidence")
     assert dogfood_evidence["with"] == {
-        "name": "attest-release-evidence-v0.1.1",
+        "name": "attest-release-evidence-v0.1.2",
         "path": "build/release-evidence",
         "if-no-files-found": "error",
         "include-hidden-files": False,
@@ -376,6 +433,9 @@ def test_release_attests_artifacts_and_dogfoods_production_identity() -> None:
     assert 'any(part.startswith(".") for part in relative.parts)' in retained_index
     assert "hidden retained evidence is forbidden" in retained_index
     assert '"imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"]' in retained_index
+    assert '"candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"])' in retained_index
+    assert '"candidateSource": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"]' in retained_index
+    assert '"contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"]' in retained_index
     assert '"majorTagMoved": False' in retained_index
 
     config = yaml.safe_load(RELEASE_CONFIG.read_text(encoding="utf-8"))
@@ -634,15 +694,15 @@ def _verify_published(
 @pytest.mark.ac("AC-F11-170")
 def test_published_release_verifier_accepts_exact_cli_patch(tmp_path: Path) -> None:
     artifacts = tmp_path / "release-assets"
-    index = tmp_path / "index" / "pypi" / "attest-cli" / "0.1.1"
+    index = tmp_path / "index" / "pypi" / "attest-cli" / "0.1.2"
     public_files = tmp_path / "public-files"
     artifacts.mkdir()
     index.mkdir(parents=True)
     public_files.mkdir()
     records: list[dict[str, object]] = []
     for filename, package_type in (
-        ("attest_cli-0.1.1-py3-none-any.whl", "bdist_wheel"),
-        ("attest_cli-0.1.1.tar.gz", "sdist"),
+        ("attest_cli-0.1.2-py3-none-any.whl", "bdist_wheel"),
+        ("attest_cli-0.1.2.tar.gz", "sdist"),
     ):
         content = filename.encode()
         (artifacts / filename).write_bytes(content)
@@ -661,7 +721,7 @@ def test_published_release_verifier_accepts_exact_cli_patch(tmp_path: Path) -> N
     (index / "json").write_text(
         json.dumps(
             {
-                "info": {"name": "attest-cli", "version": "0.1.1"},
+                "info": {"name": "attest-cli", "version": "0.1.2"},
                 "urls": records,
             }
         ),
@@ -671,7 +731,7 @@ def test_published_release_verifier_accepts_exact_cli_patch(tmp_path: Path) -> N
     result = _verify_published(
         artifacts,
         tmp_path / "index",
-        version="0.1.1",
+        version="0.1.2",
         manifest=PATCH_RELEASE_MANIFEST,
     )
 
