@@ -5,8 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 - Hardened patch publication recovery with version-specific PyPI metadata, full metadata/hash/byte
-  retries, deterministic exact-publication detection, and validated retention of the original OIDC
-  publishing evidence without duplicate uploads.
+  retries, deterministic exact-publication detection, validated retention of the original OIDC
+  publishing evidence without duplicate uploads, and explicit fail-closed continuation across the
+  intentionally skipped publisher job.
 - Corrected the Docker Action token evaluation boundary, added exact caller-step token handoff,
   and prepared the bounded `attest-cli 0.1.1` / Action `v1.0.1` release without rebuilding the
   five `0.1.0` libraries or the reviewed multi-platform image.

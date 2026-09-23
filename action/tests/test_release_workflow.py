@@ -127,6 +127,12 @@ def test_release_workflow_is_manual_main_only_and_has_separated_authority() -> N
         "dogfood",
         "verify-published-cli",
     ]
+    assert jobs["dogfood"]["if"] == ("always() && needs.verify-published-cli.result == 'success'")
+    assert jobs["publish-release"]["if"] == (
+        "always() && needs.attest-artifacts.result == 'success' && "
+        "needs.dogfood.result == 'success' && "
+        "needs.verify-published-cli.result == 'success'"
+    )
 
     assert jobs["preflight"]["if"] == (
         "github.repository == 'Parth2412/attest' && "

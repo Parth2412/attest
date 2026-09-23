@@ -167,7 +167,10 @@ republished.
 Public verification uses PyPI's version-specific JSON endpoint and compares the exact downloaded
 wheel and source archive with the reviewed build. If those exact immutable files already exist,
 recovery must validate and retain the original successful Trusted Publishing run and skip the
-publisher job; it must never overwrite, silently skip, delete, or yank a release file.
+publisher job. The public verification, production dogfood, and immutable-release jobs must use
+explicit success-result conditions so that GitHub does not propagate that intentional skip; any
+failed, cancelled, or otherwise skipped required gate remains fail-closed. Recovery must never
+overwrite, silently skip, delete, or yank a release file.
 
 ### 4.2 Two-phase supply chain
 
