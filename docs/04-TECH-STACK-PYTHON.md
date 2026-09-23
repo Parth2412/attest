@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.0` |
+| Version | `1.7.1` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-09-23 |
 
 ---
 
@@ -319,9 +319,9 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | Exact `0.1.0` distributions for core, collect, sign, store, policy, and CLI | Python-native teams; exact internal `0.1.0` pins, no export package until F-12 |
+| PyPI | `0.1.0` for core, collect, sign, store, and policy; CLI `0.1.1` after the Action token-boundary correction | Python-native teams; CLI retains exact internal `0.1.0` pins, no export package until F-12 |
 | GHCR | `ghcr.io/parth2412/attest:0.1.0` multi-platform slim container plus immutable digest | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.0`, reviewed moving `v1` | Most users — hides Python entirely; generated workflows pin a commit |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.1`, reviewed moving `v1`; `v1.0.0` remains immutable and documented as defective | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The candidate build records and pins the verified `python:3.12-slim` base digest; release builds
@@ -330,8 +330,9 @@ from the committed lock with user-site/current-directory imports disabled. Multi
 artifact attestation. PyPI publication uses per-package Trusted Publishing environments with build
 and publish jobs separated and no long-lived package token. Because PyPI permits only three pending
 publishers per account, the first release publishes two strictly ordered three-package waves with
-public hash verification and a protected registration checkpoint between them. The exact release
-and independent Action/product versions are governed by `ADR-046`, `ADR-047`, and `ADR-048`.
+public hash verification and a protected registration checkpoint between them. The first-release
+procedure is governed by `ADR-046`, `ADR-047`, and `ADR-048`. The bounded CLI/Action correction,
+unchanged image digest, and independent patch versions are governed by `ADR-049`.
 
 ---
 
