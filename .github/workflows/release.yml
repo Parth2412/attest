@@ -642,6 +642,8 @@ jobs:
 
   dogfood:
     needs: verify-published-cli
+    if: >-
+      always() && needs.verify-published-cli.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -715,6 +717,10 @@ jobs:
 
   publish-release:
     needs: [attest-artifacts, dogfood, verify-published-cli]
+    if: >-
+      always() && needs.attest-artifacts.result == 'success' &&
+      needs.dogfood.result == 'success' &&
+      needs.verify-published-cli.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

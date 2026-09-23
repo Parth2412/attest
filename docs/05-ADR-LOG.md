@@ -2545,6 +2545,12 @@ release-specific endpoint returns metadata for the requested immutable version w
 project endpoint's cross-version `releases` field. The verifier retried transport and not-found
 errors, but it did not retry a stale metadata mismatch after the first successful response.
 
+Recovery run `35851284987` then proved the exact public files and original OIDC evidence, skipped
+the publisher as designed, and passed clean public verification on Python 3.12 and 3.13. GitHub
+nonetheless skipped production dogfood and release publication because its default prerequisite
+status check propagated the intentionally skipped publisher through the otherwise successful
+verification job.
+
 **Decision.** Public release verification reads each distribution from
 `/pypi/<project>/<version>/json`, requires that response to omit the project-level `releases`
 field, and validates the requested name, version, exact two-file set, package types, yank state,
@@ -2561,6 +2567,9 @@ and contains a successful `publish-cli` job; it then imports and validates the r
 publisher evidence. Any public file, metadata, run, or evidence mismatch fails closed. Public
 verification on Python 3.12 and 3.13, production dogfood, immutable release creation, and tag
 creation remain downstream of the recovered evidence path.
+Dogfood and release-publication jobs use explicit `always()` status evaluation together with
+exact `success` requirements for every direct prerequisite. This crosses only the intentional
+publisher skip and cannot admit a failed, cancelled, or skipped required verification gate.
 
 **Rationale.** A version-specific record is the authoritative bounded observation for an immutable
 release and avoids dependence on the project endpoint's independently cached latest-version view.
@@ -2584,7 +2593,9 @@ remains unmoved until the replacement public proof required by ADR-049 succeeds.
 
 The API behavior was checked against PyPI's
 [JSON API](https://docs.pypi.org/api/json/) and
-[API caching policy](https://docs.pypi.org/api/#caching), as read on 2026-09-23.
+[API caching policy](https://docs.pypi.org/api/#caching), and the prerequisite behavior against
+GitHub's [job dependency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs#defining-prerequisite-jobs),
+as read on 2026-09-23.
 
 ---
 
