@@ -13,10 +13,11 @@ import pytest
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
-PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
+PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2.toml"
+PREVIOUS_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
 PATCH_LIBRARY_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-libraries.toml"
 FIRST_RELEASE_VERSION: Final[str] = "0.1.0"
-PATCH_VERSION: Final[str] = "0.1.1"
+PATCH_VERSION: Final[str] = "0.1.2"
 PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
     "attest-core",
     "attest-collect",
@@ -59,6 +60,7 @@ def _toml(path: Path) -> dict[str, Any]:
 
 
 @pytest.mark.ac("AC-F11-140")
+@pytest.mark.ac("AC-F11-180")
 def test_release_package_set_and_metadata_are_closed() -> None:
     """REQ-F11-140: only six metadata-complete, mutually pinned projects ship."""
     release = _toml(RELEASE_MANIFEST)["release"]
@@ -69,6 +71,20 @@ def test_release_package_set_and_metadata_are_closed() -> None:
     assert _toml(PATCH_RELEASE_MANIFEST) == {
         "release": {
             "version": PATCH_VERSION,
+            "distributions": ["attest-cli"],
+        },
+        "compatibility": {
+            "library-version": FIRST_RELEASE_VERSION,
+            "action-version": "v1.0.2",
+            "image": (
+                "ghcr.io/parth2412/attest@sha256:"
+                "50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
+            ),
+        },
+    }
+    assert _toml(PREVIOUS_PATCH_RELEASE_MANIFEST) == {
+        "release": {
+            "version": "0.1.1",
             "distributions": ["attest-cli"],
         },
         "compatibility": {
@@ -131,9 +147,9 @@ def test_release_package_set_and_metadata_are_closed() -> None:
     assert all(not dependency.startswith("attest-export") for dependency in cli_dependencies)
 
 
-@pytest.mark.ac("AC-F11-170")
+@pytest.mark.ac("AC-F11-180")
 def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None:
-    """REQ-F11-170: only the corrected CLI wheel and sdist are patch artifacts."""
+    """REQ-F11-180: only the corrected CLI wheel and sdist are patch artifacts."""
     artifact_directory = tmp_path / "dist"
     result = subprocess.run(
         [
@@ -176,7 +192,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
     assert result.stdout == "release artifacts: validated 1 wheels and 1 source distributions\n"
     assert len(hashes.read_text(encoding="utf-8").splitlines()) == 2
 
-    wheel = artifact_directory / "attest_cli-0.1.1-py3-none-any.whl"
+    wheel = artifact_directory / "attest_cli-0.1.2-py3-none-any.whl"
     changed_wheel = tmp_path / wheel.name
     with zipfile.ZipFile(wheel) as source, zipfile.ZipFile(changed_wheel, mode="w") as changed:
         for member in source.infolist():
@@ -208,7 +224,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
 def test_artifact_validator_rejects_an_unsafe_manifest_distribution(tmp_path: Path) -> None:
     manifest = tmp_path / "unsafe.toml"
     manifest.write_text(
-        '[release]\nversion = "0.1.1"\ndistributions = ["../attest-cli"]\n',
+        '[release]\nversion = "0.1.2"\ndistributions = ["../attest-cli"]\n',
         encoding="utf-8",
     )
     artifacts = tmp_path / "dist"

@@ -244,17 +244,19 @@ exit `0`.
 `id-token: write`; passes the automatic `${{ github.token }}` to the attest step only as the
 `GITHUB_TOKEN` step environment variable; and invokes only the exact caller-supplied full-SHA
 checkout and attest Actions. The token is not a public Action input or output.
-Its identity is exactly
-`https://github.com/<owner>/<repo>/.github/workflows/attest.yml@refs/heads/<default-branch>`, matching
-`GITHUB_WORKFLOW_REF`. F-10 snapshots and locally integration-tests these bytes. F-11 owns the
-published Action, immutable image digest, live least-privilege validation, and proof that the
-workflow runs unmodified in a fresh repository.
+Its identity pattern is exactly
+`https://github.com/<owner>/<repo>/.github/workflows/attest.yml@refs/pull/*/merge`. It binds the
+repository and workflow path literally, permits one non-slash pull-request-identifier segment, and
+resolves the one matching certificate URI SAN to the exact `GITHUB_WORKFLOW_REF` under `ADR-038`.
+F-10 snapshots and locally integration-tests these bytes. F-11 owns the published Action,
+immutable image digest, live least-privilege validation, and proof that the workflow runs
+unmodified in a fresh repository.
 
 ### 7.1 Exact `init` templates
 
 `init` substitutes only `<identity>`, `<default-branch>`, `<checkout-ref>`, and `<action-ref>` below.
 It emits LF line endings, one terminal LF, two-space YAML indentation, and no comments beyond those
-shown. `<identity>` is the exact URI above; refs are validated full-SHA
+shown. `<identity>` is the exact bounded URI above; Action refs are validated full-SHA
 `owner/repository[/path]@sha` values. Config and policy strings are double-quoted where shown.
 
 `.attest/config.yaml`:
@@ -390,7 +392,7 @@ denied policy, missing required evidence, or a placeholder.
 | `REQ-F10-160` | CLI reads/writes **MUST** satisfy every bound, type, symlink, race, containment, create-only, overwrite, permission, and atomic-publication rule in §7. |
 | `REQ-F10-170` | `inspect` **MUST** delegate to F-08 inspection, prominently return `unverified-identity`, and **MUST NOT** verify, gate, expose trusted identity, or supply policy evidence. |
 | `REQ-F10-180` | GitHub PR collect/run **MUST** delegate event/PR/Compare semantics to F-04 and use its PR-bound repository/base/head/target, exact merge base, and complete author/committer IDs; local mode **MUST NOT** fabricate forge evidence. |
-| `REQ-F10-190` | `init` **MUST** atomically create §7.1's three exact files, use `pull_request` plus caller-supplied full-SHA checkout and attest Actions, and generate the exact workflow identity; live publication/proof remains F-11. |
+| `REQ-F10-190` | `init` **MUST** atomically create §7.1's three exact files, use `pull_request` plus caller-supplied full-SHA checkout and attest Actions, and generate the exact repository/workflow-bound `refs/pull/*/merge` identity pattern; live publication/proof remains F-11. |
 | `REQ-F10-200` | Config, Collection Artifact, and CLI output schemas **MUST** be generated from strict runtime models, committed, and independently drift-checked. |
 | `REQ-F10-210` | `push` **MUST** pass exact Bundle bytes and supplied validated ChangeSet Digest to F-07 without parsing/verifying the Bundle and preserve fallback reporting. |
 | `REQ-F10-220` | Human/JSON output **MUST** contain equivalent facts, stable ordering, and no traceback, raw chained exception, credential, raw forge body, raw subprocess output, prompt, or source content. |
@@ -420,7 +422,7 @@ denied policy, missing required evidence, or a placeholder.
 | `AC-F10-160` | File tests cover oversized/racing inputs, duplicate JSON/YAML keys, BOM, symlinks, devices, existing targets, overwrite races, permissions, atomic cleanup, and init all-or-none preflight. |
 | `AC-F10-170` | Structurally valid signature-tampered input inspects only as `unverified-identity`; F-08 verify/F-09 evaluate are never called. |
 | `AC-F10-180` | Recorded event/PR/Compare context passes unchanged to collection; any PR binding mismatch or incomplete context is fatal and local run emits unknown review without forge calls. |
-| `AC-F10-190` | Golden files prove exact config/policy/workflow bytes, identity, event, permissions, and both full-SHA Actions; existing target leaves all unchanged. |
+| `AC-F10-190` | Golden files prove exact config/policy/workflow bytes, bounded identity, event, permissions, and both full-SHA Actions; matching tests accept the generated PR merge identity and reject a default-branch identity, another repository, and another workflow; an existing target leaves all unchanged. |
 | `AC-F10-200` | Independent generation of all three schemas is diff-clean and wrong-version/unknown-field fixtures fail. |
 | `AC-F10-210` | Opaque non-JSON Bundle bytes reach fake stores byte-for-byte with supplied digest; primary failure reports fallback path/exit. |
 | `AC-F10-220` | Cross-renderer fixtures prove fact equivalence/order and scan all streams for prohibited content. |

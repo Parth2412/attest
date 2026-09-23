@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3"
+    "sha256:50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
 )
 
 
@@ -179,6 +179,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 
 
 @pytest.mark.ac("AC-F11-150")
+@pytest.mark.ac("AC-F11-180")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -217,7 +218,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
-    assert "org.opencontainers.image.version=0.1.1-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.2-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index

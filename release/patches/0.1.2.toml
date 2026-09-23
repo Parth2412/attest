@@ -1,0 +1,8 @@
+[release]
+version = "0.1.2"
+distributions = ["attest-cli"]
+
+[compatibility]
+library-version = "0.1.0"
+action-version = "v1.0.2"
+image = "ghcr.io/parth2412/attest@sha256:50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"

@@ -151,15 +151,24 @@ def _report(
     exit_code: int = 0,
     location: str = "refs/attestations/sha256/example",
     statement: dict[str, object] | None = None,
+    verification_failure: str | None = None,
 ) -> dict[str, object]:
     verification: dict[str, object] = {
-        "status": "verified",
+        "status": "failed" if verification_failure is not None else "verified",
         "checks": [],
-        "statement": _statement() if statement is None else statement,
-        "failureCode": None,
-        "verifiedIdentity": "https://github.com/example/repo/.github/workflows/attest.yml@refs/heads/main",
-        "verifiedIssuer": "https://token.actions.githubusercontent.com",
-        "transparencyLogVerified": True,
+        "statement": None
+        if verification_failure is not None
+        else _statement()
+        if statement is None
+        else statement,
+        "failureCode": verification_failure,
+        "verifiedIdentity": None
+        if verification_failure is not None
+        else "https://github.com/example/repo/.github/workflows/attest.yml@refs/heads/main",
+        "verifiedIssuer": None
+        if verification_failure is not None
+        else "https://token.actions.githubusercontent.com",
+        "transparencyLogVerified": verification_failure is None,
     }
     if mode == "verify":
         data: dict[str, object] = {"verification": verification}
@@ -405,6 +414,61 @@ def test_outputs_remain_empty_before_their_prerequisite_stage(tmp_path: Path) ->
     assert "changeset-digest" not in output
     assert "decision" not in output
     assert "log-index" not in output
+
+
+@pytest.mark.ac("AC-F11-040")
+@pytest.mark.ac("AC-F11-180")
+def test_denied_run_preserves_safe_verification_failure_without_fact_outputs(
+    tmp_path: Path,
+) -> None:
+    repository, base, head = _repository(tmp_path)
+    environment = _runner_environment(tmp_path, repository, base, head)
+    executable = _fake_attest(
+        tmp_path,
+        _report(
+            "run",
+            decision="deny",
+            exit_code=4,
+            verification_failure="ERR-VERIFY-013",
+        ),
+        exit_code=4,
+    )
+
+    exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+    assert exit_code == 4
+    diagnostic = json.loads(rendered)["error"]
+    assert diagnostic == {
+        "code": "ERR-VERIFY-013",
+        "message": "Sigstore cryptographic verification failed",
+        "remediation": "Reject the bundle and inspect the signer and trust configuration",
+    }
+    assert Path(environment["GITHUB_OUTPUT"]).read_text(encoding="utf-8") == ""
+    assert Path(environment["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8") == ""
+
+
+@pytest.mark.ac("AC-F11-160")
+@pytest.mark.ac("AC-F11-180")
+def test_denied_run_rejects_unknown_verification_failure_code(tmp_path: Path) -> None:
+    repository, base, head = _repository(tmp_path)
+    environment = _runner_environment(tmp_path, repository, base, head)
+    executable = _fake_attest(
+        tmp_path,
+        _report(
+            "run",
+            decision="deny",
+            exit_code=4,
+            verification_failure="ERR-VERIFY-999",
+        ),
+        exit_code=4,
+    )
+
+    exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+    assert exit_code == 1
+    assert _error_code(rendered) == "ERR-INTERNAL-001"
+    assert Path(environment["GITHUB_OUTPUT"]).read_text(encoding="utf-8") == ""
+    assert Path(environment["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8") == ""
 
 
 @pytest.mark.ac("AC-F11-040")
