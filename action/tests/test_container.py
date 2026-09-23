@@ -190,6 +190,7 @@ def _fake_attest(root: Path) -> Path:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-180")
 def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> None:
     inspected = _docker("image", "inspect", _image(), "--format", "{{json .Config.Entrypoint}}")
     version = _docker(
@@ -208,7 +209,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
         "/opt/attest/entrypoint.py",
     ]
     assert version.returncode == 0, version.stderr
-    assert version.stdout == "attest 0.1.1\n"
+    assert version.stdout == "attest 0.1.2\n"
 
 
 @pytest.mark.container

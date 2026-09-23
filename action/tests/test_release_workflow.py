@@ -327,7 +327,7 @@ def test_ci_validates_the_split_library_and_cli_versions() -> None:
         "build/library-dist",
         "--manifest release/patches/0.1.1-libraries.toml",
         "build/cli-dist",
-        "--manifest release/patches/0.1.1.toml",
+        "--manifest release/patches/0.1.2.toml",
     ):
         assert fragment in build_commands
     smoke_step = _step(package_job, "Install and smoke-test the wheels in a clean environment")

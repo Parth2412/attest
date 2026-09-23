@@ -162,7 +162,7 @@ jobs:
           uv build --package attest-cli --out-dir build/cli-dist --clear --no-create-gitignore
           uv run --no-project python scripts/validate_release_artifacts.py \
             build/cli-dist \
-            --manifest release/patches/0.1.1.toml \
+            --manifest release/patches/0.1.2.toml \
             --hash-output build/CLI-SHA256SUMS
       - name: Install and smoke-test the wheels in a clean environment
         run: |
