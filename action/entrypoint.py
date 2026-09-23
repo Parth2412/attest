@@ -143,6 +143,40 @@ _ERRORS: Final[dict[str, ActionError]] = {
         1,
     ),
 }
+_VERIFICATION_FAILURE_DETAILS: Final[dict[str, tuple[str, str]]] = {
+    "ERR-VERIFY-001": (
+        "The Sigstore bundle is malformed or incomplete",
+        "Supply a complete parseable Sigstore bundle",
+    ),
+    "ERR-VERIFY-007": (
+        "The verified DSSE payload is not a supported attest Statement",
+        "Use a supported attest predicate version and in-toto payload type",
+    ),
+    "ERR-VERIFY-008": (
+        "The verified Statement failed its versioned structural schema",
+        "Reject the attestation and obtain a structurally valid bundle",
+    ),
+    "ERR-VERIFY-009": (
+        "The verified Statement failed semantic validation",
+        "Reject the attestation and obtain a semantically valid bundle",
+    ),
+    "ERR-VERIFY-010": (
+        "Repository ChangeSet recomputation failed or did not match",
+        "Check the repository and caller-selected base and head revisions",
+    ),
+    "ERR-VERIFY-011": (
+        "The identity constraint is invalid",
+        "Supply a non-empty exact issuer and an exact identity or bounded workflow glob",
+    ),
+    "ERR-VERIFY-012": (
+        "The selected Sigstore trust material is unavailable or invalid",
+        "Refresh the selected environment explicitly or supply valid trust configuration JSON",
+    ),
+    "ERR-VERIFY-013": (
+        "Sigstore cryptographic verification failed",
+        "Reject the bundle and inspect the signer and trust configuration",
+    ),
+}
 
 
 def _raise(code: str) -> Never:
@@ -951,6 +985,37 @@ def _safe_diagnostic(
     return ActionError(code, message, remediation, exit_code)
 
 
+def _denied_verification_error(report: JsonObject, mode: str) -> ActionError | None:
+    if mode not in {"run", "gate"}:
+        return None
+    data = report.get("data")
+    if not isinstance(data, dict):
+        return None
+    verification = data.get("verification")
+    if not isinstance(verification, dict) or verification.get("status") != "failed":
+        return None
+    decision = data.get("decision")
+    failure_code = verification.get("failureCode")
+    if not isinstance(failure_code, str):
+        _raise("ERR-INTERNAL-001")
+    details = _VERIFICATION_FAILURE_DETAILS.get(failure_code)
+    if (
+        report.get("outcome") != "denied"
+        or report.get("exitCode") != 4
+        or not isinstance(decision, dict)
+        or decision.get("outcome") != "deny"
+        or decision.get("exitCode") != 4
+        or verification.get("statement") is not None
+        or verification.get("verifiedIdentity") is not None
+        or verification.get("verifiedIssuer") is not None
+        or verification.get("transparencyLogVerified") is not False
+        or details is None
+    ):
+        _raise("ERR-INTERNAL-001")
+    message, remediation = details
+    return ActionError(failure_code, message, remediation, 4)
+
+
 def _parse_report(process: subprocess.CompletedProcess[bytes], mode: str) -> JsonObject:
     if len(process.stdout) > 64 * 1024 * 1024:
         _raise("ERR-INTERNAL-001")
@@ -1152,6 +1217,11 @@ def run_action(
                 )
                 error = _safe_diagnostic(report, secrets_to_reject=secrets_to_reject)
                 _emit_error(error, stderr)
+                return process.returncode
+
+            verification_error = _denied_verification_error(report, inputs.mode)
+            if verification_error is not None:
+                _emit_error(verification_error, stderr)
                 return process.returncode
 
             facts = _report_facts(report, inputs)
