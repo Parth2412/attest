@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · delivery contract governed by `ADR-046`, amended by `ADR-049` |
+| Status | **In progress** · delivery contract governed by `ADR-046`, amended by `ADR-049` and `ADR-051` |
 
 ---
 
@@ -172,6 +172,24 @@ explicit success-result conditions so that GitHub does not propagate that intent
 failed, cancelled, or otherwise skipped required gate remains fail-closed. Recovery must never
 overwrite, silently skip, delete, or yank a release file.
 
+### 4.1.2 Pull-request identity and runtime diagnostic correction
+
+The public `v1.0.1` Action reaches its container, but the CLI `0.1.1` generator binds the
+pull-request-only workflow to `refs/heads/<default-branch>`. GitHub instead issues the workflow
+certificate at `refs/pull/<number>/merge`, so verification correctly fails closed. The initializer
+therefore generates the bounded `refs/pull/*/merge` workflow identity defined by `ADR-051`.
+
+The Action wrapper also preserves a closed `ERR-VERIFY-*` diagnostic from a structurally valid
+denied run or gate report before deriving facts. Unknown or inconsistent reports remain internal
+errors, and failed verification emits no output or job-summary fact.
+
+The correction publishes only `attest-cli==0.1.2` on PyPI and retains its exact five `0.1.0`
+library pins. Because the wrapper bytes change, a new reviewed multi-platform candidate is promoted
+without rebuilding to `ghcr.io/parth2412/attest:0.1.2`, pinned by manifest digest from immutable
+Action `v1.0.2`; `v0.1.2` records the source and evidence. Every earlier PyPI file, image manifest,
+source tag, Action tag, and immutable Release remains unchanged. Moving `v1` is forbidden until
+the `0.1.2` replacement public proof completes every required state.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -215,6 +233,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-150` | Release **MUST** use the two-phase digest-review process, locked and digest-pinned inputs, separated build/publish jobs, multi-platform image, SBOM, provenance, GitHub artifact attestations, immutable release records, and full-SHA third-party Actions in §4. |
 | `REQ-F11-160` | The wrapper **MUST** sanitize its environment, execute no repository content, leak no credentials, and preserve fatal failures when policy violations are configured advisory. |
 | `REQ-F11-170` | The correction **MUST** publish only CLI `0.1.1`, immutable Action `v1.0.1`, moving `v1`, and source record `v0.1.1`; it **MUST** retain exact CLI pins to the five `0.1.0` libraries, the immutable `0.1.0` image digest, and the defective immutable `v1.0.0` record. Version-specific public verification and any exact resume **MUST** prove accepted bytes and prior OIDC evidence without re-uploading. |
+| `REQ-F11-180` | The pull-request identity correction **MUST** publish only CLI `0.1.2`, immutable Action `v1.0.2`, source record `v0.1.2`, and the exact reviewed image candidate promoted as `0.1.2`; it **MUST** preserve known failed-verification diagnostics without emitting unverified facts, retain the five exact `0.1.0` library pins and every earlier immutable public record, and move `v1` only after the complete replacement proof succeeds. |
 
 ## 6. Acceptance criteria
 
@@ -237,6 +256,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-150` | Candidate and release workflows prove final build-context equality and exact manifest promotion, both architectures, locked inputs, SBOM, provenance, GitHub attestations, separated authority, immutable records, and full-SHA Action pins. |
 | `AC-F11-160` | Adversarial fixtures prove no repository executable or import path runs, no workflow command is injected, no token is emitted, and non-policy failures cannot be neutralized. |
 | `AC-F11-170` | Contract tests prove Action metadata has no `github` context reference and the exact generated workflow supplies `GITHUB_TOKEN` through step `env`; public records and a fresh proof repository verify the bounded versions, unchanged digest, blocked-before-check state, denial state, approval transition, malicious fixture, and safe fork failure. |
+| `AC-F11-180` | Contract and container tests prove the generated identity matches only the intended PR workflow ref, known failed verification retains its stable code with empty outputs, the CLI/image candidate has the bounded `0.1.2` artifact set and supply-chain evidence, and public records plus a fresh proof establish blocked-before-check, no-review denial, independent approval, success, malicious-content non-execution, and safe fork failure before `v1` moves. |
 
 ## 7. Evidence retention
 
