@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-store` |
 | Depends on | `F-01`, `F-06` |
-| Status | Done · governed by `ADR-043`, `ADR-044` |
+| Status | **In progress** · remote-discovery correction governed by `ADR-052` |
 
 ---
 
@@ -65,10 +65,13 @@ failure, but after a successful fallback write it carries the exact local `fallb
 storage package never prints. The CLI output layer later renders that path. If the fallback write
 also fails, `ERR-STORE-406` is raised with the primary error chained privately.
 
-`GitRefStore.push(reference, remote, fallback)` is the only network operation on the Git-ref
-backend. It pushes exactly `reference.location` to the same remote ref without force. On failure,
-it preserves the referenced Bundle through the supplied fallback before raising the classified
-push error with `fallback_path`.
+`GitRefStore.import_remote(digest, remote)` is the explicit bounded ingress operation on the
+Git-ref backend. Before local allocation it downloads only the advertised objects for the exact
+ChangeSet namespace without a destination ref or `FETCH_HEAD` write, validates every stored
+object, and imports missing refs create-only. `GitRefStore.push(reference, remote, fallback)` is
+the explicit egress operation. It pushes exactly `reference.location` to the same remote ref
+without force. A remote-import or push failure preserves the exact Bundle through the supplied
+fallback before raising the classified error with `fallback_path`.
 
 `pygit2` is an optional package extra. `GitRefStore` **MUST** remain fully operational through the
 Git CLI when the extra is absent, and both native and subprocess implementations **MUST** satisfy
@@ -90,14 +93,14 @@ caller-configurable deadline enforced outside ORAS's unbounded request surface.
 | `REQ-F07-010` | The store **MUST** support multiple exact Bundle byte strings per ChangeSet Digest; `get` returns all once each in deterministic Bundle-digest order and raises `ERR-STORE-403` only when none exist. |
 | `REQ-F07-020` | `put` **MUST** be content-idempotent: identical Bundle bytes under one ChangeSet Digest yield the same logical entry and exactly one value from `get` and `list`, including after concurrent calls. |
 | `REQ-F07-030` | `GitRefStore` **MUST** write one sibling ref per Bundle under `refs/attestations/`. The first uses `refs/attestations/<digest>`. Additional refs use `<digest>-<log-index>` when a unique non-negative Rekor `logIndex` can be read without verification, `<digest>-<log-index>-<bundle-digest>` when that index collides, and `<digest>-sha256-<bundle-digest>` when no usable index exists. A slash **MUST NOT** follow `<digest>` because Git forbids a ref and a child ref beneath the same path (`ADR-044`). Refs point to attest metadata tag objects whose targets are exact Bundle blobs. No branch, tag ref, notes ref, index, or working-tree state may change. |
-| `REQ-F07-040` | `GitRefStore.put` **MUST** perform no network operation. Pushing one returned attestation ref is an explicit, separately invoked, non-force operation. |
-| `REQ-F07-050` | A push rejected for authentication, authorisation, or ref policy **MUST** raise `ERR-STORE-401` with remediation naming `contents: write` for `refs/attestations/*`; reachability and deadline failures raise `ERR-STORE-402`. Diagnostics **MUST NOT** expose credentials or raw remote output. |
+| `REQ-F07-040` | `GitRefStore.put` **MUST** perform no network operation. Before network publication, explicit remote import **MUST** discover only the exact ChangeSet namespace, fetch objects without updating a ref or `FETCH_HEAD`, validate the complete stable snapshot, and create only absent local attestation refs. Pushing one returned ref remains explicit, separately invoked, and non-force. |
+| `REQ-F07-050` | A push rejected for authentication, authorisation, or ref policy **MUST** raise `ERR-STORE-401` with remediation naming `contents: write` for `refs/attestations/*`; remote-import or push reachability, authentication, instability, and deadline failures raise `ERR-STORE-402`. Malformed or conflicting remote storage raises `ERR-STORE-404`. Diagnostics **MUST NOT** expose credentials or raw remote output. |
 | `REQ-F07-060` | `FilesystemStore` **MUST** write exact Bundle bytes as `<digest>.sigstore.json`, then `<digest>.1.sigstore.json`, `<digest>.2.sigstore.json`, and so on after content comparison. Each Bundle file has closed, hash-bound `<bundle-filename>.store.json` metadata in the same configured directory. Publication is atomic to cooperating operations and never overwrites an existing entry. |
 | `REQ-F07-070` | Retrieval **MUST NOT** parse or verify Bundle semantics, signatures, identities, or transparency evidence. It validates only store metadata, descriptor hashes, sizes, and readability; an invalid but uncorrupted Bundle is returned unchanged for F-08 to reject. |
 | `REQ-F07-080` | Production storage composition **MUST** use an explicitly configured local `FilesystemStore` fallback. When a primary write or Git push fails and fallback succeeds, the original coded failure **MUST** report the exact fallback path. If fallback also fails, `ERR-STORE-406` **MUST** report that no durable copy was made. |
 | `REQ-F07-090` | `OciStore` **MUST** attach an OCI image manifest to its configured immutable artifact descriptor through the OCI 1.1 subject/referrers mechanism. The manifest artifact type and sole Bundle layer media type are `application/vnd.dev.sigstore.bundle.v0.3+json`; annotations carry the ChangeSet Digest, Bundle digest, and storage timestamp. Discovery uses the Referrers API, filters all three identifiers, and validates the layer descriptor before returning exact bytes. |
 | `REQ-F07-100` | Concurrent `put` operations **MUST** use create-only publication and content comparison. They may leave unreachable Git objects or OCI manifests, but `get` and `list` **MUST** expose every distinct readable Bundle exactly once and **MUST NOT** expose partial content. |
-| `REQ-F07-110` | Filesystem and temporary writes **MUST** remain under explicitly configured directories; Git writes **MUST** remain in the configured repository object database and `refs/attestations/`; OCI writes **MUST** remain in the configured registry repository. Symlinks, irregular files, traversal, malformed refs, and descriptor mismatches fail closed without writing outside those locations. |
+| `REQ-F07-110` | Filesystem and temporary writes **MUST** remain under explicitly configured directories; Git writes **MUST** remain in the configured repository object database and `refs/attestations/` and **MUST NOT** modify `FETCH_HEAD`; OCI writes **MUST** remain in the configured registry repository. Symlinks, irregular files, traversal, malformed refs, and descriptor mismatches fail closed without writing outside those locations. |
 
 ## 6. Acceptance criteria
 
@@ -106,8 +109,8 @@ caller-configurable deadline enforced outside ORAS's unbounded request surface.
 | `AC-F07-010` | Every backend returns two distinct Bundle byte strings for one digest exactly once and in Bundle-digest order; an absent digest raises `ERR-STORE-403`. |
 | `AC-F07-020` | Sequential and concurrent duplicate writes yield one logical `StoreRef`, one listed entry, and one returned Bundle. |
 | `AC-F07-030` | Both Git implementations create the exact base and sibling collision refs without a file/directory conflict, with hash-bound metadata and Bundle blobs, while branch, tag, notes, index, HEAD, and working tree snapshots remain unchanged. |
-| `AC-F07-040` | A socket-denial guard proves both Git `put` implementations perform no egress; only an explicit `push` contacts the configured remote. |
-| `AC-F07-050` | A fixture remote rejection raises sanitised `ERR-STORE-401`, names `contents: write` and `refs/attestations/*`, and reports the preserved fallback path; unreachable and expired pushes raise `ERR-STORE-402`. |
+| `AC-F07-040` | A socket-denial guard proves both Git `put` implementations perform no egress; two fresh repositories use explicit import then non-force push to retain distinct Bundles for one ChangeSet under the exact base and sibling refs. |
+| `AC-F07-050` | Remote import through both Git backends changes no branch, tag, notes, index, HEAD, working tree, or `FETCH_HEAD`; malformed advertised refs and local conflicts fail `ERR-STORE-404`, unavailable import fails `ERR-STORE-402`, and exact bytes reach fallback. A fixture push rejection remains sanitised `ERR-STORE-401` and names `contents: write` and `refs/attestations/*`. |
 | `AC-F07-060` | Distinct bytes produce the exact base and `.1` Bundle filenames plus valid metadata; duplicate bytes do not create `.2`; no existing file is overwritten. |
 | `AC-F07-070` | Every backend returns deliberately invalid Bundle bytes unchanged, while corrupted metadata, content digest, size, symlink, or unreadable storage raises `ERR-STORE-404`. |
 | `AC-F07-080` | A simulated primary failure preserves exact bytes in the configured fallback and exposes its path on the original `StoreError`; a simulated double failure raises `ERR-STORE-406`. |
@@ -132,7 +135,7 @@ Hosted store (`OOS-01`, v1.1), retention policy enforcement, cross-repository se
 
 ## 9. Definition of Done
 
-- [x] All `REQ-F07-*` implemented, all `AC-F07-*` green
+- [ ] All `REQ-F07-*` implemented, all `AC-F07-*` green, including public retry proof
 - [x] All three backends pass the identical store conformance suite
 - [x] Coverage ≥ 90%
 - [x] Cross-cutting obligations satisfied

@@ -345,20 +345,23 @@ def test_release_recovery_proves_exact_public_bytes_and_prior_oidc_authority() -
 
 
 @pytest.mark.ac("AC-F11-170")
-def test_ci_validates_the_split_library_and_cli_versions() -> None:
-    """REQ-F11-170: CI validates both immutable libraries and the corrected CLI."""
+def test_ci_validates_the_split_library_store_and_cli_versions() -> None:
+    """REQ-F11-170/190: CI validates unchanged libraries and both patch packages."""
     package_job = _ci_workflow()["jobs"]["package-contract"]
     build_commands = _step(package_job, "Build and validate the exact package artifacts")["run"]
     for fragment in (
         "build/library-dist",
-        "--manifest release/patches/0.1.1-libraries.toml",
+        "--manifest release/patches/0.1.3-unchanged-libraries.toml",
+        "build/store-dist",
+        "--manifest release/patches/0.1.1-store.toml",
         "build/cli-dist",
-        "--manifest release/patches/0.1.2.toml",
+        "--manifest release/patches/0.1.3.toml",
     ):
         assert fragment in build_commands
     smoke_step = _step(package_job, "Install and smoke-test the wheels in a clean environment")
     install_commands = smoke_step["run"]
     assert "build/library-dist/*.whl" in install_commands
+    assert "build/store-dist/*.whl" in install_commands
     assert "build/cli-dist/*.whl" in install_commands
 
 

@@ -1,0 +1,3 @@
+[release]
+version = "0.1.1"
+distributions = ["attest-store"]

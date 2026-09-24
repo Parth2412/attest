@@ -700,7 +700,11 @@ Git attestation refs point to metadata tag objects whose targets are exact Bundl
 Bundle uses the base ref. Additional Bundles use `-<log-index>` when available, add the Bundle
 digest when that locator collides, or use `-sha256-<bundle-digest>` when no usable log index exists.
 No `refs/tags/`, notes, branch, index, HEAD, or working-tree state is modified. Publishing a ref to
-a remote is an explicit non-force operation and is never part of local storage.
+a remote is an explicit non-force operation and is never part of local storage. Before allocating
+a ref for remote publication, an implementation **MUST** import the stable advertised sibling set
+for the exact ChangeSet Digest without overwriting a local ref. Object transfer **MUST NOT** update
+`FETCH_HEAD` or any destination ref; every downloaded object passes the same storage-integrity
+validation before a missing attestation ref is created with compare-and-swap (`ADR-052`).
 
 Filesystem storage writes exact Bundle files as `<digest>.sigstore.json` and then
 `<digest>.<n>.sigstore.json`, with hash-bound companion metadata in the same configured directory.

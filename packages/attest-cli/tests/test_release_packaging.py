@@ -13,11 +13,17 @@ import pytest
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
-PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2.toml"
-PREVIOUS_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
+PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.3.toml"
+STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-store.toml"
+UNCHANGED_LIBRARY_MANIFEST: Final[Path] = (
+    REPOSITORY_ROOT / "release/patches/0.1.3-unchanged-libraries.toml"
+)
+PREVIOUS_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2.toml"
+FIRST_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
 PATCH_LIBRARY_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-libraries.toml"
 FIRST_RELEASE_VERSION: Final[str] = "0.1.0"
-PATCH_VERSION: Final[str] = "0.1.2"
+STORE_PATCH_VERSION: Final[str] = "0.1.1"
+PATCH_VERSION: Final[str] = "0.1.3"
 PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
     "attest-core",
     "attest-collect",
@@ -27,8 +33,12 @@ PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
     "attest-cli",
 )
 CURRENT_VERSIONS: Final[dict[str, str]] = {
-    distribution: PATCH_VERSION if distribution == "attest-cli" else FIRST_RELEASE_VERSION
-    for distribution in PUBLISHED_PACKAGES
+    "attest-core": FIRST_RELEASE_VERSION,
+    "attest-collect": FIRST_RELEASE_VERSION,
+    "attest-sign": FIRST_RELEASE_VERSION,
+    "attest-store": STORE_PATCH_VERSION,
+    "attest-policy": FIRST_RELEASE_VERSION,
+    "attest-cli": PATCH_VERSION,
 }
 INTERNAL_DEPENDENCIES: Final[dict[str, tuple[str, ...]]] = {
     "attest-core": (),
@@ -40,7 +50,7 @@ INTERNAL_DEPENDENCIES: Final[dict[str, tuple[str, ...]]] = {
         "attest-core==0.1.0",
         "attest-collect==0.1.0",
         "attest-sign==0.1.0",
-        "attest-store==0.1.0",
+        "attest-store==0.1.1",
         "attest-policy==0.1.0",
     ),
 }
@@ -82,7 +92,30 @@ def test_release_package_set_and_metadata_are_closed() -> None:
             ),
         },
     }
+    assert _toml(STORE_PATCH_MANIFEST) == {
+        "release": {
+            "version": STORE_PATCH_VERSION,
+            "distributions": ["attest-store"],
+        },
+    }
+    assert _toml(UNCHANGED_LIBRARY_MANIFEST) == {
+        "release": {
+            "version": FIRST_RELEASE_VERSION,
+            "distributions": [
+                "attest-core",
+                "attest-collect",
+                "attest-sign",
+                "attest-policy",
+            ],
+        },
+    }
     assert _toml(PREVIOUS_PATCH_RELEASE_MANIFEST) == {
+        "release": {
+            "version": "0.1.2",
+            "distributions": ["attest-cli"],
+        },
+    }
+    assert _toml(FIRST_PATCH_RELEASE_MANIFEST) == {
         "release": {
             "version": "0.1.1",
             "distributions": ["attest-cli"],
@@ -148,51 +181,61 @@ def test_release_package_set_and_metadata_are_closed() -> None:
 
 
 @pytest.mark.ac("AC-F11-180")
+@pytest.mark.ac("AC-F11-190")
 def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None:
-    """REQ-F11-180: only the corrected CLI wheel and sdist are patch artifacts."""
-    artifact_directory = tmp_path / "dist"
-    result = subprocess.run(
-        [
-            "uv",
-            "build",
-            "--package",
-            "attest-cli",
-            "--out-dir",
-            str(artifact_directory),
-            "--no-build-logs",
-            "--no-create-gitignore",
-            "--clear",
-        ],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, result.stderr
+    """REQ-F11-180/190: the store and CLI patch artifacts remain distinct and closed."""
+    artifact_directories: dict[str, Path] = {}
+    for distribution, manifest in (
+        ("attest-store", STORE_PATCH_MANIFEST),
+        ("attest-cli", PATCH_RELEASE_MANIFEST),
+    ):
+        artifact_directory = tmp_path / distribution
+        artifact_directories[distribution] = artifact_directory
+        result = subprocess.run(
+            [
+                "uv",
+                "build",
+                "--package",
+                distribution,
+                "--out-dir",
+                str(artifact_directory),
+                "--no-build-logs",
+                "--no-create-gitignore",
+                "--clear",
+            ],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stderr
 
-    hashes = tmp_path / "SHA256SUMS"
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(REPOSITORY_ROOT / "scripts/validate_release_artifacts.py"),
-            str(artifact_directory),
-            "--manifest",
-            str(PATCH_RELEASE_MANIFEST),
-            "--hash-output",
-            str(hashes),
-        ],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout == "release artifacts: validated 1 wheels and 1 source distributions\n"
-    assert len(hashes.read_text(encoding="utf-8").splitlines()) == 2
+        hashes = tmp_path / f"{distribution}-SHA256SUMS"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPOSITORY_ROOT / "scripts/validate_release_artifacts.py"),
+                str(artifact_directory),
+                "--manifest",
+                str(manifest),
+                "--hash-output",
+                str(hashes),
+            ],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == (
+            "release artifacts: validated 1 wheels and 1 source distributions\n"
+        )
+        assert len(hashes.read_text(encoding="utf-8").splitlines()) == 2
 
-    wheel = artifact_directory / "attest_cli-0.1.2-py3-none-any.whl"
+    artifact_directory = artifact_directories["attest-cli"]
+    wheel = artifact_directory / "attest_cli-0.1.3-py3-none-any.whl"
     changed_wheel = tmp_path / wheel.name
     with zipfile.ZipFile(wheel) as source, zipfile.ZipFile(changed_wheel, mode="w") as changed:
         for member in source.infolist():
@@ -224,7 +267,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
 def test_artifact_validator_rejects_an_unsafe_manifest_distribution(tmp_path: Path) -> None:
     manifest = tmp_path / "unsafe.toml"
     manifest.write_text(
-        '[release]\nversion = "0.1.2"\ndistributions = ["../attest-cli"]\n',
+        '[release]\nversion = "0.1.3"\ndistributions = ["../attest-cli"]\n',
         encoding="utf-8",
     )
     artifacts = tmp_path / "dist"
