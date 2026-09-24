@@ -180,6 +180,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 
 @pytest.mark.ac("AC-F11-150")
 @pytest.mark.ac("AC-F11-180")
+@pytest.mark.ac("AC-F11-190")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -189,6 +190,11 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert isinstance(triggers, dict)
     assert triggers["push"]["branches"] == ["dev"]
     assert "workflow_dispatch" in triggers
+    assert {
+        "release/patches/0.1.3-unchanged-libraries.toml",
+        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.3.toml",
+    } <= set(triggers["push"]["paths"])
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"]["cancel-in-progress"] is False
 
@@ -218,7 +224,13 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
-    assert "org.opencontainers.image.version=0.1.2-candidate" in str(jobs["build"]["steps"])
+    for manifest in (
+        "release/patches/0.1.3-unchanged-libraries.toml",
+        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.3.toml",
+    ):
+        assert f"--manifest {manifest}" in release_gate
+    assert "org.opencontainers.image.version=0.1.3-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index

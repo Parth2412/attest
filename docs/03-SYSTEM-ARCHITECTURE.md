@@ -169,17 +169,20 @@ Implementations: `GitRefStore`, `FilesystemStore`, `OciStore`.
 All backends preserve exact Bundle bytes and expose content-idempotent, create-only behavior.
 `get` and `list` validate storage integrity but never perform F-08 verification. Git storage uses
 hash-bound metadata tag objects and writes only its object database plus `refs/attestations/`;
-network push is a separate non-force operation. Filesystem storage uses atomically published
-Bundle files plus closed companion metadata inside one configured directory. OCI storage attaches
-a one-layer Sigstore Bundle manifest to one explicitly configured immutable subject descriptor and
-discovers it through the OCI 1.1 Referrers API.
+before allocation for publication it imports one stable, exact-digest remote snapshot through
+source-only object fetches and create-only local refs, then performs a separate non-force push.
+Neither import nor push overwrites an attestation ref, and import does not write `FETCH_HEAD`.
+Filesystem storage uses atomically published Bundle files plus closed companion metadata inside
+one configured directory. OCI storage attaches a one-layer Sigstore Bundle manifest to one
+explicitly configured immutable subject descriptor and discovers it through the OCI 1.1 Referrers
+API.
 
 The application uses `put_with_fallback` with an explicit `FilesystemStore`. Primary failure
 remains visible as a coded `StoreError` whose `fallback_path` lets the CLI report the preserved
 local bytes. Every network or subprocess operation has a hard deadline; ORAS operations run in a
 terminable worker because the locked client has no supported request-timeout parameter. Exact
 formats, ordering, collision behavior, errors, and concurrency rules are governed by `ADR-043`,
-the sibling-ref correction in `ADR-044`, and `BRD-F07`.
+the sibling-ref correction in `ADR-044`, remote discovery in `ADR-052`, and `BRD-F07`.
 
 ### 3.5 `attest-policy`
 

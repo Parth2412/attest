@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added bounded, create-only Git attestation-ref discovery before local sibling allocation so
+  fresh CI reruns retain denied and approved Bundles for one ChangeSet without overwriting evidence;
+  remote discovery failures preserve the new exact Bundle in the configured filesystem fallback.
 - Corrected generated pull-request workflow identities to the bounded
   `refs/pull/*/merge` certificate ref, preserved known verification failures at the Action
   boundary without emitting unverified facts, and prepared the `attest-cli 0.1.2` / Action

@@ -237,6 +237,8 @@ A release **MUST NOT** ship unless:
 - [ ] The `0.1.1` correction proves the public `0.1.0` image digest and immutable `v1.0.0` record are unchanged, creates protected immutable `v0.1.1`/`v1.0.1` records, and does not move `v1` before the replacement public proof succeeds
 - [ ] The `0.1.2` correction builds and publishes only `attest-cli`, retains the five exact `0.1.0` library pins, builds/scans/attests a new two-platform candidate image, proves final context equality, and promotes that exact manifest to `0.1.2` without rebuilding
 - [ ] The `0.1.2` release creates protected immutable `v0.1.2`/`v1.0.2` records without changing any earlier PyPI file, image, tag, or Release; `v1` moves only after the replacement public proof establishes the required blocked, denied, approved, malicious-content, and fork states
+- [ ] The `0.1.3` correction publishes only store `0.1.1` and CLI `0.1.3`, imports a stable exact-digest attestation-ref snapshot without overwriting local refs or `FETCH_HEAD`, promotes the exact reviewed `0.1.3` image candidate, and creates protected immutable `v0.1.3`/`v1.0.3` records without changing earlier public artifacts
+- [ ] The `0.1.3` replacement proof retains the public v1.0.2 denied Bundle, publishes an approved sibling Bundle for the same ChangeSet, and completes blocked, denied, approved, malicious-content, and fork states before `v1` moves
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated

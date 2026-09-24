@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 from typing import cast
 
@@ -133,6 +135,11 @@ def test_git_ref_push_calls_local_put_then_explicit_remote_push(
             calls.append("construct-git")
             assert repository_path == repository
 
+        def import_remote(self, supplied_digest: str, remote: str) -> None:
+            calls.append("import-remote")
+            assert supplied_digest == digest
+            assert remote == "upstream"
+
         def push(self, supplied: StoreRef, remote: str, fallback: object) -> StoreRef:
             calls.append("push")
             assert supplied == reference
@@ -167,7 +174,197 @@ def test_git_ref_push_calls_local_put_then_explicit_remote_push(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls == ["construct-git", "put", "push"]
+    assert calls == ["construct-git", "import-remote", "put", "push"]
+
+
+@pytest.mark.ac("AC-F07-050")
+@pytest.mark.ac("AC-F07-080")
+@pytest.mark.ac("AC-F10-210")
+def test_git_remote_import_failure_preserves_bundle_in_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-allocation transport failure retains the exact signed bytes locally."""
+    monkeypatch.chdir(tmp_path)
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    bundle = tmp_path / "bundle.bin"
+    exact = b"signed bytes requiring preservation"
+    bundle.write_bytes(exact)
+    digest = "a" * 64
+    fallback = tmp_path / "fallback"
+
+    class GitStore:
+        def __init__(self, repository_path: Path, **_kwargs: object) -> None:
+            assert repository_path == repository
+
+        def import_remote(self, supplied_digest: str, remote: str) -> None:
+            assert supplied_digest == digest
+            assert remote == "upstream"
+            raise StoreError("ERR-STORE-402")
+
+    monkeypatch.setattr("attest_store.GitRefStore", GitStore)
+    result = CliRunner().invoke(
+        app,
+        [
+            "push",
+            "--input",
+            str(bundle),
+            "--change-set-digest",
+            digest,
+            "--repository",
+            str(repository),
+            "--store-backend",
+            "git-ref",
+            "--git-remote",
+            "upstream",
+            "--fallback-directory",
+            str(fallback),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 6
+    report = json.loads(result.stdout)
+    preserved = fallback / f"{digest}.sigstore.json"
+    assert report["error"]["code"] == "ERR-STORE-402"
+    assert report["data"] == {"storeRef": None, "fallbackPath": str(preserved)}
+    assert preserved.read_bytes() == exact
+
+
+@pytest.mark.ac("AC-F07-080")
+@pytest.mark.ac("AC-F10-210")
+def test_git_remote_import_and_fallback_failure_reports_no_durable_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed import plus failed fallback is surfaced only as ERR-STORE-406."""
+    monkeypatch.chdir(tmp_path)
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    bundle = tmp_path / "bundle.bin"
+    bundle.write_bytes(b"unretained signed bytes")
+    digest = "a" * 64
+
+    class GitStore:
+        def __init__(self, repository_path: Path, **_kwargs: object) -> None:
+            assert repository_path == repository
+
+        def import_remote(self, _digest: str, _remote: str) -> None:
+            raise StoreError("ERR-STORE-402")
+
+    class FailingFilesystem:
+        def __init__(self, _directory: Path) -> None:
+            pass
+
+        def put(self, _digest: str, _bundle: bytes) -> StoreRef:
+            raise StoreError("ERR-STORE-404")
+
+    monkeypatch.setattr("attest_store.GitRefStore", GitStore)
+    monkeypatch.setattr("attest_store.FilesystemStore", FailingFilesystem)
+    result = CliRunner().invoke(
+        app,
+        [
+            "push",
+            "--input",
+            str(bundle),
+            "--change-set-digest",
+            digest,
+            "--repository",
+            str(repository),
+            "--store-backend",
+            "git-ref",
+            "--git-remote",
+            "upstream",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    report = json.loads(result.stdout)
+    assert report["error"]["code"] == "ERR-STORE-406"
+    assert report["data"] is None
+
+
+@pytest.mark.ac("AC-F07-010")
+@pytest.mark.ac("AC-F07-030")
+@pytest.mark.ac("AC-F10-210")
+@pytest.mark.ac("AC-F11-190")
+def test_fresh_git_checkouts_publish_distinct_bundles_for_one_changeset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two fresh CI-like checkouts retain denied and approved evidence as siblings."""
+    monkeypatch.chdir(tmp_path)
+    remote = tmp_path / "remote.git"
+    first_repository = tmp_path / "first"
+    second_repository = tmp_path / "second"
+    subprocess.run(
+        ["git", "init", "--bare", str(remote)],
+        check=True,
+        capture_output=True,
+    )
+    for repository in (first_repository, second_repository):
+        subprocess.run(
+            ["git", "init", "-b", "main", str(repository)],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repository), "remote", "add", "origin", str(remote)],
+            check=True,
+            capture_output=True,
+        )
+
+    digest = "a" * 64
+    first_bundle = tmp_path / "denied.sigstore.json"
+    second_bundle = tmp_path / "approved.sigstore.json"
+    first_bundle.write_bytes(b"denied evidence")
+    second_bundle.write_bytes(b"approved evidence")
+    reports: list[dict[str, object]] = []
+    for repository, bundle, fallback_name in (
+        (first_repository, first_bundle, "first-fallback"),
+        (second_repository, second_bundle, "second-fallback"),
+    ):
+        result = CliRunner().invoke(
+            app,
+            [
+                "push",
+                "--input",
+                str(bundle),
+                "--change-set-digest",
+                digest,
+                "--repository",
+                str(repository),
+                "--store-backend",
+                "git-ref",
+                "--git-remote",
+                "origin",
+                "--fallback-directory",
+                str(tmp_path / fallback_name),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, result.stdout
+        reports.append(cast(dict[str, object], json.loads(result.stdout)))
+
+    locations = [
+        cast(
+            str,
+            cast(dict[str, object], cast(dict[str, object], report["data"])["storeRef"])[
+                "location"
+            ],
+        )
+        for report in reports
+    ]
+    assert locations[0] == f"refs/attestations/{digest}"
+    assert locations[1] == (
+        f"refs/attestations/{digest}-sha256-{sha256(b'approved evidence').hexdigest()}"
+    )
+    remote_refs = subprocess.run(
+        ["git", "-C", str(remote), "for-each-ref", "--format=%(refname)", "refs/attestations/"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    assert sorted(remote_refs) == sorted(locations)
 
 
 @pytest.mark.ac("AC-F10-210")

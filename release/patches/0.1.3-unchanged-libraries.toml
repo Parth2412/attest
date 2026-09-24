@@ -1,0 +1,8 @@
+[release]
+version = "0.1.0"
+distributions = [
+  "attest-core",
+  "attest-collect",
+  "attest-sign",
+  "attest-policy",
+]
