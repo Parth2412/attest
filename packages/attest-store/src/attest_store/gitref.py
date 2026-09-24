@@ -34,6 +34,9 @@ type GitBackend = Literal["auto", "pygit2", "subprocess"]
 
 _DEFAULT_SUBPROCESS_TIMEOUT = timedelta(seconds=30)
 _MAX_LOCATOR_INSPECTION_BYTES = 1024 * 1024
+_MAX_REMOTE_REF_LIST_BYTES = 256 * 512
+_MAX_REMOTE_REFS = 256
+_REMOTE_SNAPSHOT_ATTEMPTS = 3
 _SAFE_GIT_CONFIG = ("core.fsmonitor=false", f"core.hooksPath={os.devnull}")
 _OID_PATTERN = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 _REF_PATTERN = re.compile(
@@ -164,6 +167,31 @@ def _extract_log_index(bundle: bytes) -> int | None:
     if len(indices) != 1:
         return None
     return next(iter(indices))
+
+
+def _parse_remote_refs(raw: bytes, digest: str) -> tuple[tuple[str, str], ...]:
+    if len(raw) > _MAX_REMOTE_REF_LIST_BYTES:
+        raise store_error("ERR-STORE-404")
+    references: dict[str, str] = {}
+    for line in raw.splitlines():
+        try:
+            object_bytes, name_bytes = line.split(b"\t", 1)
+            object_id = object_bytes.decode("ascii")
+            name = name_bytes.decode("ascii")
+        except (UnicodeError, ValueError):
+            raise store_error("ERR-STORE-404") from None
+        match = _REF_PATTERN.fullmatch(name)
+        if (
+            _OID_PATTERN.fullmatch(object_id) is None
+            or match is None
+            or match.group("digest") != digest
+            or name in references
+        ):
+            raise store_error("ERR-STORE-404")
+        references[name] = object_id
+    if len(references) > _MAX_REMOTE_REFS:
+        raise store_error("ERR-STORE-404")
+    return tuple(sorted(references.items()))
 
 
 class _GitObjects(Protocol):
@@ -350,6 +378,23 @@ class _SubprocessObjects:
     def push(self, remote: str, reference: str) -> subprocess.CompletedProcess[bytes]:
         return self._run("push", "--porcelain", "--", remote, f"{reference}:{reference}")
 
+    def list_remote_refs(self, remote: str, pattern: str) -> subprocess.CompletedProcess[bytes]:
+        return self._run("ls-remote", "--refs", remote, pattern)
+
+    def fetch_remote_objects(
+        self, remote: str, references: tuple[str, ...]
+    ) -> subprocess.CompletedProcess[bytes]:
+        return self._run(
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "--no-write-fetch-head",
+            "--no-recurse-submodules",
+            "--refmap=",
+            remote,
+            *references,
+        )
+
 
 def _read_reference(objects: _GitObjects, name: str, object_id: str) -> tuple[StoreRef, bytes]:
     match = _REF_PATTERN.fullmatch(name)
@@ -447,6 +492,63 @@ class GitRefStore:
         if digest is None:
             return entries
         return [entry for entry in entries if entry[0].digest == digest]
+
+    def _remote_refs(
+        self,
+        git: _SubprocessObjects,
+        remote: str,
+        digest: str,
+    ) -> tuple[tuple[str, str], ...]:
+        try:
+            result = git.list_remote_refs(remote, f"refs/attestations/{digest}*")
+        except (OSError, subprocess.TimeoutExpired):
+            raise store_error("ERR-STORE-402") from None
+        if result.returncode != 0:
+            raise store_error("ERR-STORE-402")
+        return _parse_remote_refs(result.stdout, digest)
+
+    def import_remote(self, digest: str, remote: str) -> None:
+        """Import one stable remote digest namespace without overwriting local refs."""
+        validated_digest = validate_digest(digest)
+        validated_remote = validate_location(remote)
+        if validated_remote.startswith("-"):
+            raise store_error("ERR-STORE-405")
+        git = _SubprocessObjects(self._repository, self._timeout)
+        snapshot: tuple[tuple[str, str], ...] | None = None
+        for _ in range(_REMOTE_SNAPSHOT_ATTEMPTS):
+            before = self._remote_refs(git, validated_remote, validated_digest)
+            if before:
+                try:
+                    result = git.fetch_remote_objects(
+                        validated_remote,
+                        tuple(name for name, _ in before),
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    raise store_error("ERR-STORE-402") from None
+                if result.returncode != 0:
+                    raise store_error("ERR-STORE-402")
+            after = self._remote_refs(git, validated_remote, validated_digest)
+            if before == after:
+                snapshot = after
+                break
+        if snapshot is None:
+            raise store_error("ERR-STORE-402")
+
+        validated = [
+            (name, object_id, _read_reference(self._objects, name, object_id))
+            for name, object_id in snapshot
+        ]
+        local_refs = dict(self._objects.list_refs("refs/attestations/"))
+        if any(local_refs.get(name) not in (None, object_id) for name, object_id, _ in validated):
+            raise store_error("ERR-STORE-404")
+        for name, object_id, _ in validated:
+            if local_refs.get(name) == object_id or self._objects.create_ref(name, object_id):
+                continue
+            if dict(self._objects.list_refs(name)).get(name) != object_id:
+                raise store_error("ERR-STORE-404")
+
+        # Re-read imported refs through the normal integrity boundary before returning.
+        self._entries(validated_digest)
 
     def put(self, digest: str, bundle: bytes) -> StoreRef:
         """Create one Git attestation ref without network access (REQ-F07-020/030/040)."""

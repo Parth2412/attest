@@ -187,10 +187,10 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-04` | Done |
 | `F-05` | Done |
 | `F-06` | Done |
-| `F-07` | Done |
+| `F-07` | In progress |
 | `F-08` | Done |
 | `F-09` | Done |
-| `F-10` | Done |
+| `F-10` | In progress |
 | `F-11` | In progress |
 | `F-12` | Planned |
 

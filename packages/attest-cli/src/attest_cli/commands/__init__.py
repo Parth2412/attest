@@ -967,6 +967,7 @@ def _handle_push(values: Mapping[str, object]) -> CommandResult:
         GitRefStore,
         OciStore,
         OciSubject,
+        StoreError,
         put_with_fallback,
     )
 
@@ -990,10 +991,22 @@ def _handle_push(values: Mapping[str, object]) -> CommandResult:
                 seconds=cast(int, resolved.value("storage.git.timeoutSeconds"))
             ),
         )
+        remote = cast(str, resolved.value("storage.git.remote"))
+        try:
+            cast(GitRefStore, primary).import_remote(digest, remote)
+        except StoreError as primary_error:
+            try:
+                fallback_reference = fallback.put(digest, bundle)
+            except StoreError:
+                raise StoreError("ERR-STORE-406") from primary_error
+            raise StoreError(
+                primary_error.code,
+                fallback_path=fallback_reference.location,
+            ) from primary_error
         local_reference = put_with_fallback(primary, fallback, digest, bundle)
         reference = cast(GitRefStore, primary).push(
             local_reference,
-            cast(str, resolved.value("storage.git.remote")),
+            remote,
             fallback,
         )
     elif backend == "filesystem":

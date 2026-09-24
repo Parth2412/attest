@@ -18,8 +18,12 @@ PUBLISHED_IMPORTS: Final[dict[str, str]] = {
     "attest-cli": "attest_cli",
 }
 EXPECTED_VERSIONS: Final[dict[str, str]] = {
-    distribution: "0.1.2" if distribution == "attest-cli" else "0.1.0"
-    for distribution in PUBLISHED_IMPORTS
+    "attest-core": "0.1.0",
+    "attest-collect": "0.1.0",
+    "attest-sign": "0.1.0",
+    "attest-store": "0.1.1",
+    "attest-policy": "0.1.0",
+    "attest-cli": "0.1.3",
 }
 
 

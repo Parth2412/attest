@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-cli` |
 | Depends on | `F-01`…`F-09`, including `REQ-F04-150` and `REQ-F08-170` |
-| Status | Done · governed by `ADR-045`, amended by `ADR-049` |
+| Status | **In progress** · governed by `ADR-045`, amended by `ADR-049`, `ADR-051`, and `ADR-052` |
 
 ---
 
@@ -231,7 +231,8 @@ and atomically publish without a partial target. Overwrite replaces only a reval
 and never follows links. `init` never overwrites any target and leaves no subset if preflight fails.
 
 There is no telemetry. Permitted egress is limited to F-04 GitHub operations, F-06 signing, F-07
-explicit storage/push, explicitly online F-08 trust refresh, and `doctor --probe-network`. Doctor
+explicit remote import and storage push, explicitly online F-08 trust refresh, and
+`doctor --probe-network`. Doctor
 derives signing endpoints from the same selected public Sigstore configuration, sends no
 credentials, follows no redirect, verifies TLS, uses a five-second per-endpoint timeout, and makes
 no OIDC request, signature, Rekor write, storage write, or policy decision. Without the flag doctor
@@ -394,7 +395,7 @@ denied policy, missing required evidence, or a placeholder.
 | `REQ-F10-180` | GitHub PR collect/run **MUST** delegate event/PR/Compare semantics to F-04 and use its PR-bound repository/base/head/target, exact merge base, and complete author/committer IDs; local mode **MUST NOT** fabricate forge evidence. |
 | `REQ-F10-190` | `init` **MUST** atomically create §7.1's three exact files, use `pull_request` plus caller-supplied full-SHA checkout and attest Actions, and generate the exact repository/workflow-bound `refs/pull/*/merge` identity pattern; live publication/proof remains F-11. |
 | `REQ-F10-200` | Config, Collection Artifact, and CLI output schemas **MUST** be generated from strict runtime models, committed, and independently drift-checked. |
-| `REQ-F10-210` | `push` **MUST** pass exact Bundle bytes and supplied validated ChangeSet Digest to F-07 without parsing/verifying the Bundle and preserve fallback reporting. |
+| `REQ-F10-210` | `push` **MUST** pass exact Bundle bytes and supplied validated ChangeSet Digest to F-07 without parsing/verifying the Bundle, import the exact remote digest namespace before local allocation for Git-ref publication, and preserve the exact Bundle plus original failure code through fallback when import, put, or push fails. |
 | `REQ-F10-220` | Human/JSON output **MUST** contain equivalent facts, stable ordering, and no traceback, raw chained exception, credential, raw forge body, raw subprocess output, prompt, or source content. |
 | `REQ-F10-230` | Config/environment discovery and help **MUST** perform no ambient credential exchange; only sign/run signing may request OIDC. |
 | `REQ-F10-240` | The installed distribution **MUST** expose exactly one `attest` script invoking the tested root app and `python -m attest_cli` **MUST** be equivalent. |
@@ -424,7 +425,7 @@ denied policy, missing required evidence, or a placeholder.
 | `AC-F10-180` | Recorded event/PR/Compare context passes unchanged to collection; any PR binding mismatch or incomplete context is fatal and local run emits unknown review without forge calls. |
 | `AC-F10-190` | Golden files prove exact config/policy/workflow bytes, bounded identity, event, permissions, and both full-SHA Actions; matching tests accept the generated PR merge identity and reject a default-branch identity, another repository, and another workflow; an existing target leaves all unchanged. |
 | `AC-F10-200` | Independent generation of all three schemas is diff-clean and wrong-version/unknown-field fixtures fail. |
-| `AC-F10-210` | Opaque non-JSON Bundle bytes reach fake stores byte-for-byte with supplied digest; primary failure reports fallback path/exit. |
+| `AC-F10-210` | Opaque non-JSON Bundle bytes reach fake stores byte-for-byte with supplied digest; two fresh Git repositories publish distinct sibling Bundles for one ChangeSet; remote-import, put, and push failures retain the original code and exact fallback path/bytes. |
 | `AC-F10-220` | Cross-renderer fixtures prove fact equivalence/order and scan all streams for prohibited content. |
 | `AC-F10-230` | All non-signing command tests fail on attempted OIDC/credential exchange; only sign/run signing may request one. |
 | `AC-F10-240` | Installed-wheel tests prove `attest` and `python -m attest_cli` equal and no additional console script exists. |
@@ -447,6 +448,7 @@ denied policy, missing required evidence, or a placeholder.
 - [x] Coverage ≥ 90% for `attest-cli`
 - [x] Cross-cutting obligations satisfied
 - [x] F-11 handoff records that publication and live fresh-repository proof remain open
+- [ ] The ADR-052 store `0.1.1` / CLI `0.1.3` correction is published and the replacement proof passes
 
 F-11 is In progress and owns the published Action, container and PyPI artifacts, immutable image
 digest, live least-privilege validation, and proof that the generated workflow runs unmodified in a

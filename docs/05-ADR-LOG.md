@@ -2676,6 +2676,85 @@ and [OIDC claim reference](https://docs.github.com/en/actions/reference/security
 
 ---
 
+## ADR-052 — Import remote attestation refs before allocating a sibling
+
+**Status:** Accepted · **Date:** 2026-09-24 · **Affects:** `SPEC-001 §9`, `ARCH-001`,
+`TECH-001`, `QA-001`, `BRD-F07`, `BRD-F10`, `BRD-F11`, `F-07`, `F-10`, `F-11` · **Amends:**
+`ADR-043`, `ADR-044`, `ADR-046`, `ADR-051`
+
+**Context.** Public proof pull request
+`https://github.com/Parth2412/attest-action-proof/pull/3` established the required blocked and
+no-review denial states with released Action `v1.0.2`. Run `35909819927` attempt 1 signed and
+published the denied Bundle at
+`refs/attestations/c27c98ef9fccfb7d316e1554091693dc8f4fa238a2a8f2fabcb9c9b190aa58cb`.
+After the owner supplied an
+independent approval, attempt 2 signed a different Bundle for the same ChangeSet Digest. Its fresh
+`actions/checkout` repository did not contain the custom remote attestation namespace, so local
+`GitRefStore.put` correctly—but incompletely—selected the base ref again. The non-force push then
+failed with `ERR-STORE-401` rather than allocating the already specified sibling ref.
+
+The store already supports multiple Bundles per ChangeSet when existing refs are local. A normal
+clone or full-history checkout does not fetch arbitrary custom namespaces. Force-pushing the base
+would destroy the denied evidence, while treating rejection as success would leave the approved
+Bundle undiscoverable.
+
+**Decision.** Before local allocation, the CLI Git-ref push path invokes
+`GitRefStore.import_remote(change_set_digest, remote)`. This is an explicit bounded ingress
+operation; `put` remains offline and create-only, and `push` remains an explicit non-force egress
+operation.
+
+Remote discovery lists only `refs/attestations/<exact-64-hex-digest>*`, accepts at most 256 refs,
+and requires every name to match the closed `ADR-044` sibling grammar. It fetches advertised refs
+as source-only object wants with no destination ref, no tag following, no submodule recursion, no
+configured ref mapping, and no `FETCH_HEAD` write. Two identical advertised snapshots must bracket
+the object fetch; a changing namespace is retried three times and then fails transiently. Every
+downloaded tag, metadata object, digest, size, timestamp, and Bundle blob passes the existing
+storage-integrity boundary before any local ref is created. Valid missing refs are imported only
+with create-only compare-and-swap. An existing local ref must have the exact advertised object ID;
+it is never overwritten.
+
+Unreachable, unauthenticated, or unstable remote discovery is `ERR-STORE-402`; malformed or
+conflicting advertised storage is `ERR-STORE-404`. In either case the CLI preserves the newly
+signed exact Bundle through the configured filesystem fallback before reporting the original
+code. The Action reaches this import only at the push stage, after its mandatory OIDC preflight,
+so a fork without signing authority continues to fail before repository-controlled reads.
+
+The correction publishes `attest-store==0.1.1` and `attest-cli==0.1.3`, with the CLI retaining
+exact `0.1.0` pins for core, collect, sign, and policy. Because the Action runtime gains the store
+and CLI bytes, a new reviewed multi-platform candidate is promoted without rebuilding as
+`ghcr.io/parth2412/attest:0.1.3`, immutable Action `v1.0.3`, and source record `v0.1.3`. Every
+earlier package file, image manifest, immutable tag, Release, and public attestation ref remains
+unchanged. Moving `v1` remains forbidden until a new public proof completes blocked, denied,
+approved, malicious-content, and fork states with the corrected release.
+
+**Rationale.** Allocation is deterministic only against the complete known namespace. Importing a
+validated remote snapshot before `put` lets the existing sibling algorithm retain both denied and
+approved evidence without changing its permanent format. Source-only fetches separate object
+transfer from ref mutation, and compare-and-swap preserves the no-overwrite property even though
+Git otherwise permits non-fast-forward fetch updates outside `refs/heads` and `refs/tags`.
+
+**Rejected alternatives.** Force-pushing or deleting the base ref loses valid evidence. Silently
+accepting the rejected push falsely reports durability. Disabling `push-attestation` for denied
+runs makes public onboarding behavior depend on an undocumented proof-only exception. Adding a
+workflow fetch step performs repository I/O before the Action's OIDC guard and leaves direct CLI
+users broken. Fetching the wildcard directly into `refs/attestations/*` can overwrite existing
+custom refs under Git's fetch rules. Publishing all Bundles under new names would abandon the
+shipped base-ref contract instead of completing its existing multi-Bundle design.
+
+**Consequences.** Git-ref publication gains one bounded remote read before local allocation and
+may fail closed on corrupt or continuously changing remote storage. Tests must cover two fresh
+checkouts publishing distinct Bundles for one ChangeSet, exact remote import through both Git
+backends, no `FETCH_HEAD` or unrelated-state mutation, malformed refs, unavailable transport,
+local conflicts, and fallback preservation. The failed v1.0.2 proof remains public evidence; it is
+not rewritten or hidden.
+
+The fetch model was checked against Git's
+[fetch documentation](https://git-scm.com/docs/git-fetch), including source-only refspecs,
+`--no-write-fetch-head`, explicit ref mapping, and non-fast-forward custom-ref behavior, as read
+on 2026-09-24.
+
+---
+
 ## Template for new ADRs
 
 ```markdown
