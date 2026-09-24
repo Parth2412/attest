@@ -355,6 +355,13 @@ def test_release_builds_once_and_separates_patch_publication_authority() -> None
         '--version "${STORE_VERSION}"',
         "--manifest release/patches/0.1.3.toml",
         '--version "${PRODUCT_VERSION}"',
+        "max_install_attempts=12",
+        "retry_delay_seconds=15",
+        'for install_attempt in $(seq 1 "${max_install_attempts}")',
+        'if [ "${install_attempt}" -eq "${max_install_attempts}" ]',
+        "Exact public packages remained unresolvable",
+        'sleep "${retry_delay_seconds}"',
+        "index-convergence-python-${{ matrix.python }}.txt",
         '"attest-store==${STORE_VERSION}"',
         '"attest-cli==${PRODUCT_VERSION}"',
         'metadata.version("attest-store") == "0.1.1"',
@@ -362,6 +369,8 @@ def test_release_builds_once_and_separates_patch_publication_authority() -> None
         'metadata.version(distribution) == "0.1.0"',
     ):
         assert fragment in verify_commands
+    assert verify_commands.count("uv pip install") == 1
+    assert "continue-on-error" not in verify_commands
 
 
 @pytest.mark.ac("AC-F11-190")
@@ -480,6 +489,11 @@ def test_release_attests_artifacts_and_dogfoods_production_identity() -> None:
     )
     for fragment in (
         "attest-cli==${PRODUCT_VERSION}",
+        "max_install_attempts=12",
+        "retry_delay_seconds=15",
+        'for install_attempt in $(seq 1 "${max_install_attempts}")',
+        "Public CLI remained unresolvable",
+        "dogfood-index-convergence.txt",
         "attest run",
         "--signing-environment production",
         "--verify-environment production",
@@ -490,6 +504,8 @@ def test_release_attests_artifacts_and_dogfoods_production_identity() -> None:
         "release/attest-release-policy.yaml",
     ):
         assert fragment in dogfood_commands
+    assert dogfood_commands.count("uv pip install") == 1
+    assert "continue-on-error" not in dogfood_commands
 
     dogfood_evidence = _step(jobs["dogfood"], "Retain attest dogfood evidence")
     assert dogfood_evidence["with"] == {
