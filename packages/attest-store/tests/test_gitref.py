@@ -252,6 +252,187 @@ def test_explicit_push_updates_only_same_remote_ref(
     assert list(fallback.list()) == []
 
 
+@pytest.mark.ac("AC-F07-010")
+@pytest.mark.ac("AC-F07-030")
+@pytest.mark.ac("AC-F07-040")
+@pytest.mark.parametrize("backend", _BACKENDS)
+def test_import_remote_preserves_multiple_bundles_without_other_git_state(
+    tmp_path: Path, stored_at: datetime, backend: GitBackend
+) -> None:
+    """Remote discovery imports exact refs before allocating the next sibling."""
+    writer = tmp_path / "writer"
+    reader = tmp_path / "reader"
+    remote = tmp_path / "remote.git"
+    writer.mkdir()
+    reader.mkdir()
+    remote.mkdir()
+    _initialize_repository(writer)
+    _initialize_repository(reader)
+    _run_git(remote, "init", "--bare")
+    _run_git(writer, "remote", "add", "storage", str(remote))
+    _run_git(reader, "remote", "add", "storage", str(remote))
+    writer_store = GitRefStore(writer, backend=backend, clock=lambda: stored_at)
+    writer_fallback_path = tmp_path / "writer-fallback"
+    writer_fallback_path.mkdir()
+    writer_fallback = FilesystemStore(writer_fallback_path, clock=lambda: stored_at)
+    first = _bundle(7, marker="denied")
+    second = _bundle(9, marker="approved")
+    for raw in (first, second):
+        reference = writer_store.put(_DIGEST, raw)
+        assert writer_store.push(reference, "storage", writer_fallback) == reference
+
+    reader_store = GitRefStore(reader, backend=backend, clock=lambda: stored_at)
+    before = _git_snapshot(reader)
+    assert not (reader / ".git" / "FETCH_HEAD").exists()
+    reader_store.import_remote(_DIGEST, "storage")
+
+    assert _git_snapshot(reader) == before
+    assert not (reader / ".git" / "FETCH_HEAD").exists()
+    assert reader_store.get(_DIGEST) == sorted(
+        [first, second], key=lambda value: sha256(value).digest()
+    )
+    assert [item.location for item in reader_store.list()] == [
+        f"refs/attestations/{_DIGEST}",
+        f"refs/attestations/{_DIGEST}-9",
+    ]
+    third = reader_store.put(_DIGEST, _bundle(11, marker="rerun"))
+    assert third.location == f"refs/attestations/{_DIGEST}-11"
+
+
+@pytest.mark.ac("AC-F07-070")
+def test_import_remote_rejects_malformed_advertised_ref(tmp_path: Path) -> None:
+    """Remote discovery never imports a ref outside the closed sibling grammar."""
+    repository = tmp_path / "repository"
+    remote = tmp_path / "remote.git"
+    repository.mkdir()
+    remote.mkdir()
+    _initialize_repository(repository)
+    _run_git(remote, "init", "--bare")
+    blob = _run_git(remote, "hash-object", "-w", "--stdin", input_bytes=b"invalid").strip()
+    _run_git(
+        remote,
+        "update-ref",
+        f"refs/attestations/{_DIGEST}-invalid",
+        blob.decode(),
+    )
+    _run_git(repository, "remote", "add", "storage", str(remote))
+    store = GitRefStore(repository, backend="subprocess")
+
+    with pytest.raises(StoreError) as captured:
+        store.import_remote(_DIGEST, "storage")
+
+    assert captured.value.code == "ERR-STORE-404"
+    assert not _run_git(repository, "for-each-ref", "refs/attestations/")
+
+
+@pytest.mark.ac("AC-F07-050")
+def test_import_remote_unreachable_is_transient(tmp_path: Path) -> None:
+    """Remote discovery maps unavailable Git transport to the stable transient code."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _initialize_repository(repository)
+    _run_git(repository, "remote", "add", "missing", str(tmp_path / "missing.git"))
+    store = GitRefStore(repository, backend="subprocess")
+
+    with pytest.raises(StoreError) as captured:
+        store.import_remote(_DIGEST, "missing")
+
+    assert captured.value.code == "ERR-STORE-402"
+    assert not _run_git(repository, "for-each-ref", "refs/attestations/")
+
+
+@pytest.mark.ac("AC-F07-050")
+def test_import_remote_rejects_an_unstable_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Three changing advertised snapshots fail transiently without local refs."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _initialize_repository(repository)
+    store = GitRefStore(repository, backend="subprocess")
+    name = f"refs/attestations/{_DIGEST}"
+    snapshots = iter(
+        [
+            (),
+            ((name, "1" * 40),),
+            (),
+            ((name, "2" * 40),),
+            (),
+            ((name, "3" * 40),),
+        ]
+    )
+
+    def changing_snapshot(
+        _git: gitref_module._SubprocessObjects, _remote: str, _digest: str
+    ) -> tuple[tuple[str, str], ...]:
+        return next(snapshots)
+
+    monkeypatch.setattr(store, "_remote_refs", changing_snapshot)
+    with pytest.raises(StoreError) as captured:
+        store.import_remote(_DIGEST, "storage")
+
+    assert captured.value.code == "ERR-STORE-402"
+    assert not _run_git(repository, "for-each-ref", "refs/attestations/")
+    assert not (repository / ".git" / "FETCH_HEAD").exists()
+
+
+@pytest.mark.ac("AC-F07-070")
+def test_remote_ref_parser_enforces_count_and_uniqueness_bounds() -> None:
+    """Advertised namespaces are bounded sets, not duplicate or unbounded lists."""
+    object_id = "1" * 40
+    duplicate = (
+        f"{object_id}\trefs/attestations/{_DIGEST}\n{object_id}\trefs/attestations/{_DIGEST}\n"
+    ).encode()
+    oversized = b"".join(
+        f"{object_id}\trefs/attestations/{_DIGEST}-{index}\n".encode() for index in range(257)
+    )
+
+    for raw in (duplicate, oversized):
+        with pytest.raises(StoreError) as captured:
+            gitref_module._parse_remote_refs(raw, _DIGEST)
+        assert captured.value.code == "ERR-STORE-404"
+
+
+@pytest.mark.ac("AC-F07-100")
+def test_import_remote_never_overwrites_a_local_ref(tmp_path: Path, stored_at: datetime) -> None:
+    """A later local conflict is detected before any remote ref is imported."""
+    repository = tmp_path / "repository"
+    writer = tmp_path / "writer"
+    remote = tmp_path / "remote.git"
+    repository.mkdir()
+    writer.mkdir()
+    remote.mkdir()
+    _initialize_repository(repository)
+    _initialize_repository(writer)
+    _run_git(remote, "init", "--bare")
+    _run_git(repository, "remote", "add", "storage", str(remote))
+    _run_git(writer, "remote", "add", "storage", str(remote))
+    fallback_path = tmp_path / "fallback"
+    fallback_path.mkdir()
+    fallback = FilesystemStore(fallback_path, clock=lambda: stored_at)
+    writer_store = GitRefStore(writer, backend="subprocess", clock=lambda: stored_at)
+    remote_base = writer_store.put(_DIGEST, _bundle(1, marker="remote-base"))
+    remote_sibling = writer_store.put(_DIGEST, _bundle(2, marker="remote-sibling"))
+    writer_store.push(remote_base, "storage", fallback)
+    writer_store.push(remote_sibling, "storage", fallback)
+    local_store = GitRefStore(repository, backend="subprocess", clock=lambda: stored_at)
+    local_base = local_store.put(_DIGEST, _bundle(1, marker="local-placeholder"))
+    local_bundle = _bundle(2, marker="local-sibling")
+    local_reference = local_store.put(_DIGEST, local_bundle)
+    _run_git(repository, "update-ref", "-d", local_base.location)
+    local_oid = _run_git(repository, "rev-parse", local_reference.location)
+
+    with pytest.raises(StoreError) as captured:
+        local_store.import_remote(_DIGEST, "storage")
+
+    assert captured.value.code == "ERR-STORE-404"
+    assert _run_git(repository, "rev-parse", local_reference.location) == local_oid
+    assert local_store.get(_DIGEST) == [local_bundle]
+    assert _run_git(repository, "for-each-ref", "--format=%(refname)", "refs/attestations/") == (
+        f"{local_reference.location}\n".encode()
+    )
+
+
 @pytest.mark.ac("AC-F07-050")
 @pytest.mark.parametrize(
     ("remote_kind", "expected_code"),

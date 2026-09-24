@@ -16,8 +16,9 @@ on:
       - "packages/attest-cli/**"
       - "pyproject.toml"
       - "release/packages.toml"
-      - "release/patches/0.1.1-libraries.toml"
-      - "release/patches/0.1.2.toml"
+      - "release/patches/0.1.3-unchanged-libraries.toml"
+      - "release/patches/0.1.1-store.toml"
+      - "release/patches/0.1.3.toml"
       - "scripts/prepare_action_context.py"
       - "scripts/check_action_scan.py"
       - "uv.lock"
@@ -77,17 +78,22 @@ jobs:
             --clear --no-create-gitignore
           uv build --package attest-collect --out-dir build/library-dist --no-create-gitignore
           uv build --package attest-sign --out-dir build/library-dist --no-create-gitignore
-          uv build --package attest-store --out-dir build/library-dist --no-create-gitignore
           uv build --package attest-policy --out-dir build/library-dist --no-create-gitignore
           uv run --no-project python scripts/validate_release_artifacts.py \
             build/library-dist \
-            --manifest release/patches/0.1.1-libraries.toml \
+            --manifest release/patches/0.1.3-unchanged-libraries.toml \
             --hash-output build/LIBRARY-SHA256SUMS
+          uv build --package attest-store --out-dir build/store-dist \
+            --clear --no-create-gitignore
+          uv run --no-project python scripts/validate_release_artifacts.py \
+            build/store-dist \
+            --manifest release/patches/0.1.1-store.toml \
+            --hash-output build/STORE-SHA256SUMS
           uv build --package attest-cli --out-dir build/cli-dist \
             --clear --no-create-gitignore
           uv run --no-project python scripts/validate_release_artifacts.py \
             build/cli-dist \
-            --manifest release/patches/0.1.2.toml \
+            --manifest release/patches/0.1.3.toml \
             --hash-output build/CLI-SHA256SUMS
           uv run --no-project python scripts/prepare_action_context.py \
             build/action-context \
@@ -160,7 +166,7 @@ jobs:
             io.github.parth2412.attest.context-digest=${{ steps.context.outputs.digest }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=0.1.2-candidate
+            org.opencontainers.image.version=0.1.3-candidate
           sbom: true
           provenance: mode=max
       - name: Retain and validate the manifest, SBOM, and provenance

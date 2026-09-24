@@ -1,0 +1,3 @@
+[release]
+version = "0.1.3"
+distributions = ["attest-cli"]

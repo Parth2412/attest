@@ -209,7 +209,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
         "/opt/attest/entrypoint.py",
     ]
     assert version.returncode == 0, version.stderr
-    assert version.stdout == "attest 0.1.2\n"
+    assert version.stdout == "attest 0.1.3\n"
 
 
 @pytest.mark.container
