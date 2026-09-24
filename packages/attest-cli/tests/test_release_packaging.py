@@ -85,10 +85,11 @@ def test_release_package_set_and_metadata_are_closed() -> None:
         },
         "compatibility": {
             "library-version": FIRST_RELEASE_VERSION,
-            "action-version": "v1.0.2",
+            "store-version": STORE_PATCH_VERSION,
+            "action-version": "v1.0.3",
             "image": (
                 "ghcr.io/parth2412/attest@sha256:"
-                "50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
+                "d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
             ),
         },
     }
@@ -113,6 +114,14 @@ def test_release_package_set_and_metadata_are_closed() -> None:
         "release": {
             "version": "0.1.2",
             "distributions": ["attest-cli"],
+        },
+        "compatibility": {
+            "library-version": FIRST_RELEASE_VERSION,
+            "action-version": "v1.0.2",
+            "image": (
+                "ghcr.io/parth2412/attest@sha256:"
+                "50ff206da7d26341776c954bb190005f1e6d10369b29fbbbe68619ce8d7ad627"
+            ),
         },
     }
     assert _toml(FIRST_PATCH_RELEASE_MANIFEST) == {
