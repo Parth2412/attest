@@ -81,7 +81,7 @@ def test_major_tag_promotion_is_manual_reviewed_and_least_privileged() -> None:
     assert jobs["promote"]["if"] == "needs.preflight.result == 'success'"
     assert jobs["promote"]["permissions"] == {
         "actions": "read",
-        "contents": "write",
+        "contents": "read",
     }
     assert jobs["promote"]["environment"] == {
         "name": "action-major",
@@ -92,8 +92,14 @@ def test_major_tag_promotion_is_manual_reviewed_and_least_privileged() -> None:
     assert action_references == EXPECTED_ACTIONS
     assert all(FULL_SHA.fullmatch(reference) for reference in action_references)
     rendered = PROMOTION_WORKFLOW.read_text(encoding="utf-8")
-    assert "secrets." not in rendered
+    assert rendered.count("secrets.") == 1
+    assert rendered.count("secrets.ACTION_MAJOR_TOKEN") == 1
     assert "pull_request_target:" not in rendered
+
+    promotion_step = _step(jobs["promote"], "Revalidate and move the Action major tag")
+    assert promotion_step["env"] == {
+        "GH_TOKEN": "${{ secrets.ACTION_MAJOR_TOKEN }}",
+    }
 
 
 @pytest.mark.ac("AC-F11-080")
@@ -206,6 +212,7 @@ def test_major_tag_is_moved_once_after_review_and_then_verified() -> None:
     assert "git/refs/tags/${ACTION_MAJOR_TAG}" in commands
     assert '--field sha="${TARGET_RELEASE_SHA}"' in commands
     assert "--field force=true" in commands
+    assert 'test -n "${GH_TOKEN}"' in commands
     assert 'test "${before}" = "${CURRENT_MAJOR_SHA}"' in commands
     assert 'test "${after}" = "${TARGET_RELEASE_SHA}"' in commands
     assert "v0.1.0 v1.0.0" in commands
