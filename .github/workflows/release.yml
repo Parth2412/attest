@@ -963,13 +963,31 @@ jobs:
             --manifest release/patches/0.1.3.toml \
             --version "${PRODUCT_VERSION}" \
             | tee "public-package-evidence/cli-pypi-verification-python-${{ matrix.python }}.txt"
-          uv venv build/public-package-smoke --python "${{ matrix.python }}" --clear
-          uv pip install \
-            --python build/public-package-smoke/bin/python \
-            --strict \
-            --no-cache \
-            "attest-store==${STORE_VERSION}" \
-            "attest-cli==${PRODUCT_VERSION}"
+          max_install_attempts=12
+          retry_delay_seconds=15
+          install_evidence="public-package-evidence/index-convergence-python-${{ matrix.python }}.txt"
+          : > "${install_evidence}"
+          for install_attempt in $(seq 1 "${max_install_attempts}"); do
+            uv venv build/public-package-smoke --python "${{ matrix.python }}" --clear
+            if uv pip install \
+              --python build/public-package-smoke/bin/python \
+              --strict \
+              --no-cache \
+              "attest-store==${STORE_VERSION}" \
+              "attest-cli==${PRODUCT_VERSION}"; then
+              printf 'attempt=%s status=resolved\n' "${install_attempt}" \
+                >> "${install_evidence}"
+              break
+            fi
+            printf 'attempt=%s status=not-yet-resolvable\n' "${install_attempt}" \
+              >> "${install_evidence}"
+            if [ "${install_attempt}" -eq "${max_install_attempts}" ]; then
+              echo "::error::Exact public packages remained unresolvable after ${max_install_attempts} attempts"
+              exit 1
+            fi
+            echo "::notice::PyPI index has not converged; retrying exact clean installation in ${retry_delay_seconds}s"
+            sleep "${retry_delay_seconds}"
+          done
           uv pip freeze --python build/public-package-smoke/bin/python \
             > "public-package-evidence/installed-python-${{ matrix.python }}.txt"
           build/public-package-smoke/bin/python - <<'PY'
@@ -1100,12 +1118,32 @@ jobs:
       - name: Install the public CLI patch in isolation
         shell: bash
         run: |
-          uv venv build/patch-dogfood --python 3.12 --clear
-          uv pip install \
-            --python build/patch-dogfood/bin/python \
-            --strict \
-            --no-cache \
-            "attest-cli==${PRODUCT_VERSION}"
+          set -euo pipefail
+          mkdir -p build/release-evidence
+          max_install_attempts=12
+          retry_delay_seconds=15
+          install_evidence="build/release-evidence/dogfood-index-convergence.txt"
+          : > "${install_evidence}"
+          for install_attempt in $(seq 1 "${max_install_attempts}"); do
+            uv venv build/patch-dogfood --python 3.12 --clear
+            if uv pip install \
+              --python build/patch-dogfood/bin/python \
+              --strict \
+              --no-cache \
+              "attest-cli==${PRODUCT_VERSION}"; then
+              printf 'attempt=%s status=resolved\n' "${install_attempt}" \
+                >> "${install_evidence}"
+              break
+            fi
+            printf 'attempt=%s status=not-yet-resolvable\n' "${install_attempt}" \
+              >> "${install_evidence}"
+            if [ "${install_attempt}" -eq "${max_install_attempts}" ]; then
+              echo "::error::Public CLI remained unresolvable after ${max_install_attempts} attempts"
+              exit 1
+            fi
+            echo "::notice::PyPI index has not converged for dogfood; retrying in ${retry_delay_seconds}s"
+            sleep "${retry_delay_seconds}"
+          done
       - name: Attest and publicly verify the patch source
         shell: bash
         run: |
