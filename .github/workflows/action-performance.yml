@@ -1,0 +1,183 @@
+name: measure Action cold start
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/action-performance.yml"
+      - "action/performance/**"
+      - "scripts/summarize_action_performance.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-performance-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: measure (${{ matrix.sample }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        sample: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the frozen staging configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp action/performance/config.yaml .attest/config.yaml
+          cmp action/performance/config.yaml .attest/config.yaml
+      - name: Measure immutable Action v1.0.3
+        id: action
+        uses: Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          mode: run
+          policy: action/performance/policy.yaml
+          push-attestation: "false"
+          fail-on-violation: "true"
+      - name: Record hosted runner identity
+        if: ${{ always() }}
+        env:
+          ACTION_CONCLUSION: ${{ steps.action.outcome }}
+          ACTION_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
+          IMAGE_DIGEST: sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1
+          SAMPLE: ${{ matrix.sample }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ImageOS:-}"
+          test -n "${ImageVersion:-}"
+          test "${RUNNER_ENVIRONMENT}" = "github-hosted"
+          mkdir -p "${RUNNER_TEMP}/action-performance"
+          config_sha256=$(sha256sum action/performance/config.yaml | awk '{print $1}')
+          policy_sha256=$(sha256sum action/performance/policy.yaml | awk '{print $1}')
+          jq -n \
+            --argjson schemaVersion 1 \
+            --argjson sample "${SAMPLE}" \
+            --arg runnerEnvironment "${RUNNER_ENVIRONMENT}" \
+            --arg runnerArchitecture "${RUNNER_ARCH}" \
+            --arg runnerName "${RUNNER_NAME}" \
+            --arg imageOS "${ImageOS}" \
+            --arg imageVersion "${ImageVersion}" \
+            --arg headSha "${GITHUB_SHA}" \
+            --arg workflowRef "${GITHUB_WORKFLOW_REF}" \
+            --arg actionSha "${ACTION_SHA}" \
+            --arg imageDigest "${IMAGE_DIGEST}" \
+            --arg configSha256 "${config_sha256}" \
+            --arg policySha256 "${policy_sha256}" \
+            --arg actionConclusion "${ACTION_CONCLUSION}" \
+            '{
+              schemaVersion: $schemaVersion,
+              sample: $sample,
+              runnerEnvironment: $runnerEnvironment,
+              runnerArchitecture: $runnerArchitecture,
+              runnerName: $runnerName,
+              imageOS: $imageOS,
+              imageVersion: $imageVersion,
+              headSha: $headSha,
+              workflowRef: $workflowRef,
+              actionSha: $actionSha,
+              imageDigest: $imageDigest,
+              configSha256: $configSha256,
+              policySha256: $policySha256,
+              actionConclusion: $actionConclusion
+            }' > "${RUNNER_TEMP}/action-performance/sample-$(printf '%02d' "${SAMPLE}").json"
+      - name: Retain hosted runner identity
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: action-performance-sample-${{ matrix.sample }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/action-performance
+          if-no-files-found: error
+          retention-days: 90
+
+  summarize:
+    name: enforce nearest-rank p95
+    needs: measure
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Recover all runner observations
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: action-performance-sample-*-${{ github.run_id }}
+          path: performance-evidence/metadata
+          merge-multiple: true
+      - name: Capture exact workflow job timestamps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest&per_page=100" \
+            > performance-evidence/jobs.json
+          mkdir -p performance-evidence/source
+          cp .github/workflows/action-performance.yml performance-evidence/source/
+          cp action/performance/config.yaml performance-evidence/source/
+          cp action/performance/policy.yaml performance-evidence/source/
+          cp scripts/summarize_action_performance.py performance-evidence/source/
+      - name: Enforce the 20-job cold-start gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/summarize_action_performance.py \
+            --jobs performance-evidence/jobs.json \
+            --metadata-directory performance-evidence/metadata \
+            --config action/performance/config.yaml \
+            --policy action/performance/policy.yaml \
+            --output performance-evidence/summary.json \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --head-sha "${GITHUB_SHA}" \
+            --expected-samples 20 \
+            --threshold-seconds 15 \
+            --require-run-attempt 1
+      - name: Report the retained timing result
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f performance-evidence/summary.json || exit 0
+          {
+            echo "## Action cold-start evidence"
+            echo
+            jq -r '"- Samples: \(.metric.sampleCount)"' performance-evidence/summary.json
+            jq -r '"- Nearest-rank p50: \(.metric.nearestRankP50Seconds)s"' \
+              performance-evidence/summary.json
+            jq -r '"- Nearest-rank p95: \(.metric.nearestRankP95Seconds)s"' \
+              performance-evidence/summary.json
+            jq -r '"- Gate passed: \(.metric.passed)"' performance-evidence/summary.json
+            echo "- Immutable Action: \`8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8\`"
+            echo "- Image: \`sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Retain complete performance evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: action-performance-v1.0.3-${{ github.run_id }}
+          path: performance-evidence
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,16 @@
+version: 1
+policies:
+  - id: ATTEST-PERFORMANCE-001
+    description: "Require the exact hosted performance workflow identity"
+    match:
+      branches: ["main"]
+      paths: ["**"]
+    require:
+      attestation: true
+      environment:
+        trusted: true
+      signer:
+        issuer: "https://token.actions.githubusercontent.com"
+        identity: "https://github.com/Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
+      transparencyLog: true
+    onViolation: block

@@ -1,0 +1,18 @@
+version: 1
+repository:
+  path: "."
+  backend: auto
+signing:
+  environment: staging
+  timeoutSeconds: 120
+verification:
+  identity: "https://github.com/Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
+  issuer: "https://token.actions.githubusercontent.com"
+  environment: staging
+  offline: true
+policy:
+  path: "action/performance/policy.yaml"
+storage:
+  backend: filesystem
+  directory: ".attest/performance-bundles"
+  fallbackDirectory: ".attest/performance-fallback"
