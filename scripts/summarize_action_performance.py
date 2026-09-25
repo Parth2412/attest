@@ -15,15 +15,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, NoReturn
 
-ACTION_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
-IMAGE_DIGEST: Final[str] = "sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
-ACTION_STEP: Final[str] = "Measure immutable Action v1.0.3"
+IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+ACTION_STEP: Final[str] = "Measure exact merged Action"
 PULL_STEP: Final[str] = f"Pull ghcr.io/parth2412/attest@{IMAGE_DIGEST}"
 WORKFLOW_REF: Final[str] = (
     "Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
 )
 OID: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{40}\Z")
-DIGEST: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{64}\Z")
+DIGEST: Final[re.Pattern[str]] = re.compile(r"sha256:[0-9a-f]{64}\Z")
 JOB_NAME: Final[re.Pattern[str]] = re.compile(r"measure \(([1-9]|1[0-9]|20)\)\Z")
 METADATA_NAME: Final[re.Pattern[str]] = re.compile(r"sample-([0-9]{2})\.json\Z")
 
@@ -111,6 +110,8 @@ def _metadata(
     *,
     expected_samples: int,
     head_sha: str,
+    action_sha: str,
+    image_digest: str,
     config_sha256: str,
     policy_sha256: str,
 ) -> dict[int, dict[str, object]]:
@@ -136,8 +137,8 @@ def _metadata(
             "runnerEnvironment": "github-hosted",
             "headSha": head_sha,
             "workflowRef": WORKFLOW_REF,
-            "actionSha": ACTION_SHA,
-            "imageDigest": IMAGE_DIGEST,
+            "actionSha": action_sha,
+            "imageDigest": image_digest,
             "configSha256": config_sha256,
             "policySha256": policy_sha256,
             "actionConclusion": "success",
@@ -252,6 +253,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id", type=int, required=True)
     parser.add_argument("--run-attempt", type=int, required=True)
     parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--expected-action-sha", required=True)
+    parser.add_argument("--expected-image-digest", required=True)
     parser.add_argument("--expected-samples", type=int, required=True)
     parser.add_argument("--threshold-seconds", type=float, required=True)
     parser.add_argument("--require-run-attempt", type=int, required=True)
@@ -263,6 +266,12 @@ def _run(arguments: argparse.Namespace) -> None:
         _fail("unexpected repository")
     if OID.fullmatch(arguments.head_sha) is None:
         _fail("head SHA must be a full lowercase Git object ID")
+    if arguments.expected_action_sha != arguments.head_sha:
+        _fail("the measured Action must be the exact workflow head SHA")
+    if DIGEST.fullmatch(arguments.expected_image_digest) is None:
+        _fail("image digest must be a full lowercase SHA-256 digest")
+    if arguments.expected_image_digest != IMAGE_DIGEST:
+        _fail("image digest does not match the reviewed candidate")
     if arguments.run_id <= 0 or arguments.expected_samples != 20:
         _fail("run ID and expected sample count must match the frozen contract")
     if arguments.run_attempt != arguments.require_run_attempt or arguments.run_attempt != 1:
@@ -276,6 +285,8 @@ def _run(arguments: argparse.Namespace) -> None:
         arguments.metadata_directory,
         expected_samples=arguments.expected_samples,
         head_sha=arguments.head_sha,
+        action_sha=arguments.expected_action_sha,
+        image_digest=arguments.expected_image_digest,
         config_sha256=config_sha256,
         policy_sha256=policy_sha256,
     )
@@ -310,7 +321,10 @@ def _run(arguments: argparse.Namespace) -> None:
             "url": (f"https://github.com/{arguments.repository}/actions/runs/{arguments.run_id}"),
             "headSha": arguments.head_sha,
         },
-        "action": {"commit": ACTION_SHA, "imageDigest": IMAGE_DIGEST},
+        "action": {
+            "commit": arguments.expected_action_sha,
+            "imageDigest": arguments.expected_image_digest,
+        },
         "fixture": {
             "signingEnvironment": "staging",
             "verificationEnvironment": "staging",

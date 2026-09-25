@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.2@sha256:c4f5de312ee66d46810635ffc5df34a1973ba753e7241ce3a08ef979ddd7bea5 AS uv
 
-FROM python:3.12.14-slim-trixie@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9 AS build
+FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS build
 
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /build
@@ -19,11 +19,15 @@ ENV UV_LINK_MODE=copy \
 
 RUN uv sync --frozen --no-dev --package attest-cli --no-editable --compile-bytecode
 
-FROM python:3.12.14-slim-trixie@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
+FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends git=1:2.47.3-0+deb13u1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache git=2.52.0-r0 \
+    && rm -rf \
+        /usr/local/bin/pip \
+        /usr/local/bin/pip3 \
+        /usr/local/bin/pip3.12 \
+        /usr/local/lib/python3.12/site-packages/pip \
+        /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info
 
 COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py

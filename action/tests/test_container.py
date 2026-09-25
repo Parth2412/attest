@@ -213,6 +213,26 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-200")
+def test_runtime_omits_the_unused_system_package_installer() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "test ! -e /usr/local/bin/pip && "
+        "test ! -e /usr/local/bin/pip3 && "
+        "test ! -e /usr/local/bin/pip3.12 && "
+        "test ! -e /usr/local/lib/python3.12/site-packages/pip && "
+        "test ! -e /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-020")
 def test_container_checks_oidc_before_missing_repository_paths() -> None:
     result = _docker("run", "--rm", _image(), "--mode", "run")

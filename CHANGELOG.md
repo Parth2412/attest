@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Replaced the Action runtime with a digest-pinned Alpine image, removed unused system `pip`,
+  added exact 20-job merged-commit cold-start enforcement, and prepared the image-only `0.1.4` /
+  Action `v1.0.4` release without rebuilding or publishing any Python distribution.
 - Added bounded, create-only Git attestation-ref discovery before local sibling allocation so
   fresh CI reruns retain denied and approved Bundles for one ChangeSet without overwriting evidence;
   remote discovery failures preserve the new exact Bundle in the configured filesystem fallback.
