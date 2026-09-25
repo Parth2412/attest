@@ -21,7 +21,13 @@ RUN uv sync --frozen --no-dev --package attest-cli --no-editable --compile-bytec
 
 FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a
 
-RUN apk add --no-cache git=2.52.0-r0
+RUN apk add --no-cache git=2.52.0-r0 \
+    && rm -rf \
+        /usr/local/bin/pip \
+        /usr/local/bin/pip3 \
+        /usr/local/bin/pip3.12 \
+        /usr/local/lib/python3.12/site-packages/pip \
+        /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info
 
 COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py
