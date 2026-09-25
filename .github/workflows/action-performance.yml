@@ -5,8 +5,11 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/action-performance.yml"
-      - "action/performance/**"
+      - "action/**"
+      - "packages/**"
+      - "pyproject.toml"
       - "scripts/summarize_action_performance.py"
+      - "uv.lock"
 
 permissions:
   contents: read
@@ -39,9 +42,9 @@ jobs:
           set -euo pipefail
           cp action/performance/config.yaml .attest/config.yaml
           cmp action/performance/config.yaml .attest/config.yaml
-      - name: Measure immutable Action v1.0.3
+      - name: Measure exact merged Action
         id: action
-        uses: Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
+        uses: ./action
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -53,8 +56,8 @@ jobs:
         if: ${{ always() }}
         env:
           ACTION_CONCLUSION: ${{ steps.action.outcome }}
-          ACTION_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
-          IMAGE_DIGEST: sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1
+          ACTION_SHA: ${{ github.sha }}
+          IMAGE_DIGEST: sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745
           SAMPLE: ${{ matrix.sample }}
         shell: bash
         run: |
@@ -152,6 +155,8 @@ jobs:
             --run-id "${GITHUB_RUN_ID}" \
             --run-attempt "${GITHUB_RUN_ATTEMPT}" \
             --head-sha "${GITHUB_SHA}" \
+            --expected-action-sha "${GITHUB_SHA}" \
+            --expected-image-digest "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745" \
             --expected-samples 20 \
             --threshold-seconds 15 \
             --require-run-attempt 1
@@ -170,14 +175,14 @@ jobs:
             jq -r '"- Nearest-rank p95: \(.metric.nearestRankP95Seconds)s"' \
               performance-evidence/summary.json
             jq -r '"- Gate passed: \(.metric.passed)"' performance-evidence/summary.json
-            echo "- Immutable Action: \`8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8\`"
-            echo "- Image: \`sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1\`"
+            echo "- Exact merged Action: \`${GITHUB_SHA}\`"
+            echo "- Image: \`sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745\`"
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain complete performance evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: action-performance-v1.0.3-${{ github.run_id }}
+          name: action-performance-v1.0.4-${{ github.run_id }}
           path: performance-evidence
           if-no-files-found: error
           retention-days: 90

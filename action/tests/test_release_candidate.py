@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
+    "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
 )
 
 
@@ -230,7 +230,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.3.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.3-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.4-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index

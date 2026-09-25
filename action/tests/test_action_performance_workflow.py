@@ -19,10 +19,10 @@ PERFORMANCE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-
 PERFORMANCE_CONFIG: Final[Path] = REPOSITORY_ROOT / "action/performance/config.yaml"
 PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.yaml"
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
-ACTION_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
-IMAGE_DIGEST: Final[str] = "sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
-ACTION_REFERENCE: Final[str] = f"Parth2412/attest/action@{ACTION_SHA}"
-ACTION_STEP: Final[str] = "Measure immutable Action v1.0.3"
+ACTION_SHA: Final[str] = "a" * 40
+IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+ACTION_REFERENCE: Final[str] = "./action"
+ACTION_STEP: Final[str] = "Measure exact merged Action"
 PULL_STEP: Final[str] = f"Pull ghcr.io/parth2412/attest@{IMAGE_DIGEST}"
 WORKFLOW_IDENTITY: Final[str] = (
     "https://github.com/Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
@@ -77,8 +77,11 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
             "branches": ["main"],
             "paths": [
                 ".github/workflows/action-performance.yml",
-                "action/performance/**",
+                "action/**",
+                "packages/**",
+                "pyproject.toml",
                 "scripts/summarize_action_performance.py",
+                "uv.lock",
             ],
         }
     }
@@ -124,7 +127,9 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
 
     references = _uses(workflow)
     assert references == EXPECTED_ACTIONS
-    assert all(FULL_SHA.fullmatch(reference) for reference in references)
+    assert all(
+        reference == ACTION_REFERENCE or FULL_SHA.fullmatch(reference) for reference in references
+    )
     rendered = PERFORMANCE_WORKFLOW.read_text(encoding="utf-8")
     assert "secrets." not in rendered
     assert "pull_request_target:" not in rendered
@@ -182,8 +187,9 @@ def test_performance_fixture_is_frozen_to_staging_and_exact_identity() -> None:
         if isinstance(step, dict)
     )
     assert "cp action/performance/config.yaml .attest/config.yaml" in commands
-    assert ACTION_SHA in commands
     assert IMAGE_DIGEST in commands
+    assert '--expected-action-sha "${GITHUB_SHA}"' in commands
+    assert f'--expected-image-digest "{IMAGE_DIGEST}"' in commands
     assert "--expected-samples 20" in commands
     assert "--threshold-seconds 15" in commands
     assert "--require-run-attempt 1" in commands
@@ -302,6 +308,10 @@ def _run_summarizer(
             "1",
             "--head-sha",
             "a" * 40,
+            "--expected-action-sha",
+            ACTION_SHA,
+            "--expected-image-digest",
+            IMAGE_DIGEST,
             "--expected-samples",
             "20",
             "--threshold-seconds",
