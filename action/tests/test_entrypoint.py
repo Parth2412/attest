@@ -873,6 +873,7 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert dockerfile.count(python_base) == 2
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
+    assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
     assert "apt-get" not in dockerfile
     assert 'ENTRYPOINT ["/opt/venv/bin/python", "-I", "/opt/attest/entrypoint.py"]' in dockerfile
     assert "COPY action/action.yml" not in dockerfile
