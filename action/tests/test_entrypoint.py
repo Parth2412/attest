@@ -867,10 +867,12 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
 
     python_base = (
-        "python:3.12.14-slim-trixie@"
-        "sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9"
+        "python:3.12.14-alpine3.23@"
+        "sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a"
     )
     assert dockerfile.count(python_base) == 2
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
+    assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
+    assert "apt-get" not in dockerfile
     assert 'ENTRYPOINT ["/opt/venv/bin/python", "-I", "/opt/attest/entrypoint.py"]' in dockerfile
     assert "COPY action/action.yml" not in dockerfile
