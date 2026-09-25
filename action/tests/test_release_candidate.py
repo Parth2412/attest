@@ -230,7 +230,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.3.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.3-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.4-candidate" in str(jobs["build"]["steps"])
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index
