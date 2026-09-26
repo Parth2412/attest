@@ -181,6 +181,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-150")
 @pytest.mark.ac("AC-F11-180")
 @pytest.mark.ac("AC-F11-190")
+@pytest.mark.ac("AC-F11-200")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -259,9 +260,27 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         build_step["with"]["file"] == "${{ runner.temp }}/attest-action-context/action/Dockerfile"
     )
     assert build_step["with"]["platforms"] == "linux/amd64,linux/arm64"
-    assert build_step["with"]["push"] is True
+    assert build_step["with"]["outputs"] == (
+        "type=image,name=${{ steps.image.outputs.reference }},push=true,"
+        "oci-mediatypes=true,compression=zstd,compression-level=9,"
+        "force-compression=true"
+    )
+    assert "push" not in build_step["with"]
+    assert "tags" not in build_step["with"]
     assert build_step["with"]["sbom"] is True
     assert build_step["with"]["provenance"] == "mode=max"
+    evidence_step = next(
+        step
+        for step in jobs["build"]["steps"]
+        if step.get("name") == "Retain and validate the manifests, SBOM, and provenance"
+    )
+    evidence_script = evidence_step["run"]
+    assert "manifest-${operating_system}-${architecture}.json" in evidence_script
+    assert 'f"manifest-{operating_system}-{architecture}.json"' in evidence_script
+    assert '{"linux/amd64", "linux/arm64"}' in evidence_script
+    assert "application/vnd.oci.image.layer.v1.tar+zstd" in evidence_script
+    assert 'write_text(f"{image_digest}\\n"' in evidence_script
+    assert 'write_text(f"{digest}\\n"' not in evidence_script
 
     attest_step = next(step for step in jobs["attest"]["steps"] if step.get("id") == "attest")
     assert attest_step["with"] == {
