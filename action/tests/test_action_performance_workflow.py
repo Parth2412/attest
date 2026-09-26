@@ -20,10 +20,9 @@ PERFORMANCE_CONFIG: Final[Path] = REPOSITORY_ROOT / "action/performance/config.y
 PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.yaml"
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+IMAGE_DIGEST: Final[str] = "sha256:d25c6d00db13c34423b38e2c948bde8f41d2856a25bcf251bca2213872a15fbd"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
-PULL_STEP: Final[str] = f"Pull ghcr.io/parth2412/attest@{IMAGE_DIGEST}"
 WORKFLOW_IDENTITY: Final[str] = (
     "https://github.com/Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
 )
@@ -134,6 +133,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     assert "secrets." not in rendered
     assert "pull_request_target:" not in rendered
     assert "workflow_dispatch:" not in rendered
+    assert "docker pull" not in rendered
 
 
 @pytest.mark.ac("AC-F11-100")
@@ -203,8 +203,6 @@ def _timestamp(seconds: float) -> str:
 def _jobs_payload(*, samples: int = 20, total_seconds: float = 12.0) -> dict[str, object]:
     jobs: list[dict[str, object]] = []
     for sample in range(1, samples + 1):
-        pull_seconds = 4.0
-        action_seconds = total_seconds - pull_seconds
         jobs.append(
             {
                 "id": 10_000 + sample,
@@ -220,13 +218,6 @@ def _jobs_payload(*, samples: int = 20, total_seconds: float = 12.0) -> dict[str
                 "runner_group_name": "GitHub Actions",
                 "steps": [
                     {
-                        "name": PULL_STEP,
-                        "status": "completed",
-                        "conclusion": "success",
-                        "started_at": _timestamp(0),
-                        "completed_at": _timestamp(pull_seconds),
-                    },
-                    {
                         "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
                         "status": "completed",
                         "conclusion": "success",
@@ -238,7 +229,7 @@ def _jobs_payload(*, samples: int = 20, total_seconds: float = 12.0) -> dict[str
                         "status": "completed",
                         "conclusion": "success",
                         "started_at": _timestamp(6),
-                        "completed_at": _timestamp(6 + action_seconds),
+                        "completed_at": _timestamp(6 + total_seconds),
                     },
                 ],
             }
@@ -327,8 +318,8 @@ def _run_summarizer(
 
 
 @pytest.mark.ac("AC-F11-100")
-def test_summarizer_adds_pull_and_action_time_but_excludes_checkout(tmp_path: Path) -> None:
-    """REQ-F11-100: the retained metric includes pull/runtime but excludes checkout."""
+def test_summarizer_measures_the_action_step_and_excludes_checkout(tmp_path: Path) -> None:
+    """REQ-F11-100: the Action step contains pull/runtime while checkout stays excluded."""
     result, output = _run_summarizer(tmp_path)
     assert result.returncode == 0, result.stderr
     summary = json.loads(output.read_text(encoding="utf-8"))
@@ -337,7 +328,7 @@ def test_summarizer_adds_pull_and_action_time_but_excludes_checkout(tmp_path: Pa
     assert summary["acceptanceCriterion"] == "AC-F11-100"
     assert summary["action"] == {"commit": ACTION_SHA, "imageDigest": IMAGE_DIGEST}
     assert summary["metric"] == {
-        "definition": "image pull plus Action execution; checkout excluded",
+        "definition": "Action step including image pull and wrapper/CLI work; checkout excluded",
         "sampleCount": 20,
         "thresholdSecondsExclusive": 15.0,
         "nearestRankP50Seconds": 12.0,
@@ -347,8 +338,11 @@ def test_summarizer_adds_pull_and_action_time_but_excludes_checkout(tmp_path: Pa
     }
     first = summary["measurements"][0]
     assert first["sample"] == 1
-    assert first["imagePullSeconds"] == 4.0
-    assert first["actionExecutionSeconds"] == 8.0
+    assert first["actionStep"] == {
+        "startedAt": _timestamp(6),
+        "completedAt": _timestamp(18),
+    }
+    assert first["actionStepSeconds"] == 12.0
     assert first["measuredSeconds"] == 12.0
     assert first["runnerImage"] == {"os": "ubuntu24", "version": "20260921.1"}
 

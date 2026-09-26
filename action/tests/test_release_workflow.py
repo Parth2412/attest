@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+IMAGE_DIGEST: Final[str] = "sha256:d25c6d00db13c34423b38e2c948bde8f41d2856a25bcf251bca2213872a15fbd"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:352773471edaa7d2cbcdebd2826c2f96f4ca76a1f055cf7e694bc9c4c811f270"
+    "sha256:e07c5cf399548155ffeb2acfd25ba7afb2ab4883eb648ac0ff90d8e859ad3321"
 )
-CANDIDATE_SHA: Final[str] = "e2355a577adda42dea19d717677c8a65c2ade6f3"
+CANDIDATE_SHA: Final[str] = "de7113e3659cc2224d2f3ffb1b12f16628807616"
 PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -100,7 +100,7 @@ def test_release_is_a_closed_image_only_workflow() -> None:
         "PUBLIC_CLI_VERSION": "0.1.3",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 36105509906,
+        "REVIEWED_CANDIDATE_RUN_ID": 36258748890,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -209,6 +209,8 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         "--deny-self-hosted-runners",
         "candidate-image-sbom.spdx.json",
         "candidate-image-provenance.slsa.json",
+        "candidate-image-manifest-linux-amd64.json",
+        "candidate-image-manifest-linux-arm64.json",
     ):
         assert fragment in commands
     assert commands.count("scripts/check_action_scan.py") == 2

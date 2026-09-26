@@ -15,9 +15,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, NoReturn
 
-IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+IMAGE_DIGEST: Final[str] = "sha256:d25c6d00db13c34423b38e2c948bde8f41d2856a25bcf251bca2213872a15fbd"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
-PULL_STEP: Final[str] = f"Pull ghcr.io/parth2412/attest@{IMAGE_DIGEST}"
 WORKFLOW_REF: Final[str] = (
     "Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
 )
@@ -202,15 +201,12 @@ def _measurement(
     if record is None or record.get("runnerName") != runner_name:
         _fail(f"measurement job {sample} runner metadata does not match")
     steps = _steps(job)
-    pull = steps.get(PULL_STEP)
     action = steps.get(ACTION_STEP)
-    if pull is None or action is None:
-        _fail(f"measurement job {sample} is missing the exact pull or Action step")
-    pull_seconds, pull_started, pull_completed = _duration(pull, f"measurement {sample} pull")
+    if action is None:
+        _fail(f"measurement job {sample} is missing the exact Action step")
     action_seconds, action_started, action_completed = _duration(
         action, f"measurement {sample} Action"
     )
-    measured = round(pull_seconds + action_seconds, 3)
     return {
         "sample": sample,
         "jobId": job_id,
@@ -218,11 +214,9 @@ def _measurement(
         "runnerName": runner_name,
         "runnerArchitecture": record["runnerArchitecture"],
         "runnerImage": {"os": record["imageOS"], "version": record["imageVersion"]},
-        "imagePull": {"startedAt": pull_started, "completedAt": pull_completed},
-        "actionExecution": {"startedAt": action_started, "completedAt": action_completed},
-        "imagePullSeconds": pull_seconds,
-        "actionExecutionSeconds": action_seconds,
-        "measuredSeconds": measured,
+        "actionStep": {"startedAt": action_started, "completedAt": action_completed},
+        "actionStepSeconds": action_seconds,
+        "measuredSeconds": action_seconds,
     }
 
 
@@ -333,7 +327,9 @@ def _run(arguments: argparse.Namespace) -> None:
             "policySha256": policy_sha256,
         },
         "metric": {
-            "definition": "image pull plus Action execution; checkout excluded",
+            "definition": (
+                "Action step including image pull and wrapper/CLI work; checkout excluded"
+            ),
             "sampleCount": len(measurements),
             "thresholdSecondsExclusive": arguments.threshold_seconds,
             "nearestRankP50Seconds": p50,
