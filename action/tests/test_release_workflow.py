@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:7a38031c42fdb83398ed267937e8642f48964b169554e6792a5acbc4bcbcc745"
+IMAGE_DIGEST: Final[str] = "sha256:d25c6d00db13c34423b38e2c948bde8f41d2856a25bcf251bca2213872a15fbd"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:352773471edaa7d2cbcdebd2826c2f96f4ca76a1f055cf7e694bc9c4c811f270"
+    "sha256:e07c5cf399548155ffeb2acfd25ba7afb2ab4883eb648ac0ff90d8e859ad3321"
 )
-CANDIDATE_SHA: Final[str] = "e2355a577adda42dea19d717677c8a65c2ade6f3"
+CANDIDATE_SHA: Final[str] = "de7113e3659cc2224d2f3ffb1b12f16628807616"
 PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -100,7 +100,7 @@ def test_release_is_a_closed_image_only_workflow() -> None:
         "PUBLIC_CLI_VERSION": "0.1.3",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 36105509906,
+        "REVIEWED_CANDIDATE_RUN_ID": 36258748890,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -209,6 +209,8 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         "--deny-self-hosted-runners",
         "candidate-image-sbom.spdx.json",
         "candidate-image-provenance.slsa.json",
+        "candidate-image-manifest-linux-amd64.json",
+        "candidate-image-manifest-linux-arm64.json",
     ):
         assert fragment in commands
     assert commands.count("scripts/check_action_scan.py") == 2
@@ -286,7 +288,11 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         assert fragment in notes
 
 
-def _candidate_fixture(root: Path) -> tuple[Path, Path, Path, str, str]:
+def _candidate_fixture(
+    root: Path,
+    *,
+    layer_media_type: str = "application/vnd.oci.image.layer.v1.tar+zstd",
+) -> tuple[Path, Path, Path, str, str]:
     evidence = root / "candidate"
     evidence.mkdir()
     context = {
@@ -302,13 +308,40 @@ def _candidate_fixture(root: Path) -> tuple[Path, Path, Path, str, str]:
     (evidence / "context-manifest.json").write_text(json.dumps(context_manifest), encoding="utf-8")
     (evidence / "context-digest.txt").write_text(f"{context_digest}\n", encoding="utf-8")
 
+    platform_manifest = {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "layers": [
+            {
+                "mediaType": layer_media_type,
+                "digest": "sha256:" + "3" * 64,
+                "size": 1,
+            }
+        ],
+    }
+    platform_manifest_bytes = json.dumps(platform_manifest, separators=(",", ":")).encode()
+    platform_manifest_digest = f"sha256:{hashlib.sha256(platform_manifest_bytes).hexdigest()}"
+    for architecture in ("amd64", "arm64"):
+        (evidence / f"manifest-linux-{architecture}.json").write_bytes(platform_manifest_bytes)
     manifest = {
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.index.v1+json",
         "manifests": [
-            {"platform": {"os": "linux", "architecture": "amd64"}},
-            {"platform": {"os": "linux", "architecture": "arm64"}},
-            {"platform": {"os": "unknown", "architecture": "unknown"}},
+            {
+                "digest": platform_manifest_digest,
+                "size": len(platform_manifest_bytes),
+                "platform": {"os": "linux", "architecture": "amd64"},
+            },
+            {
+                "digest": platform_manifest_digest,
+                "size": len(platform_manifest_bytes),
+                "platform": {"os": "linux", "architecture": "arm64"},
+            },
+            {
+                "digest": "sha256:" + "5" * 64,
+                "size": 1,
+                "platform": {"os": "unknown", "architecture": "unknown"},
+            },
         ],
     }
     manifest_bytes = json.dumps(manifest, separators=(",", ":")).encode()
@@ -400,3 +433,15 @@ def test_release_candidate_validator_rejects_mismatched_evidence(
     )
     assert result.returncode == 1
     assert message in result.stderr
+
+
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-200")
+def test_release_candidate_validator_rejects_non_zstd_layers(tmp_path: Path) -> None:
+    fixture = _candidate_fixture(
+        tmp_path,
+        layer_media_type="application/vnd.oci.image.layer.v1.tar+gzip",
+    )
+    result = _validate_candidate(*fixture)
+    assert result.returncode == 1
+    assert "candidate linux/amd64 image layers are not all zstd" in result.stderr
