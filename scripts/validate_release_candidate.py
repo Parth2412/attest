@@ -26,11 +26,18 @@ EXPECTED_FILES: Final[frozenset[str]] = frozenset(
         "context-manifest.json",
         "image-digest.txt",
         "manifest.json",
+        "manifest-linux-amd64.json",
+        "manifest-linux-arm64.json",
         "provenance.slsa.json",
         "sbom.spdx.json",
     }
 )
 PLATFORMS: Final[frozenset[str]] = frozenset({"linux/amd64", "linux/arm64"})
+PLATFORM_MANIFESTS: Final[dict[str, str]] = {
+    "linux/amd64": "manifest-linux-amd64.json",
+    "linux/arm64": "manifest-linux-arm64.json",
+}
+ZSTD_LAYER_MEDIA_TYPE: Final[str] = "application/vnd.oci.image.layer.v1.tar+zstd"
 MAX_FILE_BYTES: Final[int] = 32 * 1024 * 1024
 
 
@@ -111,13 +118,13 @@ def _validate_context(
         _fail("final context differs from the reviewed candidate")
 
 
-def _platforms(manifest: object) -> tuple[frozenset[str], int]:
+def _platforms(manifest: object) -> tuple[dict[str, str], int]:
     if not isinstance(manifest, dict) or manifest.get("schemaVersion") != 2:
         _fail("candidate image manifest is invalid")
     descriptors = manifest.get("manifests")
     if not isinstance(descriptors, list) or not descriptors:
         _fail("candidate image manifest has no descriptors")
-    runnable: set[str] = set()
+    runnable: dict[str, str] = {}
     attached = 0
     for descriptor in descriptors:
         if not isinstance(descriptor, dict):
@@ -132,8 +139,54 @@ def _platforms(manifest: object) -> tuple[frozenset[str], int]:
         if operating_system == "unknown" and architecture == "unknown":
             attached += 1
         else:
-            runnable.add(f"{operating_system}/{architecture}")
-    return frozenset(runnable), attached
+            platform_name = f"{operating_system}/{architecture}"
+            digest = descriptor.get("digest")
+            if not isinstance(digest, str) or DIGEST.fullmatch(digest) is None:
+                _fail(f"candidate {platform_name} descriptor digest is invalid")
+            if platform_name in runnable:
+                _fail(f"candidate image repeats platform {platform_name}")
+            runnable[platform_name] = digest
+    return runnable, attached
+
+
+def _validate_platform_manifest(
+    evidence: Path,
+    platform: str,
+    expected_digest: str,
+) -> None:
+    name = PLATFORM_MANIFESTS[platform]
+    raw = _regular_bytes(evidence / name)
+    observed_digest = f"sha256:{hashlib.sha256(raw).hexdigest()}"
+    if observed_digest != expected_digest:
+        _fail(f"candidate {platform} manifest digest mismatch")
+    try:
+        document = json.loads(raw)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise CandidateValidationError(
+            f"candidate {platform} manifest must be valid JSON"
+        ) from error
+    if (
+        not isinstance(document, dict)
+        or document.get("schemaVersion") != 2
+        or document.get("mediaType") != "application/vnd.oci.image.manifest.v1+json"
+    ):
+        _fail(f"candidate {platform} manifest is invalid")
+    layers = document.get("layers")
+    if not isinstance(layers, list) or not layers:
+        _fail(f"candidate {platform} manifest has no layers")
+    for layer in layers:
+        if not isinstance(layer, dict) or layer.get("mediaType") != ZSTD_LAYER_MEDIA_TYPE:
+            _fail(f"candidate {platform} image layers are not all zstd")
+        digest = layer.get("digest")
+        size = layer.get("size")
+        if (
+            not isinstance(digest, str)
+            or DIGEST.fullmatch(digest) is None
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size <= 0
+        ):
+            _fail(f"candidate {platform} layer descriptor is invalid")
 
 
 def _validate_platform_evidence(path: Path, label: str) -> None:
@@ -160,8 +213,10 @@ def _validate_image(evidence: Path, expected_image_digest: str) -> None:
     except (UnicodeError, json.JSONDecodeError) as error:
         raise CandidateValidationError("candidate image manifest must be valid JSON") from error
     runnable, attached = _platforms(manifest)
-    if runnable != PLATFORMS or attached < 1:
+    if set(runnable) != PLATFORMS or attached < 1:
         _fail("candidate image does not contain the exact platforms and attestations")
+    for platform, digest in runnable.items():
+        _validate_platform_manifest(evidence, platform, digest)
 
     metadata = _json(evidence / "build-metadata.json")
     if (
