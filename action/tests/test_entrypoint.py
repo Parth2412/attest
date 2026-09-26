@@ -863,6 +863,8 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 
 
 @pytest.mark.ac("AC-F11-010")
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-200")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
 
@@ -872,8 +874,21 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     )
     assert dockerfile.count(python_base) == 2
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
+    assert "apk add --no-cache binutils=2.45.1-r0" in dockerfile
+    assert "strip --strip-unneeded" in dockerfile
+    assert "securesystemslib/_vendor/ed25519/test_data" in dockerfile
+    assert "--compile-bytecode" not in dockerfile
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
     assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
+    for excluded_runtime_path in (
+        "/usr/local/lib/python3.12/ensurepip",
+        "/usr/local/lib/python3.12/idlelib",
+        "/usr/local/lib/python3.12/lib2to3",
+        "/usr/local/lib/python3.12/pydoc_data",
+        "/usr/local/lib/python3.12/tkinter",
+        "/usr/local/lib/python3.12/turtledemo",
+    ):
+        assert excluded_runtime_path in dockerfile
     assert "apt-get" not in dockerfile
     assert 'ENTRYPOINT ["/opt/venv/bin/python", "-I", "/opt/attest/entrypoint.py"]' in dockerfile
     assert "COPY action/action.yml" not in dockerfile

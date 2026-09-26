@@ -160,8 +160,7 @@ jobs:
           file: ${{ runner.temp }}/attest-action-context/action/Dockerfile
           platforms: linux/amd64,linux/arm64
           pull: true
-          push: true
-          tags: ${{ steps.image.outputs.reference }}
+          outputs: type=image,name=${{ steps.image.outputs.reference }},push=true,oci-mediatypes=true,compression=zstd,compression-level=9,force-compression=true
           labels: |
             io.github.parth2412.attest.context-digest=${{ steps.context.outputs.digest }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -169,7 +168,7 @@ jobs:
             org.opencontainers.image.version=0.1.4-candidate
           sbom: true
           provenance: mode=max
-      - name: Retain and validate the manifest, SBOM, and provenance
+      - name: Retain and validate the manifests, SBOM, and provenance
         env:
           BUILD_METADATA: ${{ steps.build.outputs.metadata }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
@@ -178,32 +177,57 @@ jobs:
           image="${IMAGE_NAME}@${IMAGE_DIGEST}"
           docker buildx imagetools inspect "${image}" --raw \
             > "${RUNNER_TEMP}/candidate-evidence/manifest.json"
+          jq -r '
+            .manifests[]
+            | select(.platform.os == "linux")
+            | [.platform.os, .platform.architecture, .digest]
+            | @tsv
+          ' "${RUNNER_TEMP}/candidate-evidence/manifest.json" \
+            | while IFS=$'\t' read -r operating_system architecture digest; do
+                docker buildx imagetools inspect "${IMAGE_NAME}@${digest}" --raw \
+                  > "${RUNNER_TEMP}/candidate-evidence/manifest-${operating_system}-${architecture}.json"
+              done
           docker buildx imagetools inspect "${image}" --format '{{json .SBOM}}' \
             > "${RUNNER_TEMP}/candidate-evidence/sbom.spdx.json"
           docker buildx imagetools inspect "${image}" --format '{{json .Provenance}}' \
             > "${RUNNER_TEMP}/candidate-evidence/provenance.slsa.json"
           python3 - "${RUNNER_TEMP}/candidate-evidence" "${IMAGE_DIGEST}" <<'PY'
+          import hashlib
           import json
           import pathlib
           import sys
 
           evidence = pathlib.Path(sys.argv[1])
-          digest = sys.argv[2]
+          image_digest = sys.argv[2]
           manifest = json.loads((evidence / "manifest.json").read_text(encoding="utf-8"))
-          platforms = {
+          descriptors = {
               (item.get("platform") or {}).get("os")
               + "/"
-              + (item.get("platform") or {}).get("architecture")
+              + (item.get("platform") or {}).get("architecture"): item
               for item in manifest.get("manifests", [])
               if (item.get("platform") or {}).get("os") != "unknown"
           }
-          if platforms != {"linux/amd64", "linux/arm64"}:
-              raise SystemExit(f"unexpected candidate platforms: {sorted(platforms)}")
+          if set(descriptors) != {"linux/amd64", "linux/arm64"}:
+              raise SystemExit(f"unexpected candidate platforms: {sorted(descriptors)}")
+          layer_media_type = "application/vnd.oci.image.layer.v1.tar+zstd"
+          for platform, descriptor in descriptors.items():
+              operating_system, architecture = platform.split("/")
+              path = evidence / f"manifest-{operating_system}-{architecture}.json"
+              raw = path.read_bytes()
+              observed_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+              if observed_digest != descriptor.get("digest"):
+                  raise SystemExit(f"candidate {platform} manifest digest mismatch")
+              document = json.loads(raw)
+              layers = document.get("layers")
+              if not isinstance(layers, list) or not layers:
+                  raise SystemExit(f"candidate {platform} manifest has no layers")
+              if any(layer.get("mediaType") != layer_media_type for layer in layers):
+                  raise SystemExit(f"candidate {platform} image layers are not all zstd")
           for name in ("sbom.spdx.json", "provenance.slsa.json"):
               value = json.loads((evidence / name).read_text(encoding="utf-8"))
               if not value:
                   raise SystemExit(f"empty candidate evidence: {name}")
-          (evidence / "image-digest.txt").write_text(f"{digest}\n", encoding="utf-8")
+          (evidence / "image-digest.txt").write_text(f"{image_digest}\n", encoding="utf-8")
           PY
           printf '%s\n' "${BUILD_METADATA}" \
             > "${RUNNER_TEMP}/candidate-evidence/build-metadata.json"
