@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:03b767081fbe7aaf43ba540843a4a82fcee7b06e5cb22009050ab431a4e8db62"
+IMAGE_DIGEST: Final[str] = "sha256:0e6390c0de7b6bbb71e4a5613e4c29a7a8b2bc1af4d46203f6caa3dd8d21fb97"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:5f1b6b0e4a5ef4324d14ba805cac0b71bf0c8832308e4d1c8bc3e5edce8c8457"
+    "sha256:12ec69518f42ebebd99dc58896e527a62faa0f0e0eb117b714aa4d04b571b2f5"
 )
-CANDIDATE_SHA: Final[str] = "2ec80b0a6585f4b3e8cbd0c0742ccb6716fcee31"
+CANDIDATE_SHA: Final[str] = "746a53c8fbe3f94cb8970d091d94f6c9535a90dc"
 PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {

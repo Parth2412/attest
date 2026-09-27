@@ -35,6 +35,28 @@ RUN apk add --no-cache git=2.52.0-r0 \
         /usr/local/bin/pip \
         /usr/local/bin/pip3 \
         /usr/local/bin/pip3.12 \
+        /usr/local/bin/2to3 \
+        /usr/local/bin/2to3-3.12 \
+        /usr/local/bin/idle \
+        /usr/local/bin/idle3 \
+        /usr/local/bin/idle3.12 \
+        /usr/local/bin/pydoc \
+        /usr/local/bin/pydoc3 \
+        /usr/local/bin/pydoc3.12 \
+        /usr/local/bin/python-config \
+        /usr/local/bin/python3-config \
+        /usr/local/bin/python3.12-config \
+        /usr/local/include \
+        /usr/local/lib/pkgconfig \
+        /usr/local/lib/python3.12/config-* \
+        /usr/local/lib/python3.12/lib-dynload/_ctypes_test.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_test*.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_xxinterpchannels.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_xxsubinterpreters.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_xxtestfuzz.*.so \
+        /usr/local/lib/python3.12/lib-dynload/xxlimited.*.so \
+        /usr/local/lib/python3.12/lib-dynload/xxlimited_35.*.so \
+        /usr/local/lib/python3.12/lib-dynload/xxsubtype.*.so \
         /usr/local/lib/python3.12/site-packages/pip \
         /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info \
         /usr/local/lib/python3.12/ensurepip \

@@ -225,6 +225,19 @@ def test_runtime_omits_the_unused_system_package_installer() -> None:
         "test ! -e /usr/local/bin/pip && "
         "test ! -e /usr/local/bin/pip3 && "
         "test ! -e /usr/local/bin/pip3.12 && "
+        "test ! -e /usr/local/bin/2to3 && "
+        "test ! -e /usr/local/bin/idle3 && "
+        "test ! -e /usr/local/bin/pydoc3 && "
+        "test ! -e /usr/local/bin/python3.12-config && "
+        "test ! -e /usr/local/include && "
+        "test ! -e /usr/local/lib/pkgconfig && "
+        'test "$(find /usr/local -type f | wc -l)" -le 100 && '
+        'test -z "$(find /usr/local/lib/python3.12 -maxdepth 1 '
+        "-type d -name 'config-*' -print -quit)\" && "
+        'test -z "$(find /usr/local/lib/python3.12/lib-dynload -maxdepth 1 '
+        "-type f \\( -name '_test*.so' -o -name '_ctypes_test.*.so' "
+        "-o -name '_xx*.so' -o -name 'xxlimited*.so' "
+        "-o -name 'xxsubtype.*.so' \\) -print -quit)\" && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info",
     )
