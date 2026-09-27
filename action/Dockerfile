@@ -28,7 +28,7 @@ RUN apk add --no-cache binutils=2.45.1-r0 \
         /opt/venv/lib/python3.12/site-packages/referencing/tests \
         /opt/venv/lib/python3.12/site-packages/securesystemslib/_vendor/ed25519/test_data
 
-FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a
+FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS runtime
 
 RUN apk add --no-cache git=2.52.0-r0 \
     && rm -rf \
@@ -46,6 +46,100 @@ RUN apk add --no-cache git=2.52.0-r0 \
 
 COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py
+
+RUN <<'PYTHON'
+#!/opt/venv/bin/python
+import importlib
+import pathlib
+import py_compile
+import sys
+
+for name in (
+    "attest_cli.app",
+    "attest_cli.artifacts",
+    "attest_cli.commands",
+    "attest_cli.config",
+    "attest_cli.safe_io",
+    "attest_collect",
+    "attest_core",
+    "attest_policy",
+    "attest_sign",
+    "attest_store",
+):
+    importlib.import_module(name)
+
+roots = (
+    pathlib.Path("/opt/venv/lib/python3.12/site-packages"),
+    pathlib.Path("/usr/local/lib/python3.12"),
+)
+sources = sorted(
+    {
+        path.resolve()
+        for module in tuple(sys.modules.values())
+        if isinstance((file := getattr(module, "__file__", None)), str)
+        and (path := pathlib.Path(file)).suffix == ".py"
+        and any(path.resolve().is_relative_to(root) for root in roots)
+    }
+)
+for source in sources:
+    py_compile.compile(
+        source,
+        cfile=source.with_suffix(".pyc"),
+        doraise=True,
+        invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH,
+    )
+    source.unlink()
+PYTHON
+
+FROM scratch AS system
+COPY --from=runtime /bin /bin
+COPY --from=runtime /etc /etc
+COPY --from=runtime /home /home
+COPY --from=runtime /lib /lib
+COPY --from=runtime /media /media
+COPY --from=runtime /mnt /mnt
+COPY --from=runtime /root /root
+COPY --from=runtime /run /run
+COPY --from=runtime /sbin /sbin
+COPY --from=runtime /srv /srv
+COPY --from=runtime /tmp /tmp
+COPY --from=runtime /usr/bin /usr/bin
+COPY --from=runtime /usr/lib /usr/lib
+COPY --from=runtime /usr/libexec /usr/libexec
+COPY --from=runtime /usr/sbin /usr/sbin
+COPY --from=runtime /usr/share /usr/share
+COPY --from=runtime /usr/src /usr/src
+COPY --from=runtime /var /var
+
+FROM runtime AS venv-native
+RUN destination=/split/opt/venv/lib/python3.12/site-packages \
+    && mkdir -p "${destination}" \
+    && cp -a \
+        /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
+        /opt/venv/lib/python3.12/site-packages/cryptography \
+        /opt/venv/lib/python3.12/site-packages/cryptography.libs \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
+        /opt/venv/lib/python3.12/site-packages/rfc3161_client \
+        /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs \
+        "${destination}/"
+
+FROM runtime AS venv-rest
+RUN rm -rf \
+        /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
+        /opt/venv/lib/python3.12/site-packages/cryptography \
+        /opt/venv/lib/python3.12/site-packages/cryptography.libs \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
+        /opt/venv/lib/python3.12/site-packages/rfc3161_client \
+        /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs
+
+FROM scratch
+COPY --from=system / /
+COPY --from=runtime /usr/local /usr/local
+COPY --from=venv-native /split/ /
+COPY --from=venv-rest /opt/venv /opt/venv
+COPY --from=runtime /opt/attest /opt/attest
 
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \

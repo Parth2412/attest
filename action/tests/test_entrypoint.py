@@ -878,6 +878,12 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "strip --strip-unneeded" in dockerfile
     assert "securesystemslib/_vendor/ed25519/test_data" in dockerfile
     assert "--compile-bytecode" not in dockerfile
+    assert dockerfile.count("FROM scratch") == 2
+    assert "py_compile.PycInvalidationMode.CHECKED_HASH" in dockerfile
+    assert 'cfile=source.with_suffix(".pyc")' in dockerfile
+    assert "source.unlink()" in dockerfile
+    assert "FROM runtime AS venv-native" in dockerfile
+    assert "FROM runtime AS venv-rest" in dockerfile
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
     assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
     for excluded_runtime_path in (

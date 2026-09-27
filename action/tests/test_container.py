@@ -233,6 +233,72 @@ def test_runtime_omits_the_unused_system_package_installer() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-200")
+def test_runtime_uses_deterministic_hot_bytecode_and_balanced_layers() -> None:
+    inspected = _docker(
+        "image",
+        "inspect",
+        _image(),
+        "--format",
+        "{{json .RootFS.Layers}}",
+    )
+    layout = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "test ! -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.py && "
+        "test -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.pyc && "
+        "test ! -e /usr/local/lib/python3.12/typing.py && "
+        "test -e /usr/local/lib/python3.12/typing.pyc && "
+        "test -e /opt/venv/lib/python3.12/site-packages/pygments/lexers/python.py",
+    )
+
+    assert inspected.returncode == 0, inspected.stderr
+    assert len(json.loads(inspected.stdout)) == 5
+    assert layout.returncode == 0, layout.stderr
+
+
+@pytest.mark.container
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-200")
+def test_precompiled_runtime_verifies_the_historical_bundle_offline() -> None:
+    checkout = Path(__file__).resolve().parents[2]
+    fixtures = checkout / "packages" / "attest-sign" / "tests" / "fixtures" / "f08"
+    result = _docker(
+        "run",
+        "--rm",
+        "--volume",
+        f"{fixtures}:/fixtures:ro",
+        "--workdir",
+        "/tmp",
+        "--entrypoint",
+        "/opt/venv/bin/attest",
+        _image(),
+        "verify",
+        "--input",
+        "/fixtures/historical-v0.1-trusted.sigstore.json",
+        "--identity",
+        "https://github.com/Parth2412/attest/.github/workflows/"
+        "e2e-sign.yml@refs/heads/feature/f08-independent-verification",
+        "--issuer",
+        "https://token.actions.githubusercontent.com",
+        "--trust-config-file",
+        "/fixtures/client-trust-config.json",
+        "--json",
+        "--no-color",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["outcome"] == "success"
+    assert report["data"]["verification"]["status"] == "verified"
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-020")
 def test_container_checks_oidc_before_missing_repository_paths() -> None:
     result = _docker("run", "--rm", _image(), "--mode", "run")
