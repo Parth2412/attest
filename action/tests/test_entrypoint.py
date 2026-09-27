@@ -895,6 +895,16 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
     assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
     for excluded_runtime_path in (
+        "/usr/local/bin/2to3",
+        "/usr/local/bin/idle3",
+        "/usr/local/bin/pydoc3",
+        "/usr/local/bin/python3.12-config",
+        "/usr/local/include",
+        "/usr/local/lib/pkgconfig",
+        "/usr/local/lib/python3.12/config-*",
+        "/usr/local/lib/python3.12/lib-dynload/_ctypes_test.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/_test*.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/_xxsubinterpreters.*.so",
         "/usr/local/lib/python3.12/ensurepip",
         "/usr/local/lib/python3.12/idlelib",
         "/usr/local/lib/python3.12/lib2to3",
