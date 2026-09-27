@@ -882,6 +882,14 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "py_compile.PycInvalidationMode.CHECKED_HASH" in dockerfile
     assert 'cfile=source.with_suffix(".pyc")' in dockerfile
     assert "source.unlink()" in dockerfile
+    assert 'archive_path = standard_library.parent / "python312.zip"' in dockerfile
+    assert "compression=zipfile.ZIP_DEFLATED" in dockerfile
+    assert "compresslevel=9" in dockerfile
+    assert "date_time=(1980, 1, 1, 0, 0, 0)" in dockerfile
+    assert "metadata.external_attr = 0o100644 << 16" in dockerfile
+    assert 'and "__pycache__" not in path.parts' in dockerfile
+    assert 'and path.suffix in {".py", ".pyc"}' in dockerfile
+    assert 'for cache in sorted(root.rglob("__pycache__"), reverse=True)' in dockerfile
     assert "FROM runtime AS venv-native" in dockerfile
     assert "FROM runtime AS venv-rest" in dockerfile
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
