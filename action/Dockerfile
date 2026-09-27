@@ -52,7 +52,9 @@ RUN <<'PYTHON'
 import importlib
 import pathlib
 import py_compile
+import shutil
 import sys
+import zipfile
 
 for name in (
     "attest_cli.app",
@@ -89,6 +91,42 @@ for source in sources:
         invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH,
     )
     source.unlink()
+
+standard_library = pathlib.Path("/usr/local/lib/python3.12")
+archive_path = standard_library.parent / "python312.zip"
+archive_members = sorted(
+    path
+    for path in standard_library.rglob("*")
+    if path.is_file()
+    and "__pycache__" not in path.parts
+    and path.suffix in {".py", ".pyc"}
+)
+with zipfile.ZipFile(
+    archive_path,
+    mode="w",
+    compression=zipfile.ZIP_DEFLATED,
+    compresslevel=9,
+) as archive:
+    for path in archive_members:
+        metadata = zipfile.ZipInfo(
+            path.relative_to(standard_library).as_posix(),
+            date_time=(1980, 1, 1, 0, 0, 0),
+        )
+        metadata.compress_type = zipfile.ZIP_DEFLATED
+        metadata.create_system = 3
+        metadata.external_attr = 0o100644 << 16
+        archive.writestr(metadata, path.read_bytes(), compresslevel=9)
+for path in archive_members:
+    path.unlink()
+for root in roots:
+    for cache in sorted(root.rglob("__pycache__"), reverse=True):
+        shutil.rmtree(cache)
+for directory in sorted(standard_library.rglob("*"), reverse=True):
+    if directory.is_dir():
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
 PYTHON
 
 FROM scratch AS system

@@ -235,7 +235,7 @@ def test_runtime_omits_the_unused_system_package_installer() -> None:
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
-def test_runtime_uses_deterministic_hot_bytecode_and_balanced_layers() -> None:
+def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
         "inspect",
@@ -253,13 +253,36 @@ def test_runtime_uses_deterministic_hot_bytecode_and_balanced_layers() -> None:
         "test ! -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.py && "
         "test -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.pyc && "
         "test ! -e /usr/local/lib/python3.12/typing.py && "
-        "test -e /usr/local/lib/python3.12/typing.pyc && "
-        "test -e /opt/venv/lib/python3.12/site-packages/pygments/lexers/python.py",
+        "test ! -e /usr/local/lib/python3.12/typing.pyc && "
+        "test -e /usr/local/lib/python312.zip && "
+        "test -e /opt/venv/lib/python3.12/site-packages/pygments/lexers/python.py && "
+        'test -z "$(find /usr/local/lib/python3.12 /opt/venv '
+        '-type d -name __pycache__ -print -quit)"',
+    )
+    archive = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import typing, zipfile; "
+        "path = '/usr/local/lib/python312.zip'; "
+        "assert typing.__file__ == path + '/typing.pyc'; "
+        "entries = zipfile.ZipFile(path).infolist(); "
+        "names = {entry.filename for entry in entries}; "
+        "assert {'argparse.py', 'typing.pyc'} <= names; "
+        "assert all('__pycache__' not in name for name in names); "
+        "assert all(entry.compress_type == zipfile.ZIP_DEFLATED for entry in entries); "
+        "assert all(entry.date_time == (1980, 1, 1, 0, 0, 0) for entry in entries); "
+        "assert all(entry.external_attr >> 16 == 0o100644 for entry in entries)",
     )
 
     assert inspected.returncode == 0, inspected.stderr
     assert len(json.loads(inspected.stdout)) == 5
     assert layout.returncode == 0, layout.stderr
+    assert archive.returncode == 0, archive.stderr
 
 
 @pytest.mark.container
