@@ -31,7 +31,17 @@ RUN apk add --no-cache binutils=2.45.1-r0 \
 FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS runtime
 
 RUN apk add --no-cache git=2.52.0-r0 \
+    && cp /usr/share/zoneinfo/UTC /tmp/attest-UTC \
     && rm -rf \
+        /etc/terminfo \
+        /usr/lib/libgdbm.so* \
+        /usr/lib/libgdbm_compat.so* \
+        /usr/lib/libncursesw.so* \
+        /usr/lib/libnsl.so* \
+        /usr/lib/libpanelw.so* \
+        /usr/lib/libreadline.so* \
+        /usr/lib/libsqlite3.so* \
+        /usr/lib/libtirpc.so* \
         /usr/local/bin/pip \
         /usr/local/bin/pip3 \
         /usr/local/bin/pip3.12 \
@@ -49,22 +59,82 @@ RUN apk add --no-cache git=2.52.0-r0 \
         /usr/local/include \
         /usr/local/lib/pkgconfig \
         /usr/local/lib/python3.12/config-* \
+        /usr/local/lib/python3.12/lib-dynload/_crypt.*.so \
         /usr/local/lib/python3.12/lib-dynload/_ctypes_test.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_curses.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_curses_panel.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_dbm.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_gdbm.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_lsprof.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_sqlite3.*.so \
         /usr/local/lib/python3.12/lib-dynload/_test*.*.so \
+        /usr/local/lib/python3.12/lib-dynload/_tkinter.*.so \
         /usr/local/lib/python3.12/lib-dynload/_xxinterpchannels.*.so \
         /usr/local/lib/python3.12/lib-dynload/_xxsubinterpreters.*.so \
         /usr/local/lib/python3.12/lib-dynload/_xxtestfuzz.*.so \
+        /usr/local/lib/python3.12/lib-dynload/audioop.*.so \
+        /usr/local/lib/python3.12/lib-dynload/nis.*.so \
+        /usr/local/lib/python3.12/lib-dynload/ossaudiodev.*.so \
+        /usr/local/lib/python3.12/lib-dynload/readline.*.so \
+        /usr/local/lib/python3.12/lib-dynload/spwd.*.so \
+        /usr/local/lib/python3.12/lib-dynload/syslog.*.so \
         /usr/local/lib/python3.12/lib-dynload/xxlimited.*.so \
         /usr/local/lib/python3.12/lib-dynload/xxlimited_35.*.so \
         /usr/local/lib/python3.12/lib-dynload/xxsubtype.*.so \
+        /usr/local/lib/python3.12/aifc.py \
+        /usr/local/lib/python3.12/bdb.py \
+        /usr/local/lib/python3.12/cgi.py \
+        /usr/local/lib/python3.12/cgitb.py \
+        /usr/local/lib/python3.12/chunk.py \
+        /usr/local/lib/python3.12/compileall.py \
+        /usr/local/lib/python3.12/crypt.py \
+        /usr/local/lib/python3.12/curses \
+        /usr/local/lib/python3.12/dbm \
+        /usr/local/lib/python3.12/doctest.py \
         /usr/local/lib/python3.12/site-packages/pip \
         /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info \
         /usr/local/lib/python3.12/ensurepip \
+        /usr/local/lib/python3.12/ftplib.py \
+        /usr/local/lib/python3.12/http/server.py \
         /usr/local/lib/python3.12/idlelib \
+        /usr/local/lib/python3.12/imghdr.py \
+        /usr/local/lib/python3.12/imaplib.py \
         /usr/local/lib/python3.12/lib2to3 \
+        /usr/local/lib/python3.12/mailbox.py \
+        /usr/local/lib/python3.12/mailcap.py \
+        /usr/local/lib/python3.12/nntplib.py \
+        /usr/local/lib/python3.12/pdb.py \
+        /usr/local/lib/python3.12/pipes.py \
+        /usr/local/lib/python3.12/poplib.py \
+        /usr/local/lib/python3.12/profile.py \
+        /usr/local/lib/python3.12/pstats.py \
+        /usr/local/lib/python3.12/pyclbr.py \
         /usr/local/lib/python3.12/pydoc_data \
+        /usr/local/lib/python3.12/pydoc.py \
+        /usr/local/lib/python3.12/smtplib.py \
+        /usr/local/lib/python3.12/sndhdr.py \
+        /usr/local/lib/python3.12/socketserver.py \
+        /usr/local/lib/python3.12/sqlite3 \
+        /usr/local/lib/python3.12/sunau.py \
+        /usr/local/lib/python3.12/tabnanny.py \
+        /usr/local/lib/python3.12/telnetlib.py \
+        /usr/local/lib/python3.12/timeit.py \
         /usr/local/lib/python3.12/tkinter \
-        /usr/local/lib/python3.12/turtledemo
+        /usr/local/lib/python3.12/trace.py \
+        /usr/local/lib/python3.12/turtle.py \
+        /usr/local/lib/python3.12/turtledemo \
+        /usr/local/lib/python3.12/unittest \
+        /usr/local/lib/python3.12/uu.py \
+        /usr/local/lib/python3.12/venv \
+        /usr/local/lib/python3.12/wsgiref \
+        /usr/local/lib/python3.12/xdrlib.py \
+        /usr/local/lib/python3.12/xmlrpc \
+        /usr/share/apk \
+        /usr/share/ca-certificates \
+        /usr/share/git-core/templates \
+        /usr/share/zoneinfo \
+    && mkdir -p /usr/share/zoneinfo \
+    && mv /tmp/attest-UTC /usr/share/zoneinfo/UTC
 
 COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py
@@ -115,6 +185,30 @@ for source in sources:
     source.unlink()
 
 standard_library = pathlib.Path("/usr/local/lib/python3.12")
+site_packages = pathlib.Path("/opt/venv/lib/python3.12/site-packages")
+pygments_root = site_packages / "pygments"
+pygments_archive = site_packages / "pygments.zip"
+with zipfile.ZipFile(
+    pygments_archive,
+    mode="w",
+    compression=zipfile.ZIP_DEFLATED,
+    compresslevel=9,
+) as archive:
+    for path in sorted(path for path in pygments_root.rglob("*") if path.is_file()):
+        metadata = zipfile.ZipInfo(
+            path.relative_to(site_packages).as_posix(),
+            date_time=(1980, 1, 1, 0, 0, 0),
+        )
+        metadata.compress_type = zipfile.ZIP_DEFLATED
+        metadata.create_system = 3
+        metadata.external_attr = 0o100644 << 16
+        archive.writestr(metadata, path.read_bytes(), compresslevel=9)
+shutil.rmtree(pygments_root)
+(site_packages / "pygments-archive.pth").write_text(
+    f"{pygments_archive}\n",
+    encoding="utf-8",
+)
+
 archive_path = standard_library.parent / "python312.zip"
 archive_members = sorted(
     path
