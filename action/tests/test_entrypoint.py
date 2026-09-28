@@ -883,6 +883,9 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'cfile=source.with_suffix(".pyc")' in dockerfile
     assert "source.unlink()" in dockerfile
     assert 'archive_path = standard_library.parent / "python312.zip"' in dockerfile
+    assert 'pygments_archive = site_packages / "pygments.zip"' in dockerfile
+    assert 'site_packages / "pygments-archive.pth"' in dockerfile
+    assert "shutil.rmtree(pygments_root)" in dockerfile
     assert "compression=zipfile.ZIP_DEFLATED" in dockerfile
     assert "compresslevel=9" in dockerfile
     assert "date_time=(1980, 1, 1, 0, 0, 0)" in dockerfile
@@ -903,14 +906,23 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "/usr/local/lib/pkgconfig",
         "/usr/local/lib/python3.12/config-*",
         "/usr/local/lib/python3.12/lib-dynload/_ctypes_test.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/_curses.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/_sqlite3.*.so",
         "/usr/local/lib/python3.12/lib-dynload/_test*.*.so",
         "/usr/local/lib/python3.12/lib-dynload/_xxsubinterpreters.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/audioop.*.so",
+        "/usr/local/lib/python3.12/lib-dynload/ossaudiodev.*.so",
         "/usr/local/lib/python3.12/ensurepip",
         "/usr/local/lib/python3.12/idlelib",
         "/usr/local/lib/python3.12/lib2to3",
         "/usr/local/lib/python3.12/pydoc_data",
         "/usr/local/lib/python3.12/tkinter",
         "/usr/local/lib/python3.12/turtledemo",
+        "/usr/local/lib/python3.12/unittest",
+        "/usr/local/lib/python3.12/venv",
+        "/usr/share/ca-certificates",
+        "/usr/share/git-core/templates",
+        "/usr/share/zoneinfo",
     ):
         assert excluded_runtime_path in dockerfile
     assert "apt-get" not in dockerfile
