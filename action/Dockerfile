@@ -209,6 +209,83 @@ shutil.rmtree(pygments_root)
     encoding="utf-8",
 )
 
+runtime_archive_roots = (
+    "OpenSSL",
+    "_yaml",
+    "annotated_doc",
+    "annotated_types",
+    "anyio",
+    "attest_cli",
+    "attest_collect",
+    "attest_core",
+    "attest_policy",
+    "attest_sign",
+    "attest_store",
+    "attr",
+    "attrs",
+    "certifi",
+    "cffi",
+    "dns",
+    "email_validator",
+    "h11",
+    "httpcore",
+    "httpx",
+    "id",
+    "idna",
+    "jsonschema",
+    "jsonschema_specifications",
+    "jwt",
+    "markdown_it",
+    "mdurl",
+    "oras",
+    "platformdirs",
+    "pyasn1",
+    "pycparser",
+    "pydantic",
+    "referencing",
+    "rekor_types",
+    "requests",
+    "rfc8785",
+    "rich",
+    "shellingham",
+    "sigstore",
+    "sigstore_models",
+    "structlog",
+    "tuf",
+    "typer",
+    "typing_inspection",
+    "urllib3",
+)
+runtime_archive = site_packages / "attest-runtime.zip"
+with zipfile.ZipFile(
+    runtime_archive,
+    mode="w",
+    compression=zipfile.ZIP_STORED,
+) as archive:
+    for name in runtime_archive_roots:
+        root = site_packages / name
+        if not root.is_dir() or any(root.rglob("*.so")):
+            raise RuntimeError(f"unsafe runtime archive root: {name}")
+        for path in sorted(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ):
+            metadata = zipfile.ZipInfo(
+                path.relative_to(site_packages).as_posix(),
+                date_time=(1980, 1, 1, 0, 0, 0),
+            )
+            metadata.compress_type = zipfile.ZIP_STORED
+            metadata.create_system = 3
+            metadata.external_attr = 0o100644 << 16
+            archive.writestr(metadata, path.read_bytes())
+for name in runtime_archive_roots:
+    shutil.rmtree(site_packages / name)
+(site_packages / "attest-runtime-archive.pth").write_text(
+    f"{runtime_archive}\n",
+    encoding="utf-8",
+)
+
 archive_path = standard_library.parent / "python312.zip"
 archive_members = sorted(
     path

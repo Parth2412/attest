@@ -276,8 +276,10 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "/bin/sh",
         _image(),
         "-c",
-        "test ! -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.py && "
-        "test -e /opt/venv/lib/python3.12/site-packages/attest_sign/__init__.pyc && "
+        "test ! -e /opt/venv/lib/python3.12/site-packages/attest_sign && "
+        "test -e /opt/venv/lib/python3.12/site-packages/securesystemslib && "
+        "test -e /opt/venv/lib/python3.12/site-packages/attest-runtime.zip && "
+        "test -e /opt/venv/lib/python3.12/site-packages/attest-runtime-archive.pth && "
         "test ! -e /usr/local/lib/python3.12/typing.py && "
         "test ! -e /usr/local/lib/python3.12/typing.pyc && "
         "test -e /usr/local/lib/python312.zip && "
@@ -296,6 +298,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "-I",
         "-c",
         "import importlib.metadata, pathlib, typing, zipfile; "
+        "import attest_sign, pydantic, rich, sigstore, typer; "
         "import pygments; "
         "from pygments import highlight; "
         "from pygments.formatters import HtmlFormatter; "
@@ -323,7 +326,29 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "for entry in pygments_entries); "
         "assert all(entry.external_attr >> 16 == 0o100644 "
         "for entry in pygments_entries); "
-        "assert 'highlight' in highlight('print(1)', PythonLexer(), HtmlFormatter())",
+        "assert 'highlight' in highlight('print(1)', PythonLexer(), HtmlFormatter()); "
+        "runtime_path = root + 'attest-runtime.zip'; "
+        "assert attest_sign.__file__ == runtime_path + '/attest_sign/__init__.pyc'; "
+        "assert pydantic.__file__.startswith(runtime_path + '/pydantic/'); "
+        "assert rich.__file__.startswith(runtime_path + '/rich/'); "
+        "assert sigstore.__file__.startswith(runtime_path + '/sigstore/'); "
+        "assert typer.__file__.startswith(runtime_path + '/typer/'); "
+        "assert importlib.metadata.version('attest-cli') == '0.1.3'; "
+        "assert pathlib.Path(root + 'attest-runtime-archive.pth').read_text() == "
+        "runtime_path + '\\n'; "
+        "runtime_entries = zipfile.ZipFile(runtime_path).infolist(); "
+        "runtime_roots = {entry.filename.split('/', 1)[0] for entry in runtime_entries}; "
+        "assert len(runtime_entries) == 1084; "
+        "assert {'attest_cli', 'attest_sign', 'pydantic', 'rich', 'sigstore', 'typer'} "
+        "<= runtime_roots; "
+        "assert 'securesystemslib' not in runtime_roots; "
+        "assert all('__pycache__' not in entry.filename for entry in runtime_entries); "
+        "assert all(entry.compress_type == zipfile.ZIP_STORED "
+        "for entry in runtime_entries); "
+        "assert all(entry.date_time == (1980, 1, 1, 0, 0, 0) "
+        "for entry in runtime_entries); "
+        "assert all(entry.external_attr >> 16 == 0o100644 "
+        "for entry in runtime_entries)",
     )
     runtime = _docker(
         "run",

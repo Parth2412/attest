@@ -886,6 +886,11 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'pygments_archive = site_packages / "pygments.zip"' in dockerfile
     assert 'site_packages / "pygments-archive.pth"' in dockerfile
     assert "shutil.rmtree(pygments_root)" in dockerfile
+    assert "runtime_archive_roots = (" in dockerfile
+    assert 'runtime_archive = site_packages / "attest-runtime.zip"' in dockerfile
+    assert 'site_packages / "attest-runtime-archive.pth"' in dockerfile
+    assert 'raise RuntimeError(f"unsafe runtime archive root: {name}")' in dockerfile
+    assert "compression=zipfile.ZIP_STORED" in dockerfile
     assert "compression=zipfile.ZIP_DEFLATED" in dockerfile
     assert "compresslevel=9" in dockerfile
     assert "date_time=(1980, 1, 1, 0, 0, 0)" in dockerfile
