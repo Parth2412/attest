@@ -230,7 +230,6 @@ runtime_archive_roots = (
     "h11",
     "httpcore",
     "httpx",
-    "id",
     "idna",
     "jsonschema",
     "jsonschema_specifications",
