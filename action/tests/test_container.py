@@ -214,7 +214,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
 
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-200")
-def test_runtime_omits_the_unused_system_package_installer() -> None:
+def test_runtime_omits_build_and_nonproduct_facilities() -> None:
     result = _docker(
         "run",
         "--rm",
@@ -231,12 +231,25 @@ def test_runtime_omits_the_unused_system_package_installer() -> None:
         "test ! -e /usr/local/bin/python3.12-config && "
         "test ! -e /usr/local/include && "
         "test ! -e /usr/local/lib/pkgconfig && "
+        "test ! -e /usr/lib/libsqlite3.so.0 && "
+        "test ! -e /usr/lib/libncursesw.so.6 && "
+        "test ! -e /usr/lib/libreadline.so.8 && "
+        "test ! -e /etc/terminfo && "
+        "test ! -e /usr/share/apk && "
+        "test ! -e /usr/share/ca-certificates && "
+        "test ! -e /usr/share/git-core/templates && "
+        "test -e /usr/share/zoneinfo/UTC && "
+        'test "$(find /usr/share/zoneinfo -type f | wc -l)" -eq 1 && '
         'test "$(find /usr/local -type f | wc -l)" -le 100 && '
         'test -z "$(find /usr/local/lib/python3.12 -maxdepth 1 '
         "-type d -name 'config-*' -print -quit)\" && "
         'test -z "$(find /usr/local/lib/python3.12/lib-dynload -maxdepth 1 '
         "-type f \\( -name '_test*.so' -o -name '_ctypes_test.*.so' "
-        "-o -name '_xx*.so' -o -name 'xxlimited*.so' "
+        "-o -name '_curses*.so' -o -name '_dbm*.so' -o -name '_gdbm*.so' "
+        "-o -name '_sqlite3*.so' -o -name '_tkinter*.so' "
+        "-o -name '_xx*.so' -o -name 'audioop*.so' -o -name 'nis*.so' "
+        "-o -name 'ossaudiodev*.so' -o -name 'readline*.so' "
+        "-o -name 'spwd*.so' -o -name 'syslog*.so' -o -name 'xxlimited*.so' "
         "-o -name 'xxsubtype.*.so' \\) -print -quit)\" && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info",
@@ -268,7 +281,9 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "test ! -e /usr/local/lib/python3.12/typing.py && "
         "test ! -e /usr/local/lib/python3.12/typing.pyc && "
         "test -e /usr/local/lib/python312.zip && "
-        "test -e /opt/venv/lib/python3.12/site-packages/pygments/lexers/python.py && "
+        "test ! -e /opt/venv/lib/python3.12/site-packages/pygments && "
+        "test -e /opt/venv/lib/python3.12/site-packages/pygments.zip && "
+        "test -e /opt/venv/lib/python3.12/site-packages/pygments-archive.pth && "
         'test -z "$(find /usr/local/lib/python3.12 /opt/venv '
         '-type d -name __pycache__ -print -quit)"',
     )
@@ -280,7 +295,11 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         _image(),
         "-I",
         "-c",
-        "import typing, zipfile; "
+        "import importlib.metadata, pathlib, typing, zipfile; "
+        "import pygments; "
+        "from pygments import highlight; "
+        "from pygments.formatters import HtmlFormatter; "
+        "from pygments.lexers import PythonLexer; "
         "path = '/usr/local/lib/python312.zip'; "
         "assert typing.__file__ == path + '/typing.pyc'; "
         "entries = zipfile.ZipFile(path).infolist(); "
@@ -289,13 +308,47 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert all('__pycache__' not in name for name in names); "
         "assert all(entry.compress_type == zipfile.ZIP_DEFLATED for entry in entries); "
         "assert all(entry.date_time == (1980, 1, 1, 0, 0, 0) for entry in entries); "
-        "assert all(entry.external_attr >> 16 == 0o100644 for entry in entries)",
+        "assert all(entry.external_attr >> 16 == 0o100644 for entry in entries); "
+        "root = '/opt/venv/lib/python3.12/site-packages/'; "
+        "pygments_path = root + 'pygments.zip'; "
+        "assert pygments.__file__ == pygments_path + '/pygments/__init__.py'; "
+        "assert importlib.metadata.version('Pygments') == '2.21.0'; "
+        "assert pathlib.Path(root + 'pygments-archive.pth').read_text() == "
+        "pygments_path + '\\n'; "
+        "pygments_entries = zipfile.ZipFile(pygments_path).infolist(); "
+        "assert len(pygments_entries) == 343; "
+        "assert all(entry.compress_type == zipfile.ZIP_DEFLATED "
+        "for entry in pygments_entries); "
+        "assert all(entry.date_time == (1980, 1, 1, 0, 0, 0) "
+        "for entry in pygments_entries); "
+        "assert all(entry.external_attr >> 16 == 0o100644 "
+        "for entry in pygments_entries); "
+        "assert 'highlight' in highlight('print(1)', PythonLexer(), HtmlFormatter())",
+    )
+    runtime = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import ssl; "
+        "from importlib.util import find_spec; "
+        "from zoneinfo import ZoneInfo; "
+        "assert str(ZoneInfo('UTC')) == 'UTC'; "
+        "assert ssl.create_default_context().get_ca_certs(); "
+        "removed = ('aifc', 'cgi', 'cgitb', 'crypt', 'curses', 'dbm', 'nntplib', "
+        "'ossaudiodev', 'sqlite3', 'telnetlib', 'tkinter', 'turtle', 'unittest', "
+        "'venv', 'wsgiref', 'xmlrpc'); "
+        "assert all(find_spec(name) is None for name in removed)",
     )
 
     assert inspected.returncode == 0, inspected.stderr
     assert len(json.loads(inspected.stdout)) == 5
     assert layout.returncode == 0, layout.stderr
     assert archive.returncode == 0, archive.stderr
+    assert runtime.returncode == 0, runtime.stderr
 
 
 @pytest.mark.container
