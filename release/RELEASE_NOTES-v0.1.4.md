@@ -6,12 +6,12 @@ released Python package graph and public Action interface.
 ## Changed artifacts
 
 - GitHub Action `v1.0.4` pins the reviewed multi-platform image manifest
-  `sha256:9139d8c94d224e6b0b0cd39bca1fd19fd6fe5a732f6a48877329ecfcdfcb4d83`.
+  `sha256:cdf3011fa0e5dd42b0b5fa09ab256be36f1abd95654d95e683b86bb9ad912518`.
 - Image `0.1.4` uses digest-pinned `python:3.12.14-alpine3.23`, exact Alpine package
   `git=2.52.0-r0`, removes unused runtime content, strips native extension symbols, precompiles
-  hot modules, archives standard-library code and Pygments, removes duplicate bytecode caches,
-  Python-only build/test tooling, unused native libraries, and non-product system data, and
-  publishes both runtime manifests with five balanced OCI zstd-compressed layers.
+  hot modules, archives standard-library code and pure-Python runtime packages, removes duplicate
+  bytecode caches, Python-only build/test tooling, unused native libraries, and non-product system
+  data, and publishes both runtime manifests with five balanced OCI zstd-compressed layers.
 - The candidate covers `linux/amd64` and `linux/arm64`, has zero vulnerability and secret
   findings, and retains SBOM, maximum SLSA provenance, closed-context evidence, and an
   identity-bound GitHub artifact attestation.

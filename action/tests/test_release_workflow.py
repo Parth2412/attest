@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:9139d8c94d224e6b0b0cd39bca1fd19fd6fe5a732f6a48877329ecfcdfcb4d83"
+IMAGE_DIGEST: Final[str] = "sha256:cdf3011fa0e5dd42b0b5fa09ab256be36f1abd95654d95e683b86bb9ad912518"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:b33efbb7a0efeda1b4cc154b20031a59e8d6457f7bfaa111c3645f22415a4c36"
+    "sha256:7ab7b836612044486d15eff1a704200396e98a3fb17407afb1933be91d8d5697"
 )
-CANDIDATE_SHA: Final[str] = "3e15b67399f4c1e186b8c192e265b68ee0acd944"
+CANDIDATE_SHA: Final[str] = "cfb8916b898ee4e52da0429fcf0f8bf6f55dbf66"
 PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -100,7 +100,7 @@ def test_release_is_a_closed_image_only_workflow() -> None:
         "PUBLIC_CLI_VERSION": "0.1.3",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 36405298260,
+        "REVIEWED_CANDIDATE_RUN_ID": 36433066384,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -198,7 +198,11 @@ def test_release_recomputes_the_exact_attempt_one_performance_gate() -> None:
 @pytest.mark.ac("AC-F11-200")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     """REQ-F11-200: the reviewed context, scans, labels, and identity are rechecked."""
-    commands = _commands(_workflow()["jobs"]["preflight"])
+    preflight = _workflow()["jobs"]["preflight"]
+    candidate_run = _step(preflight, "Validate the reviewed candidate run")["run"]
+    assert '.event == "workflow_dispatch"' in candidate_run
+    assert ".run_attempt == 1" in candidate_run
+    commands = _commands(preflight)
     for fragment in (
         "scripts/prepare_action_context.py",
         "scripts/validate_release_candidate.py",
