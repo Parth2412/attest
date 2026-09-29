@@ -160,7 +160,7 @@ jobs:
           file: ${{ runner.temp }}/attest-action-context/action/Dockerfile
           platforms: linux/amd64,linux/arm64
           pull: true
-          outputs: type=image,name=${{ steps.image.outputs.reference }},push=true,oci-mediatypes=true,compression=zstd,compression-level=9,force-compression=true
+          outputs: type=image,name=${{ steps.image.outputs.reference }},push=true,oci-mediatypes=true,compression=zstd,compression-level=22,force-compression=true
           labels: |
             io.github.parth2412.attest.context-digest=${{ steps.context.outputs.digest }}
             org.opencontainers.image.revision=${{ github.sha }}
