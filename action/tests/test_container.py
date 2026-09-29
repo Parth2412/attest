@@ -245,7 +245,16 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
         "test ! -e /usr/bin/git-shell && "
         "test ! -e /usr/libexec/git-core/git-http-fetch && "
         "test ! -e /usr/libexec/git-core/git-http-push && "
+        "test ! -e /usr/libexec/git-core/git-sh-i18n--envsubst && "
         "test ! -e /usr/libexec/git-core/mergetools && "
+        "test ! -e /usr/lib/libapk.so.3 && "
+        "test ! -e /usr/lib/libbrotlienc.so.1 && "
+        "test ! -e /usr/lib/libexpat.so.1 && "
+        "test ! -e /usr/lib/libgssapi_krb5.so.2 && "
+        "test ! -e /usr/lib/libkrb5.so.3 && "
+        "test ! -e /usr/lib/libpcre2-posix.so.3 && "
+        "test ! -e /usr/lib/libverto.so.1 && "
+        "test ! -e /usr/lib/krb5 && "
         "test -e /usr/share/zoneinfo/UTC && "
         'test "$(find /usr/share/zoneinfo -type f | wc -l)" -eq 1 && '
         'test "$(find /usr/local -type f | wc -l)" -le 100 && '

@@ -935,7 +935,16 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "/usr/bin/git-shell",
         "/usr/libexec/git-core/git-http-fetch",
         "/usr/libexec/git-core/git-http-push",
+        "/usr/libexec/git-core/git-sh-i18n--envsubst",
         "/usr/libexec/git-core/mergetools",
+        "/usr/lib/libapk.so*",
+        "/usr/lib/libbrotlienc.so*",
+        "/usr/lib/libexpat.so*",
+        "/usr/lib/libgssapi_krb5.so*",
+        "/usr/lib/libkrb5.so*",
+        "/usr/lib/libpcre2-posix.so*",
+        "/usr/lib/libverto.so*",
+        "/usr/lib/krb5",
     ):
         assert excluded_runtime_path in dockerfile
     assert "apt-get" not in dockerfile
