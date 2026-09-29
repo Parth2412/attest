@@ -262,7 +262,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert build_step["with"]["platforms"] == "linux/amd64,linux/arm64"
     assert build_step["with"]["outputs"] == (
         "type=image,name=${{ steps.image.outputs.reference }},push=true,"
-        "oci-mediatypes=true,compression=zstd,compression-level=9,"
+        "oci-mediatypes=true,compression=zstd,compression-level=22,"
         "force-compression=true"
     )
     assert "push" not in build_step["with"]
