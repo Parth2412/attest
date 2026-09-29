@@ -883,9 +883,9 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'cfile=source.with_suffix(".pyc")' in dockerfile
     assert "source.unlink()" in dockerfile
     assert 'archive_path = standard_library.parent / "python312.zip"' in dockerfile
-    assert 'pygments_archive = site_packages / "pygments.zip"' in dockerfile
-    assert 'site_packages / "pygments-archive.pth"' in dockerfile
-    assert "shutil.rmtree(pygments_root)" in dockerfile
+    assert "/opt/venv/lib/python3.12/site-packages/pygments " in dockerfile
+    assert "/opt/venv/lib/python3.12/site-packages/pygments-2.21.0.dist-info" in dockerfile
+    assert 'pygments_archive = site_packages / "pygments.zip"' not in dockerfile
     assert "runtime_archive_roots = (" in dockerfile
     assert 'runtime_archive = site_packages / "attest-runtime.zip"' in dockerfile
     assert 'site_packages / "attest-runtime-archive.pth"' in dockerfile
@@ -928,6 +928,14 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "/usr/share/ca-certificates",
         "/usr/share/git-core/templates",
         "/usr/share/zoneinfo",
+        "/sbin/apk",
+        "/lib/apk",
+        "/etc/apk",
+        "/usr/bin/scanelf",
+        "/usr/bin/git-shell",
+        "/usr/libexec/git-core/git-http-fetch",
+        "/usr/libexec/git-core/git-http-push",
+        "/usr/libexec/git-core/mergetools",
     ):
         assert excluded_runtime_path in dockerfile
     assert "apt-get" not in dockerfile

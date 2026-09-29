@@ -23,8 +23,11 @@ RUN apk add --no-cache binutils=2.45.1-r0 \
     && rm -rf \
         /opt/venv/lib/python3.12/site-packages/certifi/tests \
         /opt/venv/lib/python3.12/site-packages/jsonschema/tests \
+        /opt/venv/lib/python3.12/site-packages/jsonschema/benchmarks \
         /opt/venv/lib/python3.12/site-packages/jsonschema_specifications/tests \
         /opt/venv/lib/python3.12/site-packages/oras/tests \
+        /opt/venv/lib/python3.12/site-packages/pygments \
+        /opt/venv/lib/python3.12/site-packages/pygments-2.21.0.dist-info \
         /opt/venv/lib/python3.12/site-packages/referencing/tests \
         /opt/venv/lib/python3.12/site-packages/securesystemslib/_vendor/ed25519/test_data
 
@@ -133,6 +136,16 @@ RUN apk add --no-cache git=2.52.0-r0 \
         /usr/share/ca-certificates \
         /usr/share/git-core/templates \
         /usr/share/zoneinfo \
+        /sbin/apk \
+        /lib/apk \
+        /etc/apk \
+        /var/cache/apk \
+        /var/log/apk.log \
+        /usr/bin/scanelf \
+        /usr/bin/git-shell \
+        /usr/libexec/git-core/git-http-fetch \
+        /usr/libexec/git-core/git-http-push \
+        /usr/libexec/git-core/mergetools \
     && mkdir -p /usr/share/zoneinfo \
     && mv /tmp/attest-UTC /usr/share/zoneinfo/UTC
 
@@ -186,28 +199,6 @@ for source in sources:
 
 standard_library = pathlib.Path("/usr/local/lib/python3.12")
 site_packages = pathlib.Path("/opt/venv/lib/python3.12/site-packages")
-pygments_root = site_packages / "pygments"
-pygments_archive = site_packages / "pygments.zip"
-with zipfile.ZipFile(
-    pygments_archive,
-    mode="w",
-    compression=zipfile.ZIP_DEFLATED,
-    compresslevel=9,
-) as archive:
-    for path in sorted(path for path in pygments_root.rglob("*") if path.is_file()):
-        metadata = zipfile.ZipInfo(
-            path.relative_to(site_packages).as_posix(),
-            date_time=(1980, 1, 1, 0, 0, 0),
-        )
-        metadata.compress_type = zipfile.ZIP_DEFLATED
-        metadata.create_system = 3
-        metadata.external_attr = 0o100644 << 16
-        archive.writestr(metadata, path.read_bytes(), compresslevel=9)
-shutil.rmtree(pygments_root)
-(site_packages / "pygments-archive.pth").write_text(
-    f"{pygments_archive}\n",
-    encoding="utf-8",
-)
 
 runtime_archive_roots = (
     "OpenSSL",
