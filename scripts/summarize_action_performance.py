@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, NoReturn
 
-IMAGE_DIGEST: Final[str] = "sha256:15c3d0b03add6382f376d3ee43a963a4d958a878af1020defd251c7a9784fb08"
+IMAGE_DIGEST: Final[str] = "sha256:57b5943c5a978c28e9ca7eadbfdba2713c00486c57234c58a20cefbe0996451f"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_REF: Final[str] = (
     "Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
