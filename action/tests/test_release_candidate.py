@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:57b5943c5a978c28e9ca7eadbfdba2713c00486c57234c58a20cefbe0996451f"
+    "sha256:49f8db3313fb464ef0078b9f4d23edf3a17598f5a3bcf655deaffa4c88a80f29"
 )
 
 
@@ -262,7 +262,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert build_step["with"]["platforms"] == "linux/amd64,linux/arm64"
     assert build_step["with"]["outputs"] == (
         "type=image,name=${{ steps.image.outputs.reference }},push=true,"
-        "oci-mediatypes=true,compression=zstd,compression-level=9,"
+        "oci-mediatypes=true,compression=zstd,compression-level=22,"
         "force-compression=true"
     )
     assert "push" not in build_step["with"]

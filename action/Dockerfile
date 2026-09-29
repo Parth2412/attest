@@ -45,6 +45,24 @@ RUN apk add --no-cache git=2.52.0-r0 \
         /usr/lib/libreadline.so* \
         /usr/lib/libsqlite3.so* \
         /usr/lib/libtirpc.so* \
+        /usr/lib/libapk.so* \
+        /usr/lib/libbrotlienc.so* \
+        /usr/lib/libcom_err.so* \
+        /usr/lib/libexpat.so* \
+        /usr/lib/libgssapi_krb5.so* \
+        /usr/lib/libgssrpc.so* \
+        /usr/lib/libintl.so* \
+        /usr/lib/libk5crypto.so* \
+        /usr/lib/libkadm5clnt_mit.so* \
+        /usr/lib/libkadm5srv_mit.so* \
+        /usr/lib/libkdb5.so* \
+        /usr/lib/libkeyutils.so* \
+        /usr/lib/libkrad.so* \
+        /usr/lib/libkrb5.so* \
+        /usr/lib/libkrb5support.so* \
+        /usr/lib/libpcre2-posix.so* \
+        /usr/lib/libverto.so* \
+        /usr/lib/krb5 \
         /usr/local/bin/pip \
         /usr/local/bin/pip3 \
         /usr/local/bin/pip3.12 \
@@ -145,6 +163,7 @@ RUN apk add --no-cache git=2.52.0-r0 \
         /usr/bin/git-shell \
         /usr/libexec/git-core/git-http-fetch \
         /usr/libexec/git-core/git-http-push \
+        /usr/libexec/git-core/git-sh-i18n--envsubst \
         /usr/libexec/git-core/mergetools \
     && mkdir -p /usr/share/zoneinfo \
     && mv /tmp/attest-UTC /usr/share/zoneinfo/UTC
