@@ -76,6 +76,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
             "branches": ["main"],
             "paths": [
                 ".github/workflows/action-performance.yml",
+                ".github/workflows/release.yml",
                 "action/**",
                 "packages/**",
                 "pyproject.toml",

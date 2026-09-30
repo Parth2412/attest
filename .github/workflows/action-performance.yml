@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/action-performance.yml"
+      - ".github/workflows/release.yml"
       - "action/**"
       - "packages/**"
       - "pyproject.toml"

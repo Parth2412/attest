@@ -256,11 +256,26 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
 def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
     """REQ-F11-200: immutable v0.1.4/v1.0.4 publish before any major-tag movement."""
     jobs = _workflow()["jobs"]
+    repository_controls = _step(
+        jobs["preflight"], "Validate source and immutable repository controls"
+    )["run"]
+    for fragment in (
+        "gh api --paginate --slurp",
+        '"repos/${GITHUB_REPOSITORY}/releases?per_page=100"',
+        "[.[][] | select(.tag_name == $tag)] as $matches",
+        "$matches[0].draft == true and $matches[0].immutable == false",
+        "$matches[0].draft == false and $matches[0].immutable == true",
+    ):
+        assert fragment in repository_controls
+
     attestation = _step(jobs["attest-artifacts"], "Attest the image-only release assets")
     assert attestation["with"] == {"subject-path": "release-assets/*"}
     publish = _commands(jobs["publish-release"])
     for fragment in (
         "--notes-file release/RELEASE_NOTES-v0.1.4.md",
+        '"repos/${GITHUB_REPOSITORY}/releases?per_page=100"',
+        '"repos/${GITHUB_REPOSITORY}/releases/${release_id}"',
+        "jq -n '{draft: false, make_latest: \"true\"}'",
         '--field ref="refs/tags/${ACTION_VERSION_TAG}"',
         ".immutable == true",
         '"majorTagMoved": False',
@@ -270,6 +285,11 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
         "release-evidence-index.json",
     ):
         assert fragment in publish
+    assert "releases/tags/${PRODUCT_TAG}" in publish
+    assert publish.index("> release-publish-request.json") < publish.index(
+        "releases/tags/${PRODUCT_TAG}"
+    )
+    assert 'gh release edit "${PRODUCT_TAG}"' not in publish
     assert "git/ref/tags/v1" in publish
     assert '= "${PRIOR_RELEASE_SHA}"' in publish
     assert 'git/refs/tags/v1"' not in publish
