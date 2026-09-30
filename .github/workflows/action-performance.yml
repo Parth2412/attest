@@ -133,9 +133,46 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh api -X GET \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest&per_page=100" \
-            > performance-evidence/jobs.json
+          complete=false
+          for attempt in $(seq 1 24); do
+            gh api -X GET \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest&per_page=100" \
+              > performance-evidence/jobs.json
+            if jq -e '
+              [
+                .jobs[]
+                | select(.name | test("^measure \\([0-9]+\\)$"))
+              ] as $measure
+              | ($measure | length) == 20
+                and all(
+                  $measure[];
+                  .status == "completed"
+                  and .conclusion == "success"
+                  and (
+                    [
+                      .steps[]?
+                      | select(
+                          .name == "Measure exact merged Action"
+                          and .status == "completed"
+                          and .conclusion == "success"
+                          and (.started_at | type == "string")
+                          and (.completed_at | type == "string")
+                        )
+                    ] | length
+                  ) == 1
+                )
+            ' performance-evidence/jobs.json > /dev/null; then
+              complete=true
+              break
+            fi
+            if (( attempt < 24 )); then
+              sleep 5
+            fi
+          done
+          if [[ "${complete}" != "true" ]]; then
+            echo "GitHub jobs API did not finalize all 20 Action measurements" >&2
+            exit 1
+          fi
           mkdir -p performance-evidence/source
           cp .github/workflows/action-performance.yml performance-evidence/source/
           cp action/performance/config.yaml performance-evidence/source/
