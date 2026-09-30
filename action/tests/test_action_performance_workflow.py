@@ -20,7 +20,7 @@ PERFORMANCE_CONFIG: Final[Path] = REPOSITORY_ROOT / "action/performance/config.y
 PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.yaml"
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:73e1306d3c7d0c3adac0320cfe554044e3d94d5ee9acf6324d2c38a03f03631c"
+IMAGE_DIGEST: Final[str] = "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_IDENTITY: Final[str] = (
@@ -123,6 +123,20 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     assert summarize["permissions"] == {"actions": "read", "contents": "read"}
     assert summarize["runs-on"] == "ubuntu-latest"
     assert summarize["timeout-minutes"] == 10
+
+    capture = _step(summarize, "Capture exact workflow job timestamps")
+    assert capture["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    capture_script = capture["run"]
+    assert "for attempt in $(seq 1 24)" in capture_script
+    assert 'test("^measure \\\\([0-9]+\\\\)$")' in capture_script
+    assert "($measure | length) == 20" in capture_script
+    assert '.name == "Measure exact merged Action"' in capture_script
+    assert '.status == "completed"' in capture_script
+    assert '.conclusion == "success"' in capture_script
+    assert '(.started_at | type == "string")' in capture_script
+    assert '(.completed_at | type == "string")' in capture_script
+    assert "sleep 5" in capture_script
+    assert "GitHub jobs API did not finalize all 20 Action measurements" in capture_script
 
     references = _uses(workflow)
     assert references == EXPECTED_ACTIONS

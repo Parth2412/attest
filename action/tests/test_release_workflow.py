@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:73e1306d3c7d0c3adac0320cfe554044e3d94d5ee9acf6324d2c38a03f03631c"
+IMAGE_DIGEST: Final[str] = "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:580229f4dbcb77805cbc81a59efb8043fb92ab2df706a7f5f5f01692d7eea83b"
+    "sha256:ef05578f882f1a55364bc14c260898cb4c656161446d04b1343e43aaabf2cb8b"
 )
-CANDIDATE_SHA: Final[str] = "d028e0bc05eaa231184507deb6632af90a2debcd"
+CANDIDATE_SHA: Final[str] = "a4c47f13a0963b30f02f7bc2ef9d4d81d88cac3f"
 PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -100,7 +100,7 @@ def test_release_is_a_closed_image_only_workflow() -> None:
         "PUBLIC_CLI_VERSION": "0.1.3",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 36728027736,
+        "REVIEWED_CANDIDATE_RUN_ID": 36758760939,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -148,7 +148,9 @@ def test_release_is_a_closed_image_only_workflow() -> None:
     ):
         assert forbidden not in rendered
     assert "git diff --quiet" in rendered
-    assert "pyproject.toml uv.lock packages release/packages.toml release/patches" in rendered
+    assert "pyproject.toml packages release/packages.toml release/patches" in rendered
+    assert '"${REVIEWED_CANDIDATE_SOURCE_SHA}:uv.lock"' in rendered
+    assert '"$(git hash-object uv.lock)"' in rendered
 
 
 @pytest.mark.ac("AC-F11-100")
@@ -285,6 +287,8 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         IMAGE_DIGEST,
         "python:3.12.14-alpine3.23",
         "git=2.52.0-r0",
+        "urllib3 to `2.8.0`",
+        "virtualenv to `21.14.1`",
         "No Python distribution is rebuilt or uploaded.",
         "v1",
         "v1.0.3",
