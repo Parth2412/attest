@@ -878,7 +878,7 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "strip --strip-unneeded" in dockerfile
     assert "securesystemslib/_vendor/ed25519/test_data" in dockerfile
     assert "--compile-bytecode" not in dockerfile
-    assert dockerfile.count("FROM scratch") == 2
+    assert dockerfile.count("FROM scratch") == 9
     assert "py_compile.PycInvalidationMode.CHECKED_HASH" in dockerfile
     assert 'cfile=source.with_suffix(".pyc")' in dockerfile
     assert "source.unlink()" in dockerfile
@@ -898,8 +898,46 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'and "__pycache__" not in path.parts' in dockerfile
     assert 'and path.suffix in {".py", ".pyc"}' in dockerfile
     assert 'for cache in sorted(root.rglob("__pycache__"), reverse=True)' in dockerfile
-    assert "FROM runtime AS venv-native" in dockerfile
+    assert "FROM scratch AS system-lib" in dockerfile
+    assert "FROM scratch AS system-git" in dockerfile
+    assert "FROM scratch AS system-core" in dockerfile
+    assert "FROM runtime AS python-lib" in dockerfile
+    assert "FROM scratch AS python-dynload" in dockerfile
+    assert "FROM scratch AS python-rest" in dockerfile
+    assert "FROM runtime AS venv-crypto" in dockerfile
+    assert "FROM runtime AS venv-rfc3161" in dockerfile
+    assert "FROM runtime AS venv-pydantic" in dockerfile
     assert "FROM runtime AS venv-rest" in dockerfile
+    assert "FROM scratch AS pull-a" in dockerfile
+    assert "FROM scratch AS pull-b" in dockerfile
+    assert "FROM scratch AS pull-c" in dockerfile
+    pull_groups = (
+        """FROM scratch AS pull-a
+COPY --from=system-lib / /
+COPY --from=venv-rfc3161 /split/ /
+COPY --from=python-lib /usr/local/lib /usr/local/lib
+""",
+        """FROM scratch AS pull-b
+COPY --from=venv-crypto /split/ /
+COPY --from=python-rest / /
+COPY --from=system-git / /
+""",
+        """FROM scratch AS pull-c
+COPY --from=venv-rest /opt/venv /opt/venv
+COPY --from=venv-pydantic /split/ /
+COPY --from=python-dynload / /
+COPY --from=system-core / /
+""",
+    )
+    assert all(group in dockerfile for group in pull_groups)
+    final_stage = dockerfile.rsplit("FROM scratch\n", maxsplit=1)[1]
+    final_copies = [line for line in final_stage.splitlines() if line.startswith("COPY --from=")]
+    assert final_copies == [
+        "COPY --from=pull-a / /",
+        "COPY --from=pull-b / /",
+        "COPY --from=pull-c / /",
+        "COPY --from=runtime /opt/attest /opt/attest",
+    ]
     assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
     assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
     for excluded_runtime_path in (
