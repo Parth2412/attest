@@ -124,6 +124,20 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     assert summarize["runs-on"] == "ubuntu-latest"
     assert summarize["timeout-minutes"] == 10
 
+    capture = _step(summarize, "Capture exact workflow job timestamps")
+    assert capture["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    capture_script = capture["run"]
+    assert "for attempt in $(seq 1 24)" in capture_script
+    assert 'test("^measure \\\\([0-9]+\\\\)$")' in capture_script
+    assert "($measure | length) == 20" in capture_script
+    assert '.name == "Measure exact merged Action"' in capture_script
+    assert '.status == "completed"' in capture_script
+    assert '.conclusion == "success"' in capture_script
+    assert '(.started_at | type == "string")' in capture_script
+    assert '(.completed_at | type == "string")' in capture_script
+    assert "sleep 5" in capture_script
+    assert "GitHub jobs API did not finalize all 20 Action measurements" in capture_script
+
     references = _uses(workflow)
     assert references == EXPECTED_ACTIONS
     assert all(
