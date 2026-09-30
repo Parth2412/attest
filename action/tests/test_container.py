@@ -376,7 +376,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
     )
 
     assert inspected.returncode == 0, inspected.stderr
-    assert len(json.loads(inspected.stdout)) == 5
+    assert len(json.loads(inspected.stdout)) == 4
     assert layout.returncode == 0, layout.stderr
     assert archive.returncode == 0, archive.stderr
     assert runtime.returncode == 0, runtime.stderr
