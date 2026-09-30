@@ -116,17 +116,24 @@ jobs:
             .prerelease == false and
             .immutable == true
           ' release-preflight-evidence/prior-release.json > /dev/null
-          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
-            > release-preflight-evidence/existing-release.json 2>/dev/null; then
-            jq -e --arg sha "${GITHUB_SHA}" --arg tag "${PRODUCT_TAG}" '
-              .tag_name == $tag and
-              .target_commitish == $sha and
-              .prerelease == false and
-              (.draft == true or .immutable == true)
-            ' release-preflight-evidence/existing-release.json > /dev/null
-          else
-            rm -f release-preflight-evidence/existing-release.json
-          fi
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            > release-preflight-evidence/release-pages.json
+          jq -e --arg sha "${GITHUB_SHA}" --arg tag "${PRODUCT_TAG}" '
+            [.[][] | select(.tag_name == $tag)] as $matches |
+            ($matches | length) <= 1 and
+            (
+              ($matches | length) == 0 or
+              (
+                $matches[0].target_commitish == $sha and
+                $matches[0].prerelease == false and
+                (
+                  ($matches[0].draft == true and $matches[0].immutable == false) or
+                  ($matches[0].draft == false and $matches[0].immutable == true)
+                )
+              )
+            )
+          ' release-preflight-evidence/release-pages.json > /dev/null
       - name: Validate the reviewed candidate run
         env:
           GH_TOKEN: ${{ github.token }}
@@ -724,8 +731,18 @@ jobs:
         run: |
           set -euo pipefail
           release_state=absent
-          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
-            > release-state.json 2>/dev/null; then
+          release_id=""
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            > release-pages.json
+          release_count="$(jq -r --arg tag "${PRODUCT_TAG}" \
+            '[.[][] | select(.tag_name == $tag)] | length' release-pages.json)"
+          test "${release_count}" -le 1
+          if test "${release_count}" = "1"; then
+            release_id="$(jq -r --arg tag "${PRODUCT_TAG}" \
+              '.[][] | select(.tag_name == $tag) | .id' release-pages.json)"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              > release-state.json
             jq -e --arg sha "${GITHUB_SHA}" --arg tag "${PRODUCT_TAG}" '
               .tag_name == $tag and
               .target_commitish == $sha and
@@ -749,13 +766,31 @@ jobs:
               --title "attest ${PRODUCT_VERSION} / Action ${ACTION_VERSION_TAG}" \
               --notes-file release/RELEASE_NOTES-v0.1.4.md
             release_state=draft
+            for attempt in $(seq 1 30); do
+              gh api --paginate --slurp \
+                "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+                > release-pages.json
+              release_count="$(jq -r --arg tag "${PRODUCT_TAG}" \
+                '[.[][] | select(.tag_name == $tag)] | length' release-pages.json)"
+              test "${release_count}" -le 1
+              release_id="$(jq -r --arg tag "${PRODUCT_TAG}" \
+                '.[][] | select(.tag_name == $tag) | .id' release-pages.json)"
+              if test -n "${release_id}"; then
+                break
+              fi
+              if test "${attempt}" = "30"; then
+                echo "release publication: draft release was not observed" >&2
+                exit 1
+              fi
+              sleep 2
+            done
           fi
           if test "${release_state}" = "draft"; then
             gh release upload "${PRODUCT_TAG}" final-release-assets/* --clobber
           fi
 
           for attempt in $(seq 1 30); do
-            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
               > release-state.json
             if python3 - <<'PY'
           import hashlib
@@ -783,7 +818,10 @@ jobs:
           done
 
           if test "${release_state}" = "draft"; then
-            gh release edit "${PRODUCT_TAG}" --draft=false --latest
+            jq -n '{draft: false, make_latest: "true"}' \
+              | gh api --method PATCH \
+                "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+                --input - > release-publish-request.json
           fi
           for attempt in $(seq 1 30); do
             gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
