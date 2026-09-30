@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:49f8db3313fb464ef0078b9f4d23edf3a17598f5a3bcf655deaffa4c88a80f29"
+    "sha256:73e1306d3c7d0c3adac0320cfe554044e3d94d5ee9acf6324d2c38a03f03631c"
 )
 
 

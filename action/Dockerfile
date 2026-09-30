@@ -331,7 +331,14 @@ for directory in sorted(standard_library.rglob("*"), reverse=True):
             pass
 PYTHON
 
-FROM scratch AS system
+FROM scratch AS system-lib
+COPY --from=runtime /usr/lib /usr/lib
+
+FROM scratch AS system-git
+COPY --from=runtime /usr/bin /usr/bin
+COPY --from=runtime /usr/libexec /usr/libexec
+
+FROM scratch AS system-core
 COPY --from=runtime /bin /bin
 COPY --from=runtime /etc /etc
 COPY --from=runtime /home /home
@@ -343,25 +350,57 @@ COPY --from=runtime /run /run
 COPY --from=runtime /sbin /sbin
 COPY --from=runtime /srv /srv
 COPY --from=runtime /tmp /tmp
-COPY --from=runtime /usr/bin /usr/bin
-COPY --from=runtime /usr/lib /usr/lib
-COPY --from=runtime /usr/libexec /usr/libexec
 COPY --from=runtime /usr/sbin /usr/sbin
 COPY --from=runtime /usr/share /usr/share
 COPY --from=runtime /usr/src /usr/src
 COPY --from=runtime /var /var
 
-FROM runtime AS venv-native
+FROM runtime AS python-lib
+RUN rm -rf \
+        /usr/local/lib/python3.12 \
+        /usr/local/lib/python312.zip
+
+FROM scratch AS python-dynload
+COPY --from=runtime \
+    /usr/local/lib/python3.12/lib-dynload \
+    /usr/local/lib/python3.12/lib-dynload
+
+FROM scratch AS python-rest
+COPY --from=runtime /usr/local/bin /usr/local/bin
+COPY --from=runtime /usr/local/share /usr/local/share
+COPY --from=runtime /usr/local/lib/python312.zip /usr/local/lib/python312.zip
+COPY --from=runtime \
+    /usr/local/lib/python3.12/LICENSE.txt \
+    /usr/local/lib/python3.12/LICENSE.txt
+COPY --from=runtime /usr/local/lib/python3.12/ctypes /usr/local/lib/python3.12/ctypes
+COPY --from=runtime /usr/local/lib/python3.12/email /usr/local/lib/python3.12/email
+COPY --from=runtime \
+    /usr/local/lib/python3.12/site-packages \
+    /usr/local/lib/python3.12/site-packages
+
+FROM runtime AS venv-crypto
 RUN destination=/split/opt/venv/lib/python3.12/site-packages \
     && mkdir -p "${destination}" \
     && cp -a \
         /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
         /opt/venv/lib/python3.12/site-packages/cryptography \
         /opt/venv/lib/python3.12/site-packages/cryptography.libs \
-        /opt/venv/lib/python3.12/site-packages/pydantic_core \
-        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
+        "${destination}/"
+
+FROM runtime AS venv-rfc3161
+RUN destination=/split/opt/venv/lib/python3.12/site-packages \
+    && mkdir -p "${destination}" \
+    && cp -a \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs \
+        "${destination}/"
+
+FROM runtime AS venv-pydantic
+RUN destination=/split/opt/venv/lib/python3.12/site-packages \
+    && mkdir -p "${destination}" \
+    && cp -a \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core \
+        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
         "${destination}/"
 
 FROM runtime AS venv-rest
@@ -374,11 +413,27 @@ RUN rm -rf \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs
 
-FROM scratch
-COPY --from=system / /
-COPY --from=runtime /usr/local /usr/local
-COPY --from=venv-native /split/ /
+# Balance the runtime across Docker's three concurrent layer downloads.
+FROM scratch AS pull-a
+COPY --from=system-lib / /
+COPY --from=venv-rfc3161 /split/ /
+COPY --from=python-lib /usr/local/lib /usr/local/lib
+
+FROM scratch AS pull-b
+COPY --from=venv-crypto /split/ /
+COPY --from=python-rest / /
+COPY --from=system-git / /
+
+FROM scratch AS pull-c
 COPY --from=venv-rest /opt/venv /opt/venv
+COPY --from=venv-pydantic /split/ /
+COPY --from=python-dynload / /
+COPY --from=system-core / /
+
+FROM scratch
+COPY --from=pull-a / /
+COPY --from=pull-b / /
+COPY --from=pull-c / /
 COPY --from=runtime /opt/attest /opt/attest
 
 ENV LANG=C.UTF-8 \
