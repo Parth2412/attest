@@ -132,9 +132,7 @@ def test_recovery_is_closed_to_the_exact_failed_release_transaction() -> None:
     ):
         assert digest in source
 
-    digest_literals = re.findall(
-        r"sha256:[0-9a-f]+", RECOVERY_WORKFLOW.read_text(encoding="utf-8")
-    )
+    digest_literals = re.findall(r"sha256:[0-9a-f]+", RECOVERY_WORKFLOW.read_text(encoding="utf-8"))
     assert digest_literals
     assert all(SHA256_DIGEST.fullmatch(digest) for digest in digest_literals)
 
