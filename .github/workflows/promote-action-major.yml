@@ -12,26 +12,26 @@ concurrency:
 
 env:
   ACTION_MAJOR_TAG: v1
-  ACTION_VERSION_TAG: v1.0.3
-  PRODUCT_TAG: v0.1.3
-  CURRENT_MAJOR_SHA: a1c59cc67bf67aba22ffca876309f855ea8663af
-  TARGET_RELEASE_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
-  RELEASE_RUN_ID: 35991944542
+  ACTION_VERSION_TAG: v1.0.4
+  PRODUCT_TAG: v0.1.4
+  CURRENT_MAJOR_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
+  TARGET_RELEASE_SHA: 4e73dcaf888f15967da66826d48cca5ac6684fcb
+  RELEASE_RUN_ID: 36849857414
   PROOF_REPOSITORY: Parth2412/attest-action-proof
-  PROOF_PR: 4
-  FORK_PROOF_PR: 5
-  PROOF_BASE_SHA: f05ab8830df8605c9b23f54721a092dbd0f08068
-  PROOF_HEAD_SHA: e61bbc34e5539d09302e9f9d60b62656ed7103d8
-  PROOF_MERGE_SHA: 2e584273c7d096ea021dfcc839f712a3596d4657
-  FORK_PROOF_SHA: a386c6f908a5d556be5588da9b9403e047624b51
-  CHANGESET_DIGEST: 7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2
-  DENIED_REF_OID: 2f84619df782264724558446f320add54bf7850e
-  DENIED_BLOB_OID: 155ce9bd68f5dc5fee12976322c7b653fcd0d8a0
-  DENIED_BUNDLE_SHA256: e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533
-  APPROVED_REF_SUFFIX: "2938073514"
-  APPROVED_REF_OID: d35d3223fcfbb7e943afa2a56afb6bd2729d9a64
-  APPROVED_BLOB_OID: 8bc2f89751c52382a628602b8e1ebfbb1856dcc1
-  APPROVED_BUNDLE_SHA256: e60df59e1a27fbe7c42b4d7ad484acadbbd8a0ff96937faeb9a371d7d7bde843
+  PROOF_PR: 6
+  FORK_PROOF_PR: 7
+  PROOF_BASE_SHA: 2e584273c7d096ea021dfcc839f712a3596d4657
+  PROOF_HEAD_SHA: 3fb1b74eec74f621fa2670cc584ee07cea2631c1
+  PROOF_MERGE_SHA: 6916ab93ec63f59e222acc730e86699a68d59662
+  FORK_PROOF_SHA: 15d99e162a64f5e047c995f6f31a99facce85fbf
+  CHANGESET_DIGEST: fff2a2fb95c00780d2ea40341195a369fa72c084aa4a2dd7c9539ae2ae9c1c44
+  DENIED_REF_OID: 82556c69b09fea969b9bd5a2706a199ba8a56642
+  DENIED_BLOB_OID: 31e7867da77993fd45252e4d04ec8deec34e5171
+  DENIED_BUNDLE_SHA256: 73d5ce8dd2f127fc5f1373ee42d199135d698a7b48dacc3883f2a2b2cebb8985
+  APPROVED_REF_SUFFIX: "3035912549"
+  APPROVED_REF_OID: dbdb0acbeba8657b5792020b779ba2cd19b356a7
+  APPROVED_BLOB_OID: 24fb74ec131a2bc5f9c572c5abc70fb626211e49
+  APPROVED_BUNDLE_SHA256: 3cd1abae8072b1d8b6027120ef0741fa657e80445b2b63d7b5fdc078438a4829
 
 jobs:
   preflight:
@@ -110,10 +110,12 @@ jobs:
                 "refs/tags/v0.1.1",
                 "refs/tags/v0.1.2",
                 "refs/tags/v0.1.3",
+                "refs/tags/v0.1.4",
                 "refs/tags/v1.0.0",
                 "refs/tags/v1.0.1",
                 "refs/tags/v1.0.2",
-                "refs/tags/v1.0.3"
+                "refs/tags/v1.0.3",
+                "refs/tags/v1.0.4"
               ] | sort) and
             .conditions.ref_name.exclude == [] and
             ([.rules[].type] | sort) == (["deletion", "update"] | sort)
@@ -123,14 +125,15 @@ jobs:
             v0.1.0 v1.0.0 v1 \
             v0.1.1 v1.0.1 \
             v0.1.2 v1.0.2 \
+            v0.1.3 v1.0.3 \
             "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"
           do
             timeout 60s gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" \
               > "promotion-evidence/source/tag-${tag}.json"
           done
-          for tag in v0.1.0 v1.0.0 v1; do
+          for tag in v0.1.0 v1.0.0; do
             test "$(jq -r .object.sha "promotion-evidence/source/tag-${tag}.json")" \
-              = "${CURRENT_MAJOR_SHA}"
+              = "a1c59cc67bf67aba22ffca876309f855ea8663af"
           done
           for tag in v0.1.1 v1.0.1; do
             test "$(jq -r .object.sha "promotion-evidence/source/tag-${tag}.json")" \
@@ -139,6 +142,10 @@ jobs:
           for tag in v0.1.2 v1.0.2; do
             test "$(jq -r .object.sha "promotion-evidence/source/tag-${tag}.json")" \
               = "60951624b5572aa1f54db9c2693cb7a8e0399425"
+          done
+          for tag in v0.1.3 v1.0.3 v1; do
+            test "$(jq -r .object.sha "promotion-evidence/source/tag-${tag}.json")" \
+              = "${CURRENT_MAJOR_SHA}"
           done
           for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
             test "$(jq -r .object.sha "promotion-evidence/source/tag-${tag}.json")" \
@@ -156,17 +163,49 @@ jobs:
           ' promotion-evidence/source/release.json > /dev/null
 
           timeout 60s gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}/attempts/2" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}" \
             > promotion-evidence/source/release-run.json
-          jq -e --arg sha "${TARGET_RELEASE_SHA}" '
+          jq -e '
             .event == "workflow_dispatch" and
             .status == "completed" and
             .conclusion == "success" and
-            .run_attempt == 2 and
+            .run_attempt == 1 and
             .head_branch == "main" and
-            .head_sha == $sha and
-            .path == ".github/workflows/release.yml"
+            .head_sha == "5a3549aa522d2962631f8a84ce9faa469cf84656" and
+            .path == ".github/workflows/recover-release-v0.1.4.yml"
           ' promotion-evidence/source/release-run.json > /dev/null
+
+          timeout 60s gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}/artifacts" \
+            > promotion-evidence/source/release-run-artifacts.json
+          jq -e '
+            .total_count == 3 and
+            ([.artifacts[] | {
+              id,
+              name,
+              size_in_bytes,
+              expired
+            }] | sort_by(.id)) == ([
+              {
+                id: 11154629296,
+                name: "release-recovery-assets-v0.1.4-1",
+                size_in_bytes: 385913,
+                expired: false
+              },
+              {
+                id: 11155017455,
+                name: "release-recovery-preflight-v0.1.4-1",
+                size_in_bytes: 112616,
+                expired: false
+              },
+              {
+                id: 11155215975,
+                name: "release-recovery-publication-v0.1.4-1",
+                size_in_bytes: 21728,
+                expired: false
+              }
+            ] | sort_by(.id))
+          ' promotion-evidence/source/release-run-artifacts.json > /dev/null
 
           git show "${TARGET_RELEASE_SHA}:action/action.yml" \
             > promotion-evidence/source/action.yml
@@ -176,7 +215,7 @@ jobs:
               print
             }
           ' promotion-evidence/source/action.yml)"
-          test "${observed_image}" = "ghcr.io/parth2412/attest@sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
+          test "${observed_image}" = "ghcr.io/parth2412/attest@sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
 
       - name: Validate public proof metadata
         shell: bash
@@ -196,20 +235,20 @@ jobs:
 
           public_api "pulls/${PROOF_PR}" proof-pr.json
           public_api "pulls/${PROOF_PR}/reviews" proof-reviews.json
-          public_api "actions/runs/35996154567" proof-run.json
-          public_api "actions/runs/35996154567/attempts/2/jobs" denied-jobs.json
-          public_api "actions/runs/35996154567/attempts/3/jobs" approved-jobs.json
-          public_api "actions/jobs/107621975743" denied-job.json
-          public_api "actions/jobs/107627293997" approved-job.json
-          public_api "check-runs/107621975743" denied-check.json
-          public_api "check-runs/107627293997" approved-check.json
-          public_api "actions/runs/35996139827" blocked-run.json
-          public_api "actions/runs/35996139827/artifacts" blocked-artifacts.json
+          public_api "actions/runs/36868174765" proof-run.json
+          public_api "actions/runs/36868174765/attempts/2/jobs" denied-jobs.json
+          public_api "actions/runs/36868174765/attempts/3/jobs" approved-jobs.json
+          public_api "actions/jobs/110389240862" denied-job.json
+          public_api "actions/jobs/110395705968" approved-job.json
+          public_api "check-runs/110389240862" denied-check.json
+          public_api "check-runs/110395705968" approved-check.json
+          public_api "actions/runs/36868149895" blocked-run.json
+          public_api "actions/runs/36868149895/artifacts" blocked-artifacts.json
           public_api "pulls/${FORK_PROOF_PR}" fork-pr.json
           public_api "issues/${FORK_PROOF_PR}/comments" fork-comments.json
-          public_api "actions/runs/35998481445" fork-run.json
-          public_api "actions/jobs/107629036816" fork-job.json
-          public_api "check-runs/107629036816" fork-check.json
+          public_api "actions/runs/36870771570" fork-run.json
+          public_api "actions/jobs/110397642782" fork-job.json
+          public_api "check-runs/110397642782" fork-check.json
 
           jq -e \
             --arg base "${PROOF_BASE_SHA}" \
@@ -226,18 +265,18 @@ jobs:
               .head.repo.full_name == $repository and
               .merge_commit_sha == $merge and
               .merged_by.id == 23364077 and
-              .commits == 3 and
-              .changed_files == 4
+              .commits == 2 and
+              .changed_files == 2
             ' promotion-evidence/proof/proof-pr.json > /dev/null
           jq -e --arg head "${PROOF_HEAD_SHA}" '
             length == 1 and
             .[0].state == "APPROVED" and
             .[0].user.id == 23364077 and
             .[0].commit_id == $head and
-            .[0].submitted_at == "2026-09-24T12:15:18Z"
+            .[0].submitted_at == "2026-10-01T13:37:49Z"
           ' promotion-evidence/proof/proof-reviews.json > /dev/null
           jq -e --arg head "${PROOF_HEAD_SHA}" '
-            .id == 35996154567 and
+            .id == 36868174765 and
             .event == "pull_request" and
             .status == "completed" and
             .conclusion == "success" and
@@ -248,44 +287,44 @@ jobs:
           ' promotion-evidence/proof/proof-run.json > /dev/null
           jq -e '
             (.jobs | length) == 1 and
-            .jobs[0].id == 107621975743 and
+            .jobs[0].id == 110389240862 and
             .jobs[0].name == "attest" and
             .jobs[0].conclusion == "failure"
           ' promotion-evidence/proof/denied-jobs.json > /dev/null
           jq -e '
             (.jobs | length) == 1 and
-            .jobs[0].id == 107627293997 and
+            .jobs[0].id == 110395705968 and
             .jobs[0].name == "attest" and
             .jobs[0].conclusion == "success"
           ' promotion-evidence/proof/approved-jobs.json > /dev/null
 
           jq -e '
-            .id == 107621975743 and
+            .id == 110389240862 and
             .name == "attest" and
             .conclusion == "failure" and
             any(.steps[];
-              .name == "Run Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8" and
+              .name == "Run Parth2412/attest/action@4e73dcaf888f15967da66826d48cca5ac6684fcb" and
               .conclusion == "failure"
             )
           ' promotion-evidence/proof/denied-job.json > /dev/null
           jq -e '
-            .id == 107627293997 and
+            .id == 110395705968 and
             .name == "attest" and
             .conclusion == "success" and
             any(.steps[];
-              .name == "Run Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8" and
+              .name == "Run Parth2412/attest/action@4e73dcaf888f15967da66826d48cca5ac6684fcb" and
               .conclusion == "success"
             )
           ' promotion-evidence/proof/approved-job.json > /dev/null
           jq -e '
-            .id == 107621975743 and
+            .id == 110389240862 and
             .name == "attest" and
             .status == "completed" and
             .conclusion == "failure" and
             .app.id == 15368
           ' promotion-evidence/proof/denied-check.json > /dev/null
           jq -e '
-            .id == 107627293997 and
+            .id == 110395705968 and
             .name == "attest" and
             .status == "completed" and
             .conclusion == "success" and
@@ -293,21 +332,21 @@ jobs:
           ' promotion-evidence/proof/approved-check.json > /dev/null
 
           jq -e '
-            .id == 35996139827 and
+            .id == 36868149895 and
             .event == "workflow_dispatch" and
             .status == "completed" and
             .conclusion == "success" and
             .run_attempt == 1 and
-            .head_sha == "beb92d01213b58c67e59549b53fb1b390d53e750" and
+            .head_sha == "1a7792f5e69bbf9be5e73323b479a39d6268391b" and
             .path == ".github/workflows/open-proof-pr.yml"
           ' promotion-evidence/proof/blocked-run.json > /dev/null
           jq -e '
             .total_count == 1 and
             (.artifacts | length) == 1 and
-            .artifacts[0].id == 10806770017 and
-            .artifacts[0].name == "blocked-before-check-evidence-35996139827" and
+            .artifacts[0].id == 11164234391 and
+            .artifacts[0].name == "blocked-before-check-v0.1.4-evidence-36868149895" and
             .artifacts[0].expired == false and
-            .artifacts[0].size_in_bytes == 2948
+            .artifacts[0].size_in_bytes == 3029
           ' promotion-evidence/proof/blocked-artifacts.json > /dev/null
 
           jq -e --arg base "${PROOF_MERGE_SHA}" --arg head "${FORK_PROOF_SHA}" '
@@ -326,11 +365,12 @@ jobs:
             .[0].author_association == "OWNER" and
             (. [0].body | contains("ERR-SIGN-301")) and
             (. [0].body | contains("before reading the deliberately invalid")) and
-            (. [0].body | contains("no OIDC request variables")) and
-            (. [0].body | contains("no elevated event"))
+            (. [0].body | contains("ACTIONS_ID_TOKEN_REQUEST_URL")) and
+            (. [0].body | contains("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) and
+            (. [0].body | contains("no elevated `pull_request_target`"))
           ' promotion-evidence/proof/fork-comments.json > /dev/null
           jq -e --arg head "${FORK_PROOF_SHA}" '
-            .id == 35998481445 and
+            .id == 36870771570 and
             .event == "pull_request" and
             .status == "completed" and
             .conclusion == "failure" and
@@ -340,16 +380,16 @@ jobs:
             .path == ".github/workflows/attest.yml"
           ' promotion-evidence/proof/fork-run.json > /dev/null
           jq -e '
-            .id == 107629036816 and
+            .id == 110397642782 and
             .name == "attest" and
             .conclusion == "failure" and
             any(.steps[];
-              .name == "Run Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8" and
+              .name == "Run Parth2412/attest/action@4e73dcaf888f15967da66826d48cca5ac6684fcb" and
               .conclusion == "failure"
             )
           ' promotion-evidence/proof/fork-job.json > /dev/null
           jq -e '
-            .id == 107629036816 and
+            .id == 110397642782 and
             .name == "attest" and
             .status == "completed" and
             .conclusion == "failure" and
@@ -372,7 +412,7 @@ jobs:
             "refs/pull/${PROOF_PR}/head" \
             'refs/attestations/*' \
             > promotion-evidence/proof/public-refs.txt
-          test "$(wc -l < promotion-evidence/proof/public-refs.txt)" = "10"
+          test "$(wc -l < promotion-evidence/proof/public-refs.txt)" = "14"
           remote_oid() {
             awk -v ref="$1" '$2 == ref { print $1 }' \
               promotion-evidence/proof/public-refs.txt
@@ -391,9 +431,17 @@ jobs:
             = "964deaa54825940b3d07529ad5ca0a439c2ecc4f"
           test "$(remote_oid 'refs/attestations/c27c98ef9fccfb7d316e1554091693dc8f4fa238a2a8f2fabcb9c9b190aa58cb^{}')" \
             = "a88a0fbf0b1d8c4555504f8e6cc11921c3824d9b"
+          test "$(remote_oid refs/attestations/7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2)" \
+            = "2f84619df782264724558446f320add54bf7850e"
+          test "$(remote_oid 'refs/attestations/7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2^{}')" \
+            = "155ce9bd68f5dc5fee12976322c7b653fcd0d8a0"
+          test "$(remote_oid refs/attestations/7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2-2938073514)" \
+            = "d35d3223fcfbb7e943afa2a56afb6bd2729d9a64"
+          test "$(remote_oid 'refs/attestations/7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2-2938073514^{}')" \
+            = "8bc2f89751c52382a628602b8e1ebfbb1856dcc1"
 
           timeout 60s git ls-remote "${fork_url}" \
-            refs/heads/proof/fork-oidc-denial-v0.1.3 \
+            refs/heads/proof/fork-oidc-denial-v0.1.4 \
             > promotion-evidence/proof/fork-ref.txt
           test "$(awk '{ print $1 }' promotion-evidence/proof/fork-ref.txt)" \
             = "${FORK_PROOF_SHA}"
@@ -405,7 +453,7 @@ jobs:
             "+${approved_ref}:${approved_ref}"
           git -C proof remote add fork "${fork_url}"
           timeout 120s git -C proof fetch --quiet fork \
-            "+refs/heads/proof/fork-oidc-denial-v0.1.3:refs/remotes/fork/proof-fork"
+            "+refs/heads/proof/fork-oidc-denial-v0.1.4:refs/remotes/fork/proof-fork"
 
           test "$(git -C proof rev-parse origin/main)" = "${PROOF_MERGE_SHA}"
           test "$(git -C proof rev-parse refs/remotes/origin/proof-pr-${PROOF_PR})" \
@@ -416,7 +464,7 @@ jobs:
             = "$(git -C proof rev-parse "${PROOF_MERGE_SHA}^{tree}")"
 
           git -C proof show \
-            beb92d01213b58c67e59549b53fb1b390d53e750:.github/workflows/open-proof-pr.yml \
+            1a7792f5e69bbf9be5e73323b479a39d6268391b:.github/workflows/open-proof-pr.yml \
             > promotion-evidence/proof/open-proof-pr.yml
           grep -F 'test "$(jq '\''[.check_runs[] | select(.name == "attest")] | length'\''' \
             promotion-evidence/proof/open-proof-pr.yml > /dev/null
@@ -429,7 +477,7 @@ jobs:
             > promotion-evidence/proof/fork-workflow.yml
           cmp promotion-evidence/proof/proof-workflow.yml \
             promotion-evidence/proof/fork-workflow.yml
-          grep -F 'uses: Parth2412/attest/action@8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8' \
+          grep -F 'uses: Parth2412/attest/action@4e73dcaf888f15967da66826d48cca5ac6684fcb' \
             promotion-evidence/proof/proof-workflow.yml > /dev/null
           if grep -F 'pull_request_target' promotion-evidence/proof/proof-workflow.yml > /dev/null; then
             echo "promotion proof: elevated pull request event is forbidden" >&2
@@ -439,7 +487,7 @@ jobs:
           git -C proof show "${PROOF_HEAD_SHA}:sitecustomize.py" \
             > promotion-evidence/proof/sitecustomize.py
           test "$(sha256sum promotion-evidence/proof/sitecustomize.py | cut -d ' ' -f 1)" \
-            = "352e1c5c6a289a7ee9beccc8ca52ae003658b78176d04c094fa971dd00fd6895"
+            = "91e9c9dac356aa0f508e26dcf4dabbd21cf53bd5288d77e3cad7495542e58d84"
           git -C proof show "${FORK_PROOF_SHA}:.attest/policy.yaml" \
             > promotion-evidence/proof/fork-policy.yaml
           grep -Fx 'version: [' promotion-evidence/proof/fork-policy.yaml > /dev/null
@@ -472,7 +520,7 @@ jobs:
           uv pip freeze --python proof-venv/bin/python \
             > promotion-evidence/proof/installed-packages.txt
 
-          identity="https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/4/merge"
+          identity="https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/6/merge"
           proof_root="${GITHUB_WORKSPACE}/proof-checkout"
           cli="${GITHUB_WORKSPACE}/proof-venv/bin/attest"
           denied_bundle="${GITHUB_WORKSPACE}/promotion-evidence/proof/denied-bundle.sigstore.json"
@@ -541,7 +589,7 @@ jobs:
             .data.verification.statement.predicate.changeSet.digest == $digest and
             .data.verification.statement.predicate.review.state == "none" and
             .data.verification.statement.predicate.review.humanApprovals == 0 and
-            .data.verification.statement.predicate.collection.environment.runId == "35996154567" and
+            .data.verification.statement.predicate.collection.environment.runId == "36868174765" and
             .data.verification.statement.predicate.collection.environment.runAttempt == 2 and
             .data.decision.outcome == "deny" and
             .data.decision.exitCode == 3
@@ -557,20 +605,20 @@ jobs:
               identity: "github:23364077:Parth2412",
               identityProvider: "github",
               verdict: "approved",
-              submittedAt: "2026-09-24T12:15:18Z",
+              submittedAt: "2026-10-01T13:37:49Z",
               effective: true,
               isChangeAuthor: false,
               evidence: {
                 kind: "forge-api",
-                digest: "4e85879108f81ac96e510ba7ae16b8059293fc7efb45380d6c0574866836635b"
+                digest: "7e2e0121ead61b105475e96aaf26732a78ed1f53c1105397ad0471ce8a47fedd"
               }
             }] and
-            .data.verification.statement.predicate.collection.environment.runId == "35996154567" and
+            .data.verification.statement.predicate.collection.environment.runId == "36868174765" and
             .data.verification.statement.predicate.collection.environment.runAttempt == 3 and
             any(.data.verification.statement.predicate.checks[];
               .name == "attest" and
               .conclusion == "failure" and
-              .runId == "107621975743"
+              .runId == "110389240862"
             ) and
             .data.decision.outcome == "allow" and
             .data.decision.exitCode == 0
@@ -588,11 +636,11 @@ jobs:
             '{
               schemaVersion: 1,
               releaseCommit: $releaseSha,
-              proofPullRequest: 4,
+              proofPullRequest: 6,
               proofBase: $proofBase,
               proofHead: $proofHead,
               proofMerge: $proofMerge,
-              forkProofPullRequest: 5,
+              forkProofPullRequest: 7,
               forkHead: $forkHead,
               changeSetDigest: $digest,
               deniedBundleSha256: $deniedBundleSha256,
@@ -604,7 +652,7 @@ jobs:
       - name: Retain preflight promotion evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: action-major-preflight-v1.0.3-${{ github.run_id }}
+          name: action-major-preflight-v1.0.4-${{ github.run_id }}
           path: promotion-evidence
           if-no-files-found: error
           include-hidden-files: false
@@ -617,7 +665,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: action-major
-      url: https://github.com/Parth2412/attest/releases/tag/v0.1.3
+      url: https://github.com/Parth2412/attest/releases/tag/v0.1.4
     permissions:
       actions: read
       contents: read
@@ -625,7 +673,7 @@ jobs:
       - name: Recover validated preflight evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
         with:
-          name: action-major-preflight-v1.0.3-${{ github.run_id }}
+          name: action-major-preflight-v1.0.4-${{ github.run_id }}
           path: promotion-evidence
       - name: Revalidate and move the Action major tag
         env:
@@ -649,7 +697,8 @@ jobs:
           before="$(read_tag "${ACTION_MAJOR_TAG}")"
           test "${before}" = "${CURRENT_MAJOR_SHA}"
           for tag in v0.1.0 v1.0.0; do
-            test "$(read_tag "${tag}")" = "${CURRENT_MAJOR_SHA}"
+            test "$(read_tag "${tag}")" \
+              = "a1c59cc67bf67aba22ffca876309f855ea8663af"
           done
           for tag in v0.1.1 v1.0.1; do
             test "$(read_tag "${tag}")" \
@@ -658,6 +707,9 @@ jobs:
           for tag in v0.1.2 v1.0.2; do
             test "$(read_tag "${tag}")" \
               = "60951624b5572aa1f54db9c2693cb7a8e0399425"
+          done
+          for tag in v0.1.3 v1.0.3; do
+            test "$(read_tag "${tag}")" = "${CURRENT_MAJOR_SHA}"
           done
           for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
             test "$(read_tag "${tag}")" = "${TARGET_RELEASE_SHA}"
@@ -673,7 +725,8 @@ jobs:
           after="$(read_tag "${ACTION_MAJOR_TAG}")"
           test "${after}" = "${TARGET_RELEASE_SHA}"
           for tag in v0.1.0 v1.0.0; do
-            test "$(read_tag "${tag}")" = "${CURRENT_MAJOR_SHA}"
+            test "$(read_tag "${tag}")" \
+              = "a1c59cc67bf67aba22ffca876309f855ea8663af"
           done
           for tag in v0.1.1 v1.0.1; do
             test "$(read_tag "${tag}")" \
@@ -682,6 +735,9 @@ jobs:
           for tag in v0.1.2 v1.0.2; do
             test "$(read_tag "${tag}")" \
               = "60951624b5572aa1f54db9c2693cb7a8e0399425"
+          done
+          for tag in v0.1.3 v1.0.3; do
+            test "$(read_tag "${tag}")" = "${CURRENT_MAJOR_SHA}"
           done
           for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
             test "$(read_tag "${tag}")" = "${TARGET_RELEASE_SHA}"
@@ -723,7 +779,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: action-major-promotion-v1.0.3-${{ github.run_id }}
+          name: action-major-promotion-v1.0.4-${{ github.run_id }}
           path: promotion-evidence
           if-no-files-found: error
           include-hidden-files: false
