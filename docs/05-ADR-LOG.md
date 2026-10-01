@@ -2755,6 +2755,87 @@ on 2026-09-24.
 
 ---
 
+## ADR-053 — Release a measured slim Action runtime without republishing Python packages
+
+**Status:** Accepted · **Date:** 2026-09-25 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-046`, `ADR-052`
+
+**Context.** The first exact `REQ-F11-100` measurement used released Action commit
+`8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8` and image manifest
+`sha256:d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1` in 20 independent
+`ubuntu-latest` jobs. Run `36033851434`, attempt 1, retained 20 successful samples with p50 16 s
+and nearest-rank p95 20 s, so the required p95 below 15 s failed. Image pull dominated the tail at
+13 s p95. The released image's compressed runtime layers are 100,368,537 bytes on `linux/amd64`
+and 100,770,592 bytes on `linux/arm64`.
+
+The approved `CH-09` response is to slim the image before reconsidering language or semantics. A
+digest-pinned `python:3.12.14-alpine3.23` prototype with exact Alpine package
+`git=2.52.0-r0` passed the complete local gate, all real-container Action contracts, and the
+protected `dev` candidate gate. Validation run `36100567555`, attempt 1, produced attested image
+`sha256:e5677f9d729b6d6cf03ea5735f35d62d3b4112c2fb2baa6d580098f6dcbd5e50` from source
+`4e685e38fa56767b369535d602974cf335065fbf` and context
+`sha256:9f9f2ada115efa2daea7d1588a1a4afff80f747e083801ca587a86b3821c1e91`. Both target-platform
+scans passed with no high/critical vulnerability or secret finding; SBOM, maximum provenance, and
+the GitHub-hosted identity-bound attestation cover both platforms. Compressed runtime layers fell
+to 47,669,747 bytes on `linux/amd64` and 48,277,137 bytes on `linux/arm64`, reductions of 52.51%
+and 52.09%. That validation image retains the inherited `0.1.3-candidate` OCI version label and is
+therefore evidence only, never a promotable production candidate.
+
+**Decision.** The Action runtime moves to the official digest-pinned
+`python:3.12.14-alpine3.23` base and exact `git=2.52.0-r0` package while preserving the Python
+version, lock file, entrypoint, CLI behavior, and two supported architectures. A fresh protected
+`dev` run must label and attest the production candidate as `0.1.4-candidate`. A reviewed `main`
+commit must reproduce the candidate's enumerated context exactly and pin `action/action.yml` to
+that candidate manifest digest.
+
+Before any immutable release record is created, the exact merged `main` commit must pass the
+`ADR-046` 20-job measurement. The workflow checks out that commit and invokes the repository-local
+`./action`; its metadata pulls the candidate by immutable manifest digest. Checkout remains outside
+the timed Action step, while image pull and all wrapper/CLI work remain inside it. Evidence records
+`GITHUB_SHA` as the Action commit, the exact image digest, every runner image and job duration, and
+the attempt-1 nearest-rank result. A result at or above 15 s blocks publication and returns the
+work to image/import optimization; the threshold, sample count, statistic, and timing boundary are
+not relaxed.
+
+Only after that gate passes may the protected release workflow promote the exact reviewed manifest
+without rebuilding as `ghcr.io/parth2412/attest:0.1.4`, create source record `v0.1.4`, and create
+immutable Action tag `v1.0.4`. No Python distribution is rebuilt or republished because no Python
+package source, metadata, dependency, or public interface changes. The existing PyPI versions and
+all earlier image, source, Action, and Release records remain immutable. The tag ruleset must cover
+`v0.1.4` and `v1.0.4` before publication.
+
+The moving `v1` tag remains on `v1.0.3` until the `v1.0.4` image, GitHub attestation, immutable
+release assets, production dogfood, a fresh public onboarding proof, and the successful retained
+20-job measurement are independently verified. Promotion uses the existing reviewed moving-major
+procedure and records the exact old/new tag objects.
+
+**Rationale.** The observed tail is principally transfer cost, and the validated image halves that
+cost without changing the product's behavior, language, or package graph. Measuring the exact
+merged Action before publication prevents an immutable patch from being created on an estimate.
+Keeping Python packages untouched makes the release scope truthful and avoids uploading identical
+artifacts under a new version. A new image and Action patch preserve every earlier immutable
+record while giving users an auditable performance correction.
+
+**Rejected alternatives.** Reusing image tag `0.1.3` or Action tag `v1.0.3` would mutate public
+history. Promoting the validation image would publish a false `0.1.3-candidate` version label.
+Republishing unchanged PyPI packages would invent a package change. Measuring only a local Docker
+run, a warm pull, fewer jobs, or a post-release approximation would not satisfy `ADR-046`.
+Weakening the 15 s gate would convert a failed acceptance criterion into paperwork rather than a
+fix. Rewriting the verifier in another language remains outside `ADR-011`'s trigger because the
+approved image-slimming remedy has not yet been measured.
+
+**Consequences.** Candidate labeling, release contracts, tag protection, release notes,
+performance evidence, and moving-major evidence gain a bounded `0.1.4`/`v1.0.4` patch. The release
+workflow needs an image/Action-only path with no PyPI authority. Alpine uses musl and a distinct
+package ecosystem, so both architecture builds, scans, SBOM/provenance, real-container tests, and
+public Action proof remain mandatory rather than inferred from the prototype. F-11 and `CH-09`
+remain open until the fresh retained p95 is below 15 s and every public-release gate completes.
+
+The local-action checkout behavior and registry-backed Docker Action metadata were checked against
+GitHub's official workflow and metadata syntax documentation on 2026-09-25.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

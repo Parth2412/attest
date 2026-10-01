@@ -187,11 +187,11 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-04` | Done |
 | `F-05` | Done |
 | `F-06` | Done |
-| `F-07` | In progress |
+| `F-07` | Done |
 | `F-08` | Done |
 | `F-09` | Done |
-| `F-10` | In progress |
-| `F-11` | In progress |
+| `F-10` | Done |
+| `F-11` | Done |
 | `F-12` | Planned |
 
 ### 7.2 Requirement-to-test mapping
@@ -293,6 +293,17 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F07-010` | `AC-F07-010` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py`, `test_protocols.py` | ✓ |
+| `REQ-F07-020` | `AC-F07-020` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
+| `REQ-F07-030` | `AC-F07-030` | `packages/attest-store/tests/test_gitref.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
+| `REQ-F07-040` | `AC-F07-040` | `packages/attest-store/tests/test_gitref.py` | ✓ |
+| `REQ-F07-050` | `AC-F07-050` | `packages/attest-store/tests/test_gitref.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
+| `REQ-F07-060` | `AC-F07-060` | `packages/attest-store/tests/test_filesystem.py` | ✓ |
+| `REQ-F07-070` | `AC-F07-070` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
+| `REQ-F07-080` | `AC-F07-080` | `packages/attest-store/tests/test_protocols.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
+| `REQ-F07-090` | `AC-F07-090` | `packages/attest-store/tests/test_oci.py` | ✓ |
+| `REQ-F07-100` | `AC-F07-100` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
+| `REQ-F07-110` | `AC-F07-110` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
 | `REQ-F08-010` | `AC-F08-010` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 | `REQ-F08-020` | `AC-F08-020` | `packages/attest-sign/tests/test_verifier.py` | ✓ |
 | `REQ-F08-030` | `AC-F08-030` | `packages/attest-sign/tests/test_verifier_offline.py` | ✓ |
@@ -353,6 +364,26 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F10-230` | `AC-F10-230` | `packages/attest-cli/tests/conftest.py`, `test_cli_surface.py`, `test_commands_sign_push.py`, `test_commands_run.py` | ✓ |
 | `REQ-F10-240` | `AC-F10-240` | `packages/attest-cli/tests/test_cli_surface.py` | ✓ |
 | `REQ-F10-250` | `AC-F10-250` | `packages/attest-cli/tests/test_cli_surface.py`, `test_safe_io.py` | ✓ |
+| `REQ-F11-010` | `AC-F11-010` | `action/tests/test_entrypoint.py`, `test_release_candidate.py` | ✓ |
+| `REQ-F11-020` | `AC-F11-020` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-030` | `AC-F11-030` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-040` | `AC-F11-040` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-050` | `AC-F11-050` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-060` | `AC-F11-060` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-070` | `AC-F11-070` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-080` | `AC-F11-080` | `action/tests/test_major_tag_workflow.py`, `test_release_workflow.py` | ✓ |
+| `REQ-F11-090` | `AC-F11-090` | `action/tests/test_release_workflow.py` | ✓ |
+| `REQ-F11-100` | `AC-F11-100` | `action/tests/test_action_performance_workflow.py`, `test_release_workflow.py` | ✓ |
+| `REQ-F11-110` | `AC-F11-110` | `action/tests/test_major_tag_workflow.py` | ✓ |
+| `REQ-F11-120` | `AC-F11-120` | `action/tests/test_major_tag_workflow.py`, `test_container.py` | ✓ |
+| `REQ-F11-130` | `AC-F11-130` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-140` | `AC-F11-140` | `packages/attest-cli/tests/test_release_packaging.py`, `action/tests/test_published_release_verifier.py` | ✓ |
+| `REQ-F11-150` | `AC-F11-150` | `action/tests/test_release_candidate.py`, `test_release_workflow.py` | ✓ |
+| `REQ-F11-160` | `AC-F11-160` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-170` | `AC-F11-170` | `action/tests/test_published_release_verifier.py`, `packages/attest-cli/tests/test_release_packaging.py` | ✓ |
+| `REQ-F11-180` | `AC-F11-180` | `action/tests/test_release_candidate.py`, `test_container.py`, `packages/attest-cli/tests/test_init.py` | ✓ |
+| `REQ-F11-190` | `AC-F11-190` | `action/tests/test_major_tag_workflow.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
+| `REQ-F11-200` | `AC-F11-200` | `action/tests/test_release_candidate.py`, `test_release_workflow.py`, `test_release_recovery_workflow.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

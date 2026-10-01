@@ -27,7 +27,9 @@ No Python distribution is rebuilt or uploaded. The public package versions remai
 
 ## Upgrade
 
-Use immutable Action tag `v1.0.4` or its full release commit SHA. The moving `v1` tag remains on
-`v1.0.3` until the v1.0.4 public onboarding proof and all retained release evidence verify.
+Use immutable Action tag `v1.0.4` or its full release commit SHA. Public same-repository proof PR
+`Parth2412/attest-action-proof#6`, fork-denial PR #7, release evidence, and performance evidence
+verified; protected promotion run `36872903768` then moved `v1` from `v1.0.3` to the exact
+`v1.0.4` release commit.
 
 Every earlier Python file, image, source tag, Action tag, and GitHub Release remains immutable.

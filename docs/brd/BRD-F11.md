@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · delivery contract governed by `ADR-046`, amended by `ADR-049`, `ADR-051`, and `ADR-052` |
+| Status | **Done** · completion reconciled by `ADR-053` |
 
 ---
 
@@ -210,6 +210,26 @@ Earlier package files, images, tags, Releases, and attestation refs remain immut
 `v1` tag remains unchanged until a new proof completes every required state and demonstrates the
 denied and approved sibling Bundles.
 
+### 4.1.4 Measured slim-runtime correction
+
+The released `v1.0.3` Action fails the exact cold-start acceptance gate: run `36033851434`,
+attempt 1, retained 20 successful hosted-runner samples with p50 16 s and nearest-rank p95 20 s.
+Its image pull alone reached 13 s p95. The release remains functionally correct and immutable, but
+F-11 cannot be Done while `REQ-F11-100` fails.
+
+`ADR-053` therefore replaces the digest-pinned Debian-slim runtime with the validated,
+digest-pinned `python:3.12.14-alpine3.23` base and exact `git=2.52.0-r0` package without changing
+the Python package graph or Action interface. A fresh candidate must carry the truthful
+`0.1.4-candidate` OCI label. The exact merged `main` Action and candidate digest must pass the
+unchanged 20-job p95 gate before publication.
+
+On success, the exact reviewed manifest is promoted without rebuilding as image `0.1.4`, with
+source record `v0.1.4` and immutable Action `v1.0.4`. No Python distribution is rebuilt or
+republished. Moving `v1` remains on `v1.0.3` until the new image and attestation, immutable release,
+production dogfood, fresh public proof, and retained performance evidence all verify independently.
+Every earlier package, image, source tag, Action tag, Release, and attestation record remains
+immutable.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -255,6 +275,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-170` | The correction **MUST** publish only CLI `0.1.1`, immutable Action `v1.0.1`, moving `v1`, and source record `v0.1.1`; it **MUST** retain exact CLI pins to the five `0.1.0` libraries, the immutable `0.1.0` image digest, and the defective immutable `v1.0.0` record. Version-specific public verification and any exact resume **MUST** prove accepted bytes and prior OIDC evidence without re-uploading. |
 | `REQ-F11-180` | The pull-request identity correction **MUST** publish only CLI `0.1.2`, immutable Action `v1.0.2`, source record `v0.1.2`, and the exact reviewed image candidate promoted as `0.1.2`; it **MUST** preserve known failed-verification diagnostics without emitting unverified facts, retain the five exact `0.1.0` library pins and every earlier immutable public record, and move `v1` only after the complete replacement proof succeeds. |
 | `REQ-F11-190` | The remote-discovery correction **MUST** publish only store `0.1.1`, CLI `0.1.3`, immutable Action `v1.0.3`, source record `v0.1.3`, and the exact reviewed image candidate promoted as `0.1.3`; it **MUST** retain every earlier public artifact and attestation ref, import remote sibling refs without overwrite or `FETCH_HEAD`, preserve import failures locally, and move `v1` only after the complete corrected proof succeeds. |
+| `REQ-F11-200` | The cold-start correction **MUST** use the digest-pinned Alpine runtime and exact package set in `ADR-053`, publish no Python distribution, promote only an exact reviewed `0.1.4-candidate` manifest as image `0.1.4`, and create source `v0.1.4` plus immutable Action `v1.0.4` only after the unchanged 20-job p95 gate passes; it **MUST NOT** move `v1` until the complete release, dogfood, public-proof, and performance evidence verifies. |
 
 ## 6. Acceptance criteria
 
@@ -279,6 +300,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-170` | Contract tests prove Action metadata has no `github` context reference and the exact generated workflow supplies `GITHUB_TOKEN` through step `env`; public records and a fresh proof repository verify the bounded versions, unchanged digest, blocked-before-check state, denial state, approval transition, malicious fixture, and safe fork failure. |
 | `AC-F11-180` | Contract and container tests prove the generated identity matches only the intended PR workflow ref, known failed verification retains its stable code with empty outputs, the CLI/image candidate has the bounded `0.1.2` artifact set and supply-chain evidence, and public records plus a fresh proof establish blocked-before-check, no-review denial, independent approval, success, malicious-content non-execution, and safe fork failure before `v1` moves. |
 | `AC-F11-190` | Two fresh CI-like repositories publish distinct denied and approved Bundles for one ChangeSet under immutable base and sibling refs; the store/CLI/Image/Action `0.1.1`/`0.1.3` release set verifies publicly, and a new bot-authored proof completes blocked-before-check, no-review denial, independent approval, successful rerun, malicious-content non-execution, and safe fork failure before `v1` moves. |
+| `AC-F11-200` | The retained candidate proves the exact Alpine base and package, both target platforms, clean scans, SBOM, provenance, and identity-bound attestation; the exact merged Action then passes 20 fresh attempt-1 hosted measurements below 15 s p95 before the image-only `0.1.4`/Action `v1.0.4` release and reviewed `v1` promotion complete without any new PyPI file. |
 
 ## 7. Evidence retention
 
@@ -296,12 +318,21 @@ write authority.
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
-- [ ] The exact F-10-generated and copy-pasteable README workflows run unmodified on a fresh repository
-- [ ] The six packages and multi-platform image are publicly installable by immutable version/digest
-- [ ] Dogfood release evidence verifies publicly
-- [ ] A real repository demonstrates blocked and successful merge states through the required,
+- [x] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
+- [x] The exact F-10-generated and copy-pasteable README workflows run unmodified on a fresh repository
+- [x] The six packages and multi-platform image are publicly installable by immutable version/digest
+- [x] Dogfood release evidence verifies publicly
+- [x] A real repository demonstrates blocked and successful merge states through the required,
   expected-App-pinned gate check
-- [ ] The `zettacore-labs` fork proof fails safely before repository reads
-- [ ] The retained 20-run measurement meets p95 below 15 seconds
-- [ ] Cross-cutting obligations satisfied
+- [x] The `zettacore-labs` fork proof fails safely before repository reads
+- [x] The retained 20-run measurement meets p95 below 15 seconds
+- [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
+- [x] Cross-cutting obligations satisfied
+
+Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
+nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run
+`36849857414` completed the immutable release; public proof PR #6 and fork-denial PR #7 established
+the required merge states; protected promotion run `36872903768` moved `v1` to immutable
+`v1.0.4` after review. Post-release monitoring remains fail-closed: run `36872334911` measured p95
+16 s and is tracked as a separate reliability correction rather than altering the retained release
+gate.

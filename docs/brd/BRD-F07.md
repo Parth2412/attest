@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-store` |
 | Depends on | `F-01`, `F-06` |
-| Status | **In progress** · remote-discovery correction governed by `ADR-052` |
+| Status | **Done** · completion reconciled by `ADR-052` and the public v1.0.3 proof |
 
 ---
 
@@ -135,7 +135,7 @@ Hosted store (`OOS-01`, v1.1), retention policy enforcement, cross-repository se
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F07-*` implemented, all `AC-F07-*` green, including public retry proof
+- [x] All `REQ-F07-*` implemented, all `AC-F07-*` green, including public retry proof
 - [x] All three backends pass the identical store conformance suite
 - [x] Coverage ≥ 90%
 - [x] Cross-cutting obligations satisfied

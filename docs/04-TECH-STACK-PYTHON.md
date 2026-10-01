@@ -320,11 +320,12 @@ is by far the most persuasive demo you will have.
 | Channel | Artifact | Audience |
 |---|---|---|
 | PyPI | `0.1.0` for core, collect, sign, and policy; store `0.1.1`; CLI `0.1.3` after the public-proof corrections | Python-native teams; CLI pins store `0.1.1` and the other four libraries at `0.1.0`, no export package until F-12 |
-| GHCR | `ghcr.io/parth2412/attest:0.1.3` reviewed multi-platform slim container plus immutable digest; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.3`, reviewed moving `v1`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| GHCR | `ghcr.io/parth2412/attest:0.1.4` reviewed multi-platform Alpine container plus immutable digest; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.4`, reviewed moving `v1`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-The candidate build records and pins the verified `python:3.12-slim` base digest; release builds
+The current performance-correction candidate records and pins the verified
+`python:3.12.14-alpine3.23` base digest and exact `git=2.52.0-r0` package; release builds
 from the committed lock with user-site/current-directory imports disabled. Multi-arch is
 `linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
 artifact attestation. PyPI publication uses per-package Trusted Publishing environments with build
@@ -335,6 +336,8 @@ procedure is governed by `ADR-046`, `ADR-047`, and `ADR-048`. The token-boundary
 its unchanged image digest are governed by `ADR-049`; the pull-request identity/runtime
 correction, new reviewed image, and independent patch versions are governed by `ADR-051`; remote
 attestation discovery and its bounded store/CLI/Action patch set are governed by `ADR-052`.
+The image-only cold-start correction, pre-publication 20-job gate, container `0.1.4`, and Action
+`v1.0.4` are governed by `ADR-053`; no Python distribution changes in that patch.
 
 ---
 

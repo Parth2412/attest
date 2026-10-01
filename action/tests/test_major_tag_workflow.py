@@ -155,6 +155,8 @@ def test_major_tag_preflight_locks_source_release_and_repository_controls() -> N
         assert fragment in commands
 
 
+@pytest.mark.ac("AC-F11-110")
+@pytest.mark.ac("AC-F11-120")
 @pytest.mark.ac("AC-F11-190")
 def test_major_tag_preflight_replays_the_complete_public_proof() -> None:
     """REQ-F11-190: promotion requires blocked, denied, approved, and fork evidence."""
