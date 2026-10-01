@@ -92,7 +92,7 @@ def test_recovery_is_closed_to_the_exact_failed_release_transaction() -> None:
     assert jobs["preflight"]["permissions"] == {
         "actions": "read",
         "attestations": "read",
-        "contents": "read",
+        "contents": "write",
         "packages": "read",
     }
     assert jobs["publish"]["needs"] == "preflight"
@@ -101,6 +101,18 @@ def test_recovery_is_closed_to_the_exact_failed_release_transaction() -> None:
         "actions": "read",
         "contents": "write",
     }
+
+    preflight_commands = _commands(jobs["preflight"])
+    for forbidden in (
+        "--method POST",
+        "--method PATCH",
+        "--method DELETE",
+        "gh release create",
+        "gh release edit",
+        "gh release upload",
+        "git push",
+    ):
+        assert forbidden not in preflight_commands
 
     source = _step(jobs["preflight"], "Validate the source release transaction")["run"]
     for fragment in (
