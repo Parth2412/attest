@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Completed the image-only `0.1.4` / Action `v1.0.4` release, public same-repository and fork
+  proofs, exact p95 14-second release gate, production dogfood verification, and protected reviewed
+  promotion of moving `v1`; retired the bounded one-time recovery workflow after publication.
 - Replaced the Action runtime with a digest-pinned Alpine image, removed unused system `pip`,
   added exact 20-job merged-commit cold-start enforcement, and prepared the image-only `0.1.4` /
   Action `v1.0.4` release without rebuilding or publishing any Python distribution.

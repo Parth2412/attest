@@ -5,9 +5,22 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** pre-alpha. The deterministic core, collectors, Statement builder,
-> keyless Sigstore signing, independent verification, storage, policy engine, and production CLI
-> are implemented. GitHub Action, container, and PyPI production publication are not yet complete.
+> **Development status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed.
+> Six Python distributions, the multi-platform `0.1.4` image, immutable Action `v1.0.4`, and the
+> reviewed moving `v1` tag are public. Evidence export (F-12) and the external M2/M3 adoption and
+> auditor gates remain pending, so this is not yet the complete product/v1 launch.
+
+## Public release
+
+The current immutable release is
+[`v0.1.4`](https://github.com/Parth2412/attest/releases/tag/v0.1.4), and the current immutable
+Action is `Parth2412/attest/action@v1.0.4`. The reviewed moving-major alias
+`Parth2412/attest/action@v1` resolves to the same release commit. The Action pins the reviewed
+multi-platform image by manifest digest; no mutable image tag is used at runtime.
+
+The public Python package set remains `attest-core==0.1.0`, `attest-collect==0.1.0`,
+`attest-sign==0.1.0`, `attest-store==0.1.1`, `attest-policy==0.1.0`, and
+`attest-cli==0.1.3`. `attest-export` is intentionally unpublished until F-12 is complete.
 
 ## What attest establishes
 
@@ -28,6 +41,9 @@ status are recorded in [PROJECT_SPECS.md](PROJECT_SPECS.md).
   change.
 - A compromised CI environment can sign malicious content with a genuine workload identity.
 - Predicate identifiers remain unstable throughout the `v0.x` series.
+- The exact v1.0.4 release gate passed 20 hosted measurements at p95 14 seconds, but later
+  fail-closed monitoring has reproduced p95 above the 15-second target; performance reliability
+  remains active launch work.
 
 ## Development setup
 

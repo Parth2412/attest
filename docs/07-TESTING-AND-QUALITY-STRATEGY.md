@@ -239,6 +239,9 @@ A release **MUST NOT** ship unless:
 - [ ] The `0.1.2` release creates protected immutable `v0.1.2`/`v1.0.2` records without changing any earlier PyPI file, image, tag, or Release; `v1` moves only after the replacement public proof establishes the required blocked, denied, approved, malicious-content, and fork states
 - [ ] The `0.1.3` correction publishes only store `0.1.1` and CLI `0.1.3`, imports a stable exact-digest attestation-ref snapshot without overwriting local refs or `FETCH_HEAD`, promotes the exact reviewed `0.1.3` image candidate, and creates protected immutable `v0.1.3`/`v1.0.3` records without changing earlier public artifacts
 - [ ] The `0.1.3` replacement proof retains the public v1.0.2 denied Bundle, publishes an approved sibling Bundle for the same ChangeSet, and completes blocked, denied, approved, malicious-content, and fork states before `v1` moves
+- [ ] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
+- [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
+- [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated

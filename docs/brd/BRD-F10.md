@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-cli` |
 | Depends on | `F-01`…`F-09`, including `REQ-F04-150` and `REQ-F08-170` |
-| Status | **In progress** · governed by `ADR-045`, amended by `ADR-049`, `ADR-051`, and `ADR-052` |
+| Status | **Done** · completion reconciled by `ADR-052` and the public v1.0.3 proof |
 
 ---
 
@@ -448,8 +448,9 @@ denied policy, missing required evidence, or a placeholder.
 - [x] Coverage ≥ 90% for `attest-cli`
 - [x] Cross-cutting obligations satisfied
 - [x] F-11 handoff records that publication and live fresh-repository proof remain open
-- [ ] The ADR-052 store `0.1.1` / CLI `0.1.3` correction is published and the replacement proof passes
+- [x] The ADR-052 store `0.1.1` / CLI `0.1.3` correction is published and the replacement proof passes
 
-F-11 is In progress and owns the published Action, container and PyPI artifacts, immutable image
-digest, live least-privilege validation, and proof that the generated workflow runs unmodified in a
-fresh repository. F-10 completion does not claim that any distribution is publicly released.
+F-11 completed the published Action, container and PyPI artifacts, immutable image digest, live
+least-privilege validation, and proof that the generated workflow runs unmodified in a fresh
+repository. F-10 completion is backed by the public `attest-cli==0.1.3` release and replacement
+proof; it does not transfer release ownership from F-11.

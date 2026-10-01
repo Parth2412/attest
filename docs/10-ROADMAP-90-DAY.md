@@ -106,12 +106,12 @@ The 90-day count starts after Week 0.
 **M2 exit gate:**
 - [ ] `CH-03` closed: at least two harnesses emit claims reliably
 - [ ] `CH-05` measured: at least two of three partners enabled a blocking gate
-- [ ] `CH-08`, `CH-09` closed
-- [ ] A policy violation blocks a merge via a required status check in a real repository
+- [x] `CH-08`, `CH-09` closed
+- [x] A policy violation blocks a merge via a required status check in a real repository
 - [ ] Three external repositories running the Action in CI
-- [ ] Quickstart works unmodified on a fresh repository
+- [x] Quickstart works unmodified on a fresh repository
 - [ ] Onboarding friction documented from real partner feedback
-- [ ] Product `0.1.0` is published as the six approved PyPI distributions and immutable
+- [x] Product `0.1.0` is published as the six approved PyPI distributions and immutable
   multi-platform GHCR image; Action `v1.0.0`/`v1` is published and the release verifies its own
   attest evidence
 
