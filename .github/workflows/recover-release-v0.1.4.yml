@@ -1,0 +1,756 @@
+name: recover release v0.1.4
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-v0.1.4
+  cancel-in-progress: false
+
+env:
+  PRODUCT_VERSION: "0.1.4"
+  PRODUCT_TAG: v0.1.4
+  ACTION_VERSION_TAG: v1.0.4
+  PUBLIC_CLI_VERSION: "0.1.3"
+  IMAGE_NAME: ghcr.io/parth2412/attest
+  RELEASE_SHA: 4e73dcaf888f15967da66826d48cca5ac6684fcb
+  PRIOR_RELEASE_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
+  SOURCE_RELEASE_RUN_ID: 36762051962
+  SOURCE_DRAFT_RELEASE_ID: 400347468
+  PERFORMANCE_RUN_ID: 36761068084
+  PERFORMANCE_ARTIFACT_ID: 11118342353
+  REVIEWED_CANDIDATE_RUN_ID: 36758760939
+  REVIEWED_CANDIDATE_SOURCE_SHA: a4c47f13a0963b30f02f7bc2ef9d4d81d88cac3f
+  REVIEWED_CONTEXT_DIGEST: sha256:ef05578f882f1a55364bc14c260898cb4c656161446d04b1343e43aaabf2cb8b
+  REVIEWED_IMAGE_DIGEST: sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df
+
+jobs:
+  preflight:
+    if: github.repository == 'Parth2412/attest' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Validate the source release transaction
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-evidence
+          test "${GITHUB_SHA}" = "$(git rev-parse HEAD)"
+          test "$(git branch --show-current)" = main
+          git cat-file -e "${RELEASE_SHA}^{commit}"
+          git cat-file -e "${PRIOR_RELEASE_SHA}^{commit}"
+          git merge-base --is-ancestor "${RELEASE_SHA}" "${GITHUB_SHA}"
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RELEASE_RUN_ID}" \
+            > recovery-evidence/source-release-run.json
+          jq -e \
+            --argjson runId "${SOURCE_RELEASE_RUN_ID}" \
+            --arg sha "${RELEASE_SHA}" \
+            --arg repository "${GITHUB_REPOSITORY}" '
+              .id == $runId and
+              .name == "release" and
+              .path == ".github/workflows/release.yml" and
+              .event == "workflow_dispatch" and
+              .head_branch == "main" and
+              .head_sha == $sha and
+              .repository.full_name == $repository and
+              .actor.login == "Parth2412" and
+              .triggering_actor.login == "Parth2412" and
+              .status == "completed" and
+              .conclusion == "failure" and
+              .run_attempt == 1
+            ' recovery-evidence/source-release-run.json > /dev/null
+
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RELEASE_RUN_ID}/jobs?per_page=100" \
+            > recovery-evidence/source-release-job-pages.json
+          jq -e '
+            ([.[] | .jobs[] | {id, name, status, conclusion}] | sort_by(.id)) ==
+            ([
+              {id: 110046816716, name: "preflight", status: "completed", conclusion: "success"},
+              {id: 110047069536, name: "assemble-assets", status: "completed", conclusion: "success"},
+              {id: 110047069673, name: "promote-image", status: "completed", conclusion: "success"},
+              {id: 110047155348, name: "attest-artifacts", status: "completed", conclusion: "success"},
+              {id: 110047176832, name: "dogfood", status: "completed", conclusion: "success"},
+              {id: 110047383859, name: "publish-release", status: "completed", conclusion: "failure"}
+            ] | sort_by(.id))
+          ' recovery-evidence/source-release-job-pages.json > /dev/null
+
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RELEASE_RUN_ID}/artifacts?per_page=100" \
+            > recovery-evidence/source-release-artifact-pages.json
+          jq -e '
+            ([.[] | .artifacts[] | {id, name, expired, size_in_bytes, digest}] | sort_by(.id)) ==
+            ([
+              {
+                id: 11118393513,
+                name: "release-assets-v0.1.4",
+                expired: false,
+                size_in_bytes: 105365,
+                digest: "sha256:dcab2f9bcf958e27207f004a6c16ab42497250a585c6babfad4696153e7838d5"
+              },
+              {
+                id: 11118523287,
+                name: "release-preflight-evidence-v0.1.4",
+                expired: false,
+                size_in_bytes: 167715,
+                digest: "sha256:c1758e5b22206526233071457a0c9e262c449c228efda1d0fd6f9a306f77e258"
+              },
+              {
+                id: 11119561302,
+                name: "image-promotion-evidence-v0.1.4",
+                expired: false,
+                size_in_bytes: 1146,
+                digest: "sha256:98cda2452c8e5a63e5678b59e41a32c1a323e3cc3ba2037b8468bb5421819f"
+              },
+              {
+                id: 11119706056,
+                name: "release-asset-attestation-evidence-v0.1.4",
+                expired: false,
+                size_in_bytes: 77347,
+                digest: "sha256:46e8e0b5eef6be8c5ff0a55143d765b6726ceb9e36146b8b69fdc6f28892cee3"
+              },
+              {
+                id: 11119755651,
+                name: "release-dogfood-evidence-v0.1.4",
+                expired: false,
+                size_in_bytes: 31124,
+                digest: "sha256:7f55e5220c611427273bb8c989a407987d3f776ac83b28204bc4a545854a5fac"
+              }
+            ] | sort_by(.id))
+          ' recovery-evidence/source-release-artifact-pages.json > /dev/null
+      - name: Validate immutable controls and tag state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/rulesets" \
+            > recovery-evidence/rulesets.json
+          ruleset_id="$(jq -er '
+            .[] |
+            select(
+              .name == "Protect immutable release tags" and
+              .target == "tag" and
+              .enforcement == "active"
+            ) |
+            .id
+          ' recovery-evidence/rulesets.json)"
+          gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}" \
+            > recovery-evidence/tag-ruleset.json
+          jq -e '
+            (.bypass_actors // []) == [] and
+            (.conditions.ref_name.include | sort) ==
+              ([
+                "refs/tags/v0.1.0",
+                "refs/tags/v0.1.1",
+                "refs/tags/v0.1.2",
+                "refs/tags/v0.1.3",
+                "refs/tags/v0.1.4",
+                "refs/tags/v1.0.0",
+                "refs/tags/v1.0.1",
+                "refs/tags/v1.0.2",
+                "refs/tags/v1.0.3",
+                "refs/tags/v1.0.4"
+              ] | sort) and
+            .conditions.ref_name.exclude == [] and
+            ([.rules[].type] | sort) == (["deletion", "update"] | sort)
+          ' recovery-evidence/tag-ruleset.json > /dev/null
+
+          for tag in v0.1.3 v1.0.3 v1; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')" \
+              = "${PRIOR_RELEASE_SHA}"
+          done
+          for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
+            if observed="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" \
+              --jq '.object.sha' 2>/dev/null)"; then
+              test "${observed}" = "${RELEASE_SHA}"
+            fi
+          done
+      - name: Validate the exact draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${SOURCE_DRAFT_RELEASE_ID}" \
+            > recovery-evidence/source-release-state.json
+          jq -e \
+            --argjson releaseId "${SOURCE_DRAFT_RELEASE_ID}" \
+            --arg sha "${RELEASE_SHA}" '
+              .id == $releaseId and
+              .tag_name == "v0.1.4" and
+              .target_commitish == $sha and
+              .name == "attest 0.1.4 / Action v1.0.4" and
+              .author.login == "github-actions[bot]" and
+              .author.id == 41898282 and
+              .prerelease == false and
+              (
+                (.draft == true and .immutable == false) or
+                (.draft == false and .immutable == true)
+              )
+            ' recovery-evidence/source-release-state.json > /dev/null
+          git show "${RELEASE_SHA}:release/RELEASE_NOTES-v0.1.4.md" \
+            > recovery-evidence/source-release-notes.md
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          release = json.loads(
+              Path("recovery-evidence/source-release-state.json").read_text(encoding="utf-8")
+          )
+          notes = Path("recovery-evidence/source-release-notes.md").read_text(encoding="utf-8")
+          if release["body"] != notes:
+              raise SystemExit("draft release notes differ from the exact source commit")
+          PY
+      - name: Download the exact source release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets-v0.1.4
+          path: retained/release-assets
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.SOURCE_RELEASE_RUN_ID }}
+      - name: Download the exact source preflight evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-preflight-evidence-v0.1.4
+          path: retained/preflight
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.SOURCE_RELEASE_RUN_ID }}
+      - name: Download the exact source attestation evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-asset-attestation-evidence-v0.1.4
+          path: retained/attestations
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.SOURCE_RELEASE_RUN_ID }}
+      - name: Download the exact source promotion evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-promotion-evidence-v0.1.4
+          path: retained/promotion
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.SOURCE_RELEASE_RUN_ID }}
+      - name: Download the exact source dogfood evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-dogfood-evidence-v0.1.4
+          path: retained/dogfood
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.SOURCE_RELEASE_RUN_ID }}
+      - name: Download the exact performance source evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.4-${{ env.PERFORMANCE_RUN_ID }}
+          path: retained/performance-source
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.PERFORMANCE_RUN_ID }}
+      - name: Validate and recompute the performance evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PERFORMANCE_RUN_ID}" \
+            > recovery-evidence/performance-run.json
+          jq -e \
+            --argjson runId "${PERFORMANCE_RUN_ID}" \
+            --arg sha "${RELEASE_SHA}" \
+            --arg repository "${GITHUB_REPOSITORY}" '
+              .id == $runId and
+              .name == "measure Action cold start" and
+              .path == ".github/workflows/action-performance.yml" and
+              .event == "push" and
+              .head_branch == "main" and
+              .head_sha == $sha and
+              .repository.full_name == $repository and
+              .status == "completed" and
+              .conclusion == "success" and
+              .run_attempt == 1
+            ' recovery-evidence/performance-run.json > /dev/null
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${PERFORMANCE_RUN_ID}/artifacts?per_page=100" \
+            > recovery-evidence/performance-artifact-pages.json
+          jq -e \
+            --argjson artifactId "${PERFORMANCE_ARTIFACT_ID}" \
+            --arg name "action-performance-v1.0.4-${PERFORMANCE_RUN_ID}" '
+              [
+                .[] |
+                .artifacts[] |
+                select(.id == $artifactId) |
+                {id, name, size_in_bytes, expired, digest}
+              ] == [
+                {
+                  id: $artifactId,
+                  name: $name,
+                  size_in_bytes: 23185,
+                  expired: false,
+                  digest: "sha256:7a039d3a71d421a27127a2a814bd915650bbca41f487933b8119cbaada8efb9a"
+                }
+              ]
+            ' recovery-evidence/performance-artifact-pages.json > /dev/null
+
+          mkdir -p "${RUNNER_TEMP}/release-source" recovery-evidence/performance-metadata
+          git show "${RELEASE_SHA}:.github/workflows/action-performance.yml" \
+            > "${RUNNER_TEMP}/release-source/action-performance.yml"
+          git show "${RELEASE_SHA}:action/performance/config.yaml" \
+            > "${RUNNER_TEMP}/release-source/config.yaml"
+          git show "${RELEASE_SHA}:action/performance/policy.yaml" \
+            > "${RUNNER_TEMP}/release-source/policy.yaml"
+          git show "${RELEASE_SHA}:scripts/summarize_action_performance.py" \
+            > "${RUNNER_TEMP}/release-source/summarize_action_performance.py"
+          cmp retained/performance-source/source/action-performance.yml \
+            "${RUNNER_TEMP}/release-source/action-performance.yml"
+          cmp retained/performance-source/source/config.yaml \
+            "${RUNNER_TEMP}/release-source/config.yaml"
+          cmp retained/performance-source/source/policy.yaml \
+            "${RUNNER_TEMP}/release-source/policy.yaml"
+          cmp retained/performance-source/source/summarize_action_performance.py \
+            "${RUNNER_TEMP}/release-source/summarize_action_performance.py"
+          cmp scripts/summarize_action_performance.py \
+            "${RUNNER_TEMP}/release-source/summarize_action_performance.py"
+          cmp retained/performance-source/summary.json \
+            retained/preflight/performance-summary.json
+          cmp retained/performance-source/summary.json \
+            retained/preflight/recomputed-performance-summary.json
+          cmp retained/performance-source/jobs.json retained/preflight/performance-jobs.json
+          cmp retained/performance-source/source/action-performance.yml \
+            retained/preflight/performance-workflow.yml
+          for sample in retained/performance-source/metadata/sample-*.json; do
+            name="$(basename "${sample}")"
+            cmp "${sample}" "retained/preflight/performance-${name}"
+            cp "${sample}" "recovery-evidence/performance-metadata/${name}"
+          done
+          test "$(find recovery-evidence/performance-metadata -type f | wc -l)" -eq 20
+          python3 scripts/summarize_action_performance.py \
+            --jobs retained/performance-source/jobs.json \
+            --metadata-directory retained/performance-source/metadata \
+            --config "${RUNNER_TEMP}/release-source/config.yaml" \
+            --policy "${RUNNER_TEMP}/release-source/policy.yaml" \
+            --output recovery-evidence/recomputed-performance-summary.json \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-id "${PERFORMANCE_RUN_ID}" \
+            --run-attempt 1 \
+            --head-sha "${RELEASE_SHA}" \
+            --expected-action-sha "${RELEASE_SHA}" \
+            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
+            --expected-samples 20 \
+            --threshold-seconds 15 \
+            --require-run-attempt 1
+          cmp retained/performance-source/summary.json \
+            recovery-evidence/recomputed-performance-summary.json
+          jq -e \
+            --argjson runId "${PERFORMANCE_RUN_ID}" \
+            --arg sha "${RELEASE_SHA}" \
+            --arg image "${REVIEWED_IMAGE_DIGEST}" '
+              .workflowRun.id == $runId and
+              .workflowRun.attempt == 1 and
+              .workflowRun.headSha == $sha and
+              .action.commit == $sha and
+              .action.imageDigest == $image and
+              .metric.sampleCount == 20 and
+              .metric.nearestRankP50Seconds == 11 and
+              .metric.nearestRankP95Seconds == 14 and
+              .metric.thresholdSecondsExclusive == 15 and
+              .metric.passed == true
+            ' recovery-evidence/recomputed-performance-summary.json > /dev/null
+      - name: Reverify the retained supply chain and dogfood evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_IDENTITY: https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "${RELEASE_SHA}:scripts/check_action_scan.py" \
+            > "${RUNNER_TEMP}/release-source/check_action_scan.py"
+          cmp scripts/check_action_scan.py \
+            "${RUNNER_TEMP}/release-source/check_action_scan.py"
+          python3 scripts/check_action_scan.py \
+            retained/preflight/candidate-scan-linux-amd64.json
+          python3 scripts/check_action_scan.py \
+            retained/preflight/candidate-scan-linux-arm64.json
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEWED_CANDIDATE_RUN_ID}" \
+            > recovery-evidence/candidate-run.json
+          jq -e \
+            --argjson runId "${REVIEWED_CANDIDATE_RUN_ID}" \
+            --arg source "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --arg repository "${GITHUB_REPOSITORY}" '
+              .id == $runId and
+              .name == "action-candidate" and
+              .path == ".github/workflows/action-candidate.yml" and
+              .event == "push" and
+              .head_branch == "dev" and
+              .head_sha == $source and
+              .repository.full_name == $repository and
+              .status == "completed" and
+              .conclusion == "success" and
+              .run_attempt == 1
+            ' recovery-evidence/candidate-run.json > /dev/null
+          jq -e \
+            --arg imageRef "${IMAGE_NAME}:candidate-${REVIEWED_CANDIDATE_SOURCE_SHA}-${REVIEWED_CANDIDATE_RUN_ID}-1" \
+            --arg context "${REVIEWED_CONTEXT_DIGEST}" \
+            --arg image "${REVIEWED_IMAGE_DIGEST}" '
+              ."image-ref" == $imageRef and
+              ."context-digest" == $context and
+              ."image-digest" == $image
+            ' retained/preflight/candidate-outputs.json > /dev/null
+
+          docker buildx imagetools inspect \
+            "${IMAGE_NAME}:${PRODUCT_VERSION}" --raw \
+            > recovery-evidence/public-image-manifest.json
+          observed="sha256:$(sha256sum recovery-evidence/public-image-manifest.json | cut -d ' ' -f 1)"
+          test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
+          cmp recovery-evidence/public-image-manifest.json \
+            retained/promotion/promoted-image-manifest.json
+          cmp recovery-evidence/public-image-manifest.json \
+            retained/preflight/live-image-manifest.json
+          cmp recovery-evidence/public-image-manifest.json \
+            retained/preflight/candidate-image-manifest.json
+          test "$(cat retained/promotion/promotion-state.txt)" = created
+          printf '%s\n' "${IMAGE_NAME}:${PRODUCT_VERSION}@${REVIEWED_IMAGE_DIGEST}" \
+            | cmp - retained/promotion/release-image.txt
+          gh attestation verify \
+            "oci://${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/action-candidate.yml" \
+            --source-digest "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --source-ref refs/heads/dev \
+            --deny-self-hosted-runners \
+            --format json \
+            > recovery-evidence/candidate-image-attestation-verification.json
+
+          mkdir -p recovery-evidence/release-asset-attestations
+          for subject in retained/release-assets/*; do
+            name="$(basename "${subject}")"
+            gh attestation verify "${subject}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release.yml" \
+              --source-digest "${RELEASE_SHA}" \
+              --source-ref refs/heads/main \
+              --deny-self-hosted-runners \
+              --format json \
+              > "recovery-evidence/release-asset-attestations/${name}.verification.json"
+          done
+          test "$(find retained/release-assets -maxdepth 1 -type f | wc -l)" -eq 8
+          test "$(find recovery-evidence/release-asset-attestations -type f | wc -l)" -eq 8
+
+          jq -e \
+            --arg sourceRun "${SOURCE_RELEASE_RUN_ID}" \
+            --arg base "${PRIOR_RELEASE_SHA}" \
+            --arg head "${RELEASE_SHA}" '
+              .command == "run" and
+              .outcome == "success" and
+              .exitCode == 0 and
+              .data.verification.status == "verified" and
+              .data.verification.transparencyLogVerified == true and
+              .data.verification.statement.predicate.changeSet.baseCommit == $base and
+              .data.verification.statement.predicate.changeSet.headCommit == $head and
+              .data.verification.statement.predicate.collection.environment.runId == $sourceRun and
+              .data.decision.outcome == "allow" and
+              .data.decision.exitCode == 0
+            ' retained/dogfood/attest-run-report.json > /dev/null
+          jq -e \
+            --arg sourceRun "${SOURCE_RELEASE_RUN_ID}" \
+            --arg base "${PRIOR_RELEASE_SHA}" \
+            --arg head "${RELEASE_SHA}" '
+              .command == "verify" and
+              .outcome == "success" and
+              .exitCode == 0 and
+              .data.verification.status == "verified" and
+              .data.verification.transparencyLogVerified == true and
+              .data.verification.statement.predicate.changeSet.baseCommit == $base and
+              .data.verification.statement.predicate.changeSet.headCommit == $head and
+              .data.verification.statement.predicate.collection.environment.runId == $sourceRun
+            ' retained/dogfood/public-verification.json > /dev/null
+
+          uv venv "${RUNNER_TEMP}/release-recovery-verify" --python 3.12 --clear
+          uv pip install \
+            --python "${RUNNER_TEMP}/release-recovery-verify/bin/python" \
+            --strict \
+            --no-cache \
+            "attest-cli==${PUBLIC_CLI_VERSION}"
+          test "$("${RUNNER_TEMP}/release-recovery-verify/bin/python" -c \
+            'from importlib import metadata; print(metadata.version("attest-cli"))')" \
+            = "${PUBLIC_CLI_VERSION}"
+          git show "${RELEASE_SHA}:release/attest-release-config.yaml" \
+            > "${RUNNER_TEMP}/release-source/attest-release-config.yaml"
+          "${RUNNER_TEMP}/release-recovery-verify/bin/attest" verify \
+            --input retained/dogfood/attest-v0.1.4.bundle.json \
+            --repository . \
+            --base "${PRIOR_RELEASE_SHA}" \
+            --head "${RELEASE_SHA}" \
+            --identity "${RELEASE_IDENTITY}" \
+            --issuer "${OIDC_ISSUER}" \
+            --verify-environment production \
+            --online \
+            --config "${RUNNER_TEMP}/release-source/attest-release-config.yaml" \
+            --json \
+            > recovery-evidence/live-public-verification.json
+          jq -e '
+            .command == "verify" and
+            .outcome == "success" and
+            .exitCode == 0 and
+            .data.verification.status == "verified" and
+            .data.verification.transparencyLogVerified == true
+          ' recovery-evidence/live-public-verification.json > /dev/null
+      - name: Reassemble and match the exact draft assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p final-release-assets
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path("final-release-assets")
+          retained = Path("retained")
+          included = (
+              retained / "release-assets",
+              retained / "preflight",
+              retained / "attestations",
+              retained / "promotion",
+              retained / "dogfood",
+          )
+          for source in included:
+              for path in sorted(source.rglob("*"), key=lambda item: item.as_posix()):
+                  relative = path.relative_to(source)
+                  if any(part.startswith(".") for part in relative.parts):
+                      raise SystemExit(f"hidden retained evidence is forbidden: {path}")
+                  if path.is_dir() and not path.is_symlink():
+                      continue
+                  if not path.is_file() or path.is_symlink():
+                      raise SystemExit(f"invalid retained evidence: {path}")
+                  target = root / path.name
+                  if target.exists():
+                      raise SystemExit(f"duplicate release asset name: {path.name}")
+                  shutil.copyfile(path, target)
+
+          assets = []
+          for path in sorted(root.iterdir(), key=lambda item: item.name):
+              content = path.read_bytes()
+              assets.append(
+                  {
+                      "name": path.name,
+                      "sha256": hashlib.sha256(content).hexdigest(),
+                      "size": len(content),
+                  }
+              )
+          index = {
+              "schemaVersion": 1,
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": os.environ["RELEASE_SHA"],
+              "releaseRunId": int(os.environ["SOURCE_RELEASE_RUN_ID"]),
+              "performanceRunId": int(os.environ["PERFORMANCE_RUN_ID"]),
+              "candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"]),
+              "candidateSource": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
+              "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
+              "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
+              "publicCliVersion": os.environ["PUBLIC_CLI_VERSION"],
+              "pythonDistributionsPublished": False,
+              "majorTagMoved": False,
+              "tags": [os.environ["PRODUCT_TAG"], os.environ["ACTION_VERSION_TAG"]],
+              "assets": assets,
+          }
+          (root / "release-evidence-index.json").write_text(
+              json.dumps(index, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          release = json.loads(
+              Path("recovery-evidence/source-release-state.json").read_text(encoding="utf-8")
+          )
+          remote = {
+              item["name"]: (item["digest"], item["size"])
+              for item in release["assets"]
+          }
+          local = {
+              path.name: (f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}", path.stat().st_size)
+              for path in Path("final-release-assets").iterdir()
+              if path.is_file() and not path.is_symlink()
+          }
+          if remote != local:
+              raise SystemExit("release assets differ from the exact source transaction")
+          if len(local) != 74:
+              raise SystemExit(f"expected 74 exact release assets, observed {len(local)}")
+          PY
+      - name: Retain the exact recovery assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-recovery-assets-v0.1.4-${{ github.run_attempt }}
+          path: final-release-assets
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 90
+      - name: Retain recovery preflight evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-recovery-preflight-v0.1.4-${{ github.run_attempt }}
+          path: recovery-evidence
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 90
+
+  publish:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release-recovery-v0.1.4
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Initialize publication evidence
+        shell: bash
+        run: mkdir -p publication-evidence
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-recovery-assets-v0.1.4-${{ github.run_attempt }}
+          path: expected-release-assets
+      - name: Validate exact draft and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${SOURCE_DRAFT_RELEASE_ID}" \
+            > publication-evidence/release-before.json
+          jq -e \
+            --argjson releaseId "${SOURCE_DRAFT_RELEASE_ID}" \
+            --arg sha "${RELEASE_SHA}" '
+              .id == $releaseId and
+              .tag_name == "v0.1.4" and
+              .target_commitish == $sha and
+              .name == "attest 0.1.4 / Action v1.0.4" and
+              .author.login == "github-actions[bot]" and
+              .author.id == 41898282 and
+              .prerelease == false and
+              (
+                (.draft == true and .immutable == false) or
+                (.draft == false and .immutable == true)
+              )
+            ' publication-evidence/release-before.json > /dev/null
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          release = json.loads(
+              Path("publication-evidence/release-before.json").read_text(encoding="utf-8")
+          )
+          remote = {
+              item["name"]: (item["digest"], item["size"])
+              for item in release["assets"]
+          }
+          expected = {
+              path.name: (f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}", path.stat().st_size)
+              for path in Path("expected-release-assets").iterdir()
+              if path.is_file() and not path.is_symlink()
+          }
+          if remote != expected:
+              raise SystemExit("draft assets changed after recovery preflight")
+          if len(expected) != 74:
+              raise SystemExit(f"expected 74 exact release assets, observed {len(expected)}")
+          PY
+
+          for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
+            if observed="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" \
+              --jq '.object.sha' 2>/dev/null)"; then
+              test "${observed}" = "${RELEASE_SHA}"
+            fi
+          done
+          test "$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/v1" \
+            --jq '.object.sha')" = "${PRIOR_RELEASE_SHA}"
+
+          if jq -e '.draft == true' \
+            publication-evidence/release-before.json > /dev/null; then
+            jq -n '{draft: false, make_latest: "true"}' \
+              | gh api --method PATCH \
+                "repos/${GITHUB_REPOSITORY}/releases/${SOURCE_DRAFT_RELEASE_ID}" \
+                --input - > publication-evidence/release-publish-response.json
+          fi
+
+          for attempt in $(seq 1 30); do
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
+              > publication-evidence/release-published.json 2>/dev/null \
+              && jq -e --argjson releaseId "${SOURCE_DRAFT_RELEASE_ID}" --arg sha "${RELEASE_SHA}" '
+                .id == $releaseId and
+                .target_commitish == $sha and
+                .draft == false and
+                .prerelease == false and
+                .immutable == true
+              ' publication-evidence/release-published.json > /dev/null; then
+              break
+            fi
+            if test "${attempt}" = 30; then
+              echo "release recovery: immutable publication was not observed" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          if action_sha="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/${ACTION_VERSION_TAG}" \
+            --jq '.object.sha' 2>/dev/null)"; then
+            test "${action_sha}" = "${RELEASE_SHA}"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --field ref="refs/tags/${ACTION_VERSION_TAG}" \
+              --field sha="${RELEASE_SHA}" \
+              > publication-evidence/action-tag-created.json
+          fi
+          for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
+            test "$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" \
+              --jq '.object.sha')" = "${RELEASE_SHA}"
+          done
+          test "$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/v1" \
+            --jq '.object.sha')" = "${PRIOR_RELEASE_SHA}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${SOURCE_DRAFT_RELEASE_ID}" \
+            > publication-evidence/release-final.json
+      - name: Retain recovery publication evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-recovery-publication-v0.1.4-${{ github.run_attempt }}
+          path: publication-evidence
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 90
