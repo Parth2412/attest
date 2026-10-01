@@ -19,6 +19,7 @@ CONTEXT_DIGEST: Final[str] = (
 )
 IMAGE_DIGEST: Final[str] = "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
+SHA256_DIGEST: Final[re.Pattern[str]] = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
@@ -126,10 +127,14 @@ def test_recovery_is_closed_to_the_exact_failed_release_transaction() -> None:
         "sha256:dcab2f9bcf958e27207f004a6c16ab42497250a585c6babfad4696153e7838d5",
         "sha256:c1758e5b22206526233071457a0c9e262c449c228efda1d0fd6f9a306f77e258",
         "sha256:46e8e0b5eef6be8c5ff0a55143d765b6726ceb9e36146b8b69fdc6f28892cee3",
-        "sha256:98cda2452c8e5a63e5678b59e41a32c1a323e3cc3ba2037b8468bb5421819f",
+        "sha256:98cda2452c8e2e5a63e5678b59e41a32c1a323e3cc3ba2037b8468bb5421819f",
         "sha256:7f55e5220c611427273bb8c989a407987d3f776ac83b28204bc4a545854a5fac",
     ):
         assert digest in source
+
+    digest_literals = re.findall(r"sha256:[0-9a-f]+", RECOVERY_WORKFLOW.read_text(encoding="utf-8"))
+    assert digest_literals
+    assert all(SHA256_DIGEST.fullmatch(digest) for digest in digest_literals)
 
 
 @pytest.mark.ac("AC-F11-100")
