@@ -118,7 +118,7 @@ jobs:
                 name: "image-promotion-evidence-v0.1.4",
                 expired: false,
                 size_in_bytes: 1146,
-                digest: "sha256:98cda2452c8e5a63e5678b59e41a32c1a323e3cc3ba2037b8468bb5421819f"
+                digest: "sha256:98cda2452c8e2e5a63e5678b59e41a32c1a323e3cc3ba2037b8468bb5421819f"
               },
               {
                 id: 11119706056,
