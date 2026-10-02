@@ -182,6 +182,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-180")
 @pytest.mark.ac("AC-F11-190")
 @pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -200,10 +201,11 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert workflow["concurrency"]["cancel-in-progress"] is False
 
     jobs = workflow["jobs"]
-    assert set(jobs) == {"validate", "build", "scan", "attest"}
+    assert set(jobs) == {"validate", "build", "test-image", "scan", "attest"}
     assert jobs["build"]["needs"] == "validate"
+    assert jobs["test-image"]["needs"] == "build"
     assert jobs["scan"]["needs"] == "build"
-    assert jobs["attest"]["needs"] == ["build", "scan"]
+    assert jobs["attest"]["needs"] == ["build", "test-image", "scan"]
     release_gate = jobs["validate"]["steps"][-1]["run"]
     for required_command in (
         "uv run ruff check .",
@@ -231,7 +233,25 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.3.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.4-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.5-candidate" in str(jobs["build"]["steps"])
+    image_tests = jobs["test-image"]
+    assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
+    assert image_tests["strategy"] == {
+        "fail-fast": False,
+        "matrix": {
+            "include": [
+                {"platform": "linux/amd64", "slug": "linux-amd64"},
+                {"platform": "linux/arm64", "slug": "linux-arm64"},
+            ]
+        },
+    }
+    image_test_commands = "\n".join(
+        step.get("run", "") for step in image_tests["steps"] if isinstance(step, dict)
+    )
+    assert 'docker pull --platform "${PLATFORM}" "${image}"' in image_test_commands
+    assert 'docker tag "${image}" "attest-action-runtime:test"' in image_test_commands
+    assert "uv run pytest action/tests/test_container.py -m container" in image_test_commands
+    assert "--junitxml" in image_test_commands
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index

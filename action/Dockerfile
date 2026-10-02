@@ -15,10 +15,23 @@ COPY packages/attest-cli packages/attest-cli
 ENV UV_LINK_MODE=copy \
     UV_NO_CACHE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    OPENSSL_STATIC=0
 
-RUN apk add --no-cache binutils=2.45.1-r0 \
-    && uv sync --frozen --no-dev --package attest-cli --no-editable \
+RUN apk add --no-cache \
+        binutils=2.45.1-r0 \
+        cargo=1.91.1-r2 \
+        gcc=15.2.0-r2 \
+        libffi-dev=3.5.2-r0 \
+        musl-dev=1.2.5-r23 \
+        openssl-dev=3.5.9-r0 \
+        pkgconf=2.5.1-r0 \
+        rust=1.91.1-r2 \
+    && uv sync --frozen --only-group action-build \
+    && uv sync --frozen --no-dev --package attest-cli --no-editable --inexact \
+        --no-binary-package cryptography \
+        --no-build-isolation-package cryptography \
+    && uv pip uninstall --python /opt/venv/bin/python maturin setuptools \
     && find /opt/venv -type f -name '*.so' -exec strip --strip-unneeded {} + \
     && rm -rf \
         /opt/venv/lib/python3.12/site-packages/certifi/tests \
@@ -33,7 +46,11 @@ RUN apk add --no-cache binutils=2.45.1-r0 \
 
 FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS runtime
 
-RUN apk add --no-cache git=2.52.0-r0 \
+RUN apk add --no-cache \
+        git=2.52.0-r0 \
+        libcrypto3=3.5.9-r0 \
+        libgcc=15.2.0-r2 \
+        libssl3=3.5.9-r0 \
     && cp /usr/share/zoneinfo/UTC /tmp/attest-UTC \
     && rm -rf \
         /etc/terminfo \
@@ -173,12 +190,19 @@ COPY action/entrypoint.py /opt/attest/entrypoint.py
 
 RUN <<'PYTHON'
 #!/opt/venv/bin/python
+import hashlib
 import importlib
 import pathlib
 import py_compile
 import shutil
 import sys
 import zipfile
+
+console_script = pathlib.Path("/opt/venv/bin/attest")
+pathlib.Path("/opt/attest/attest-console-script.sha256").write_text(
+    f"{hashlib.sha256(console_script.read_bytes()).hexdigest()}\n",
+    encoding="ascii",
+)
 
 for name in (
     "attest_cli.app",
@@ -384,7 +408,6 @@ RUN destination=/split/opt/venv/lib/python3.12/site-packages \
     && cp -a \
         /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
         /opt/venv/lib/python3.12/site-packages/cryptography \
-        /opt/venv/lib/python3.12/site-packages/cryptography.libs \
         "${destination}/"
 
 FROM runtime AS venv-rfc3161
@@ -407,7 +430,6 @@ FROM runtime AS venv-rest
 RUN rm -rf \
         /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
         /opt/venv/lib/python3.12/site-packages/cryptography \
-        /opt/venv/lib/python3.12/site-packages/cryptography.libs \
         /opt/venv/lib/python3.12/site-packages/pydantic_core \
         /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client \
@@ -416,17 +438,17 @@ RUN rm -rf \
 # Balance the runtime across Docker's three concurrent layer downloads.
 FROM scratch AS pull-a
 COPY --from=system-lib / /
-COPY --from=venv-rfc3161 /split/ /
+COPY --from=venv-pydantic /split/ /
 COPY --from=python-lib /usr/local/lib /usr/local/lib
 
 FROM scratch AS pull-b
 COPY --from=venv-crypto /split/ /
+COPY --from=venv-rfc3161 /split/ /
 COPY --from=python-rest / /
 COPY --from=system-git / /
 
 FROM scratch AS pull-c
 COPY --from=venv-rest /opt/venv /opt/venv
-COPY --from=venv-pydantic /split/ /
 COPY --from=python-dynload / /
 COPY --from=system-core / /
 
