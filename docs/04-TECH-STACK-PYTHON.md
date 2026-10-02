@@ -307,6 +307,7 @@ Detail in `QA-001`. Stack summary:
 | `security` | every push | bandit, pip-audit |
 | `e2e-sign` | main + nightly | Real signing against Sigstore staging, then verify |
 | `action-candidate` | protected `dev` after implementation | Build/test/scan the enumerated-context multi-platform image; emit context/manifest digests, SBOM, provenance, and GitHub attestation |
+| `action-performance` | protected `main` push plus reviewed soak dispatches | Measure the exact merged Action in independent hosted jobs, retain runner/timing identity, and enforce the single-run and combined cold-start gates |
 | `release` | manual dispatch on protected `main` | Verify final context and promote the exact reviewed candidate; publish packages, immutable release records, and verified dogfood evidence |
 
 **Dogfooding requirement (NORMATIVE):** attest **MUST** attest its own releases from the first
@@ -324,7 +325,7 @@ is by far the most persuasive demo you will have.
 | GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.4`, reviewed moving `v1`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-The current performance-correction candidate records and pins the verified
+The released performance-correction image records and pins the verified
 `python:3.12.14-alpine3.23` base digest and exact `git=2.52.0-r0` package; release builds
 from the committed lock with user-site/current-directory imports disabled. Multi-arch is
 `linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
@@ -338,6 +339,14 @@ correction, new reviewed image, and independent patch versions are governed by `
 attestation discovery and its bounded store/CLI/Action patch set are governed by `ADR-052`.
 The image-only cold-start correction, pre-publication 20-job gate, container `0.1.4`, and Action
 `v1.0.4` are governed by `ADR-053`; no Python distribution changes in that patch.
+`ADR-054` authorizes a subsequent image-only `0.1.5`/Action `v1.0.5` reliability correction. Its
+candidate builds locked `cryptography==50.0.1` from the hash-locked sdist with build-only
+`maturin==1.15.0`, `setuptools==84.0.0`, and exact Alpine Rust/C/OpenSSL packages, then removes the
+build toolchain. Runtime OpenSSL is exact `libcrypto3=3.5.9-r0` plus `libssl3=3.5.9-r0`. The
+isolated Action interpreter may invoke the bundled CLI in-process only when its console script
+matches a build-generated SHA-256 marker; marker failure retains the subprocess path. Publication
+requires three consecutive 20-job attempt-1 measurements whose individual and combined
+nearest-rank p95 values are below 15 seconds. No Python distribution changes in this patch.
 
 ---
 
@@ -347,8 +356,8 @@ The image-only cold-start correction, pre-publication 20-job gate, container `0.
 |---|---|---|
 | `pygit2` wheel availability across platforms | Install failures | Dual `GitBackend` implementations (`ADR-007`) |
 | `sigstore-python` API changes between minor versions | Breakage | Pin exactly; wrap behind an internal `Signer` protocol so the blast radius is one module |
-| Container cold start | Slower CI | Slim base, lazy imports, layer caching |
-| Python startup for a CLI | Perceived sluggishness | Defer heavy imports until the subcommand needs them; keep `attest --help` import-light |
+| Container cold start | Slower CI | Slim base, balanced zstd layers, one locked dynamic OpenSSL, and retained hosted-runner soak evidence |
+| Python startup for a CLI | Perceived sluggishness | Defer heavy imports; for the Action only, use the digest-guarded in-process CLI under isolated Python |
 | Transitive dependency surface in a security tool | Supply-chain criticism | Keep the dependency tree small and auditable; `pip-audit` in CI; publish an SBOM for each release |
 
 ---

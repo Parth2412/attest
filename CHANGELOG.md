@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-054 and began the image-only `0.1.5` / Action `v1.0.5` reliability correction with
+  locked source-built cryptography, exact runtime OpenSSL, balanced zstd layers, a digest-guarded
+  single-interpreter Action path, both-platform container contracts, and three consecutive
+  20-job release measurements without any Python package publication.
 - Completed the image-only `0.1.4` / Action `v1.0.4` release, public same-repository and fork
   proofs, exact p95 14-second release gate, production dogfood verification, and protected reviewed
   promotion of moving `v1`; retired the bounded one-time recovery workflow after publication.

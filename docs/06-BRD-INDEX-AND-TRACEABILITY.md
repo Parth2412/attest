@@ -191,7 +191,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-08` | Done |
 | `F-09` | Done |
 | `F-10` | Done |
-| `F-11` | Done |
+| `F-11` | In progress |
 | `F-12` | Planned |
 
 ### 7.2 Requirement-to-test mapping
@@ -384,6 +384,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F11-180` | `AC-F11-180` | `action/tests/test_release_candidate.py`, `test_container.py`, `packages/attest-cli/tests/test_init.py` | ✓ |
 | `REQ-F11-190` | `AC-F11-190` | `action/tests/test_major_tag_workflow.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
 | `REQ-F11-200` | `AC-F11-200` | `action/tests/test_release_candidate.py`, `test_release_workflow.py`, `test_release_recovery_workflow.py` | ✓ |
+| `REQ-F11-210` | `AC-F11-210` | `action/tests/test_entrypoint.py`, `test_container.py`, `test_release_candidate.py`, `test_action_performance_workflow.py`, `test_release_workflow.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

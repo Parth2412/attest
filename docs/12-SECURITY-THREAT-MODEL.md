@@ -158,7 +158,10 @@ build and publish jobs and no long-lived package token. Its first release uses t
 the second receives no OIDC authority until the first is publicly hash-verified and the operator
 completes the protected publisher-registration checkpoint. CI consumes external Actions only at
 reviewed full commit SHAs, pins its base image and uv version, and installs exclusively from the
-committed lock (`ADR-027`, `ADR-046`, `ADR-047`, `ADR-048`).
+committed lock (`ADR-027`, `ADR-046`, `ADR-047`, `ADR-048`). The ADR-054 image-only correction
+builds cryptography only from its hash-locked sdist and locked Cargo metadata with an exact
+build-only toolchain, removes that toolchain from runtime, and runs against exact matching Alpine
+OpenSSL packages on both supported architectures.
 
 ---
 
@@ -234,7 +237,9 @@ uses `pull_request`, never `pull_request_target`, and invokes only caller-suppli
 and attest Actions. F-11 validates its event and OIDC before repository reads, sanitizes Python
 import paths, escapes workflow output/summary data, executes no repository content, and consumes
 only an immutable reviewed image digest (`REQ-F10-160`, `REQ-F10-190`, `REQ-F11-020`,
-`REQ-F11-160`, `ADR-045`, `ADR-046`).
+`REQ-F11-160`, `ADR-045`, `ADR-046`). Its optional in-process CLI path retains isolated Python and
+is selected only when the immutable bundled console script matches its build-generated SHA-256
+marker; any replacement or marker failure returns to the sanitized subprocess path (`ADR-054`).
 
 ---
 
@@ -267,6 +272,7 @@ and publishing them is worth more than the risk they represent.
 | CLI hostile-file suite covers bounds, unsafe YAML/JSON, symlinks, devices, input races, create-only output, and atomic overwrite |
 | Generated-workflow tests reject `pull_request_target`, mutable Action refs, excess permissions, and any untrusted-code execution path |
 | Action container tests prove OIDC-before-read ordering, event rejection, no repository execution/import, workflow-command escaping, credential redaction, and preservation of every non-policy failure |
+| Action runtime tests prove build tools are absent, cryptography uses the exact system OpenSSL, the bundled-script digest guard fails closed, and both execution paths preserve sanitized state, typed reports, and exact exit codes |
 | Release tests prove exact package scope, Trusted Publisher/environment binding, final context equality and exact candidate-manifest promotion, multi-platform SBOM/provenance/attestations, and immutable Action/image references |
 | `pip-audit` and `bandit` gate releases |
 
