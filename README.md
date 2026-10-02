@@ -5,10 +5,12 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed.
-> Six Python distributions, the multi-platform `0.1.4` image, immutable Action `v1.0.4`, and the
-> reviewed moving `v1` tag are public. Evidence export (F-12) and the external M2/M3 adoption and
-> auditor gates remain pending, so this is not yet the complete product/v1 launch.
+> **Development status:** public pre-alpha. F-01 through F-10 and the initial F-11 release are
+> implemented and evidence-backed. Six Python distributions, the multi-platform `0.1.4` image,
+> immutable Action `v1.0.4`, and the reviewed moving `v1` tag are public. F-11 is temporarily in
+> progress for the bounded `ADR-054` cold-start reliability correction. Evidence export (F-12) and
+> the external M2/M3 adoption and auditor gates remain pending, so this is not yet the complete
+> product/v1 launch.
 
 ## Public release
 

@@ -242,13 +242,16 @@ A release **MUST NOT** ship unless:
 - [ ] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
 - [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
 - [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
+- [ ] The `0.1.5-candidate` image uses the ADR-054 locked cryptography sdist, exact build-only toolchain, exact runtime OpenSSL packages, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass real-container cryptographic tests, scans, SBOM/provenance checks, and identity-bound attestation
+- [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
+- [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`; no Python distribution is rebuilt or uploaded
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
 - [ ] The release itself is attested by attest, and that attestation verifies publicly
 - [ ] CHANGELOG updated
 - [ ] Backwards compatibility confirmed: attestations from every prior version still verify
 - [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
 - [ ] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
-- [ ] F-11 retains 20 hosted Action-step timings whose nearest-rank p95, including image pull, is below 15 seconds
+- [ ] F-11 retains the historical 20-job release gate and, for ADR-054, all three 20-job Action-step measurements plus the combined 60-sample result; every required nearest-rank p95 includes image pull and is below 15 seconds
 
 ---
 

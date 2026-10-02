@@ -4,9 +4,10 @@
 
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.4`,
-  immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-11 are complete;
-  F-12 is Planned.
-- **Last Updated**: 2026-10-01
+  immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-10 and the initial F-11
+  release are complete; the `ADR-054` F-11 reliability correction is In progress and F-12 is
+  Planned.
+- **Last Updated**: 2026-10-02
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -27,7 +28,8 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-11 are complete.
+- **Development Stage**: **Public pre-alpha.** BOOT-001, F-01 through F-10, and the initial F-11
+  release are complete. F-11 is In progress only for the bounded `ADR-054` reliability correction;
   F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
   across Linux and macOS. The separate fail-closed Action performance monitor is currently red as
@@ -47,8 +49,9 @@
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
-  - Exact release performance passed at p95 14 s, but the latest fail-closed monitoring run
-    `36872334911` measured p95 16 s against the same image digest.
+  - Exact release performance passed at p95 14 s, but fail-closed monitoring runs `36872334911`
+    and `36905961561` measured p95 16 s and 17 s against the same image digest. Accepted `ADR-054`
+    governs the locked `0.1.5`/`v1.0.5` correction and three-run release soak.
 - **Next Milestone**: Stabilise repeated Action cold-start measurements, enable and validate
   production security automation, complete the remaining external M2 gates, close `CH-04` with
   practising-auditor evidence, then implement F-12 and its clean-container export verification.

@@ -2836,6 +2836,122 @@ GitHub's official workflow and metadata syntax documentation on 2026-09-25.
 
 ---
 
+## ADR-054 — Restore repeatable Action cold-start headroom before the next image patch
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-046`, `ADR-053`
+
+**Context.** `ADR-053` correctly required the exact release commit and candidate digest to pass
+the unchanged 20-job gate before publication. Release run `36761068084`, attempt 1, passed with
+p50 11 s and nearest-rank p95 14 s, and the reviewed image and Action were released immutably as
+`0.1.4` and `v1.0.4`. The same public image has not retained that result reliably. Monitoring run
+`36872334911` measured p95 16 s, and run `36905961561` measured p50 13 s and p95 17 s across the
+same 20-job boundary. The latter run's sorted durations were 8, 10, 10, 11, 11, 12, 12, 12, 12,
+13, 13, 13, 13, 14, 14, 14, 15, 16, 17, and 18 seconds.
+
+Raw logs from the fastest, p95, and worst jobs separate the tail into both image work and runtime
+work. The 8-second job spent about 1.8 seconds pulling/applying the image and 5.9 seconds executing
+the Action; the 17-second job spent about 6.2 and 9.8 seconds respectively; the 18-second job spent
+about 7.4 and 9.3 seconds respectively. The released `linux/amd64` image carries approximately
+25.7 MB across three substantive zstd-compressed runtime layers, while its unpacked content is
+72,449,212 bytes. One passing run therefore established release conformance but not enough
+operational headroom for repeatable conformance.
+
+A bounded local prototype attacked both measured components without changing the public CLI or
+verification rules. It builds locked `cryptography==50.0.1` from its locked sdist against exact
+Alpine OpenSSL instead of shipping the musllinux wheel's private OpenSSL copy, reducing the
+installed cryptography tree from about 12.3 MB to about 5.8 MB and the unpacked image to about
+65.7 MB. It then rebalances the remaining content across Docker's three concurrent layer downloads.
+The outer Action interpreter remains isolated with `python -I`, but invokes the bundled Typer
+application in-process to avoid a second interpreter startup. That fast path is enabled only when
+the console script matches a build-generated SHA-256 marker; a missing, malformed, symlinked, or
+replaced script uses the existing subprocess boundary. The wrapper still replaces the environment
+with the allowlisted environment, supplies empty stdin, changes only to the validated repository,
+captures stdout/stderr, validates the typed report and matching exit code, and restores the parent
+process state. The prototype's 72 Action unit contracts and 14 real-container contracts pass,
+including hostile repository imports, mounted-executable fallback, sanitized outputs, and offline
+historical signature verification. Deflating the combined application archive was rejected because
+it increased the production-equivalent compressed payload despite reducing unpacked bytes.
+
+**Decision.** If accepted, publish this correction only as an image/source/Action patch:
+candidate image `0.1.5-candidate`, production image `0.1.5`, source record `v0.1.5`, and immutable
+Action `v1.0.5`. Do not rebuild or upload any Python distribution. Every existing image, source,
+Action, package, Release, and attestation remains immutable.
+
+The Action image may build locked `cryptography==50.0.1` from the hash-locked sdist with exact
+build-only `maturin==1.15.0` and `setuptools==84.0.0` plus exact Alpine build packages. Build tools
+must be absent from the runtime. The runtime must use exact `libcrypto3=3.5.9-r0` and
+`libssl3=3.5.9-r0`, matching the build headers, and retain exact `git=2.52.0-r0` and
+`libgcc=15.2.0-r2`. Both `linux/amd64` and `linux/arm64` builds must execute the real-container
+contracts and cryptographic verification rather than inferring compatibility from one platform.
+
+The in-process CLI optimization is permitted only behind the build-generated console-script
+SHA-256 match and the existing isolated/safe-path interpreter flags. Digest mismatch or marker
+failure must fall back to the subprocess path; neither path may widen the CLI environment, weaken
+identity verification, execute repository Python, accept a new input, or alter the public report,
+output, summary, or exit-code contracts.
+
+A protected `dev` run must build, test, scan, attest, and retain the exact multi-platform
+`0.1.5-candidate` manifest with SBOM, maximum provenance, source/context/manifest digests, and the
+GitHub-hosted identity-bound attestation. A reviewed `main` commit must reproduce that enumerated
+context and pin `action/action.yml` to the candidate manifest digest.
+
+One lucky sample is no longer sufficient release evidence. Before publication, the exact merged
+`main` commit and exact candidate digest must complete three consecutive, fresh, attempt-1
+`ADR-046` measurements. Each measurement retains 20 independent `ubuntu-latest` hosted jobs and
+must individually have nearest-rank p95 below 15 seconds; the combined 60 durations must also have
+nearest-rank p95 below 15 seconds. Checkout remains outside the timed step, while image pull and
+all wrapper/CLI work remain inside it. A cancelled job, retry, missing sample, digest mismatch, or
+any result at or above the threshold blocks publication and returns the work to optimization.
+
+Only after those gates pass may the protected release workflow promote the exact reviewed
+manifest without rebuilding, create `v0.1.5` and `v1.0.5`, publish immutable release evidence, run
+production dogfood, and complete a fresh public onboarding and fork-denial proof. The moving `v1`
+tag remains on `v1.0.4` until an independent reviewed promotion verifies every preceding artifact
+and the exact old/new tag objects.
+
+**Rationale.** The observed tail has two material causes, so the correction removes duplicated
+OpenSSL payload, balances transfer/application work, and removes one interpreter startup while
+retaining the isolated Action boundary and all verification semantics. Source-building one locked
+native dependency costs build time but removes substantially more runtime payload than archive
+recompression. Three consecutive 20-job measurements preserve the approved threshold and timing
+boundary while demonstrating that the next immutable patch is not justified by another isolated
+favourable runner sample.
+
+**Rejected alternatives.** Relaxing the threshold, excluding image pull, reusing a warm image,
+reducing the sample count, or publishing after a single favourable run would weaken
+`REQ-F11-100`. Mutating `0.1.4`, `v0.1.4`, `v1.0.4`, or `v1` in place would rewrite public
+history. Republishing unchanged Python packages would invent a package release. Keeping the
+private OpenSSL wheel payload preserves unnecessary transfer cost. Deflating the application
+archive increased compressed transfer bytes. Trusting only the executable pathname would let an
+overridden file select the in-process path, while always spawning a second interpreter leaves a
+measured runtime cost in place. A language rewrite remains outside `ADR-011`'s trigger.
+
+**Consequences.** Action builds become slower and must maintain exact Rust/C/OpenSSL build inputs,
+dynamic-library compatibility, and both target architectures. The candidate and release workflows,
+tag rules, performance evidence, and moving-major evidence gain a bounded `0.1.5`/`v1.0.5` path.
+After acceptance, `TECH-001`, `QA-001`, `SEC-001`, and `BRD-F11` must record the new build boundary,
+fast-path guard, three-run release soak, and immutable patch versions. Until the exact hosted gates
+and public proofs complete, `v1.0.4` remains the only promoted v1 Action and the correction is not
+production-ready.
+
+The layer-download model was checked against Docker's daemon documentation, the isolated
+interpreter behavior against Python's command-line documentation, and the container Action
+entrypoint model against GitHub's official Docker Action documentation.
+
+### ADR-054 implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-100` | Preserve the exact timing boundary; require and retain three consecutive 20-job runs plus the combined p95 | `.github/workflows/action-performance.yml`, workflow contract tests, release evidence |
+| `REQ-F11-160` | Keep repository code non-executable and enable in-process execution only for the digest-matched bundled script under isolated Python | `action/entrypoint.py`, `action/tests/test_entrypoint.py`, `action/tests/test_container.py` |
+| `REQ-F11-200` | Build the smaller two-platform runtime from locked inputs; scan, attest, promote without rebuild, and publish no Python artifact | `action/Dockerfile`, `pyproject.toml`, `uv.lock`, `.github/workflows/action-candidate.yml`, `.github/workflows/release.yml`, `action/action.yml`, workflow/release tests |
+
+Acceptance authorizes the normative document updates and the reviewed candidate/release sequence;
+it does not authorize publication unless every recorded gate above passes.
+
+---
+
 ## Template for new ADRs
 
 ```markdown
