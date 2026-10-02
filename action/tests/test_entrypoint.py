@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
@@ -279,6 +281,115 @@ def _invoke(
 
 def _error_code(rendered: str) -> str:
     return str(json.loads(rendered)["error"]["code"])
+
+
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-160")
+@pytest.mark.ac("AC-F11-210")
+def test_in_process_cli_uses_only_the_sanitized_environment_and_restores_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    marker = tmp_path / "repository-code-executed"
+    (repository / "attest_cli.py").write_text(
+        f"from pathlib import Path\nPath({os.fspath(marker)!r}).touch()\n",
+        encoding="utf-8",
+    )
+    home = tmp_path / "home"
+    home.mkdir()
+    environment = {
+        "HOME": os.fspath(home),
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C",
+        "NO_COLOR": "1",
+        "PATH": "/opt/venv/bin:/usr/bin:/bin",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONSAFEPATH": "1",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONUTF8": "1",
+    }
+    original_directory = Path.cwd()
+    monkeypatch.setenv("ATTEST_PARENT_ONLY", "must-be-restored")
+
+    result = entrypoint._run_cli_in_process(
+        ["/opt/venv/bin/attest", "version", "--json", "--no-color"],
+        environment=environment,
+        repository=repository,
+    )
+
+    assert result.returncode == 0
+    report = json.loads(result.stdout)
+    assert report["command"] == "version"
+    assert report["outcome"] == "success"
+    assert result.stderr == b""
+    assert os.environ["ATTEST_PARENT_ONLY"] == "must-be-restored"
+    assert Path.cwd() == original_directory
+    assert not marker.exists()
+
+
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-160")
+@pytest.mark.ac("AC-F11-210")
+def test_bundled_cli_digest_match_fails_closed_for_replaced_files(tmp_path: Path) -> None:
+    executable = tmp_path / "attest"
+    digest_marker = tmp_path / "attest-console-script.sha256"
+    executable.write_bytes(b"#!/opt/venv/bin/python3\n")
+    digest_marker.write_text(
+        hashlib.sha256(executable.read_bytes()).hexdigest() + "\n",
+        encoding="ascii",
+    )
+
+    assert entrypoint._matches_bundled_cli_digest(executable, digest_marker)
+
+    executable.write_bytes(b"#!/bin/sh\nexit 0\n")
+
+    assert not entrypoint._matches_bundled_cli_digest(executable, digest_marker)
+
+    executable.write_bytes(b"#!/opt/venv/bin/python3\n")
+    digest_marker.write_text("malformed\n", encoding="ascii")
+    assert not entrypoint._matches_bundled_cli_digest(executable, digest_marker)
+
+    digest_marker.unlink()
+    assert not entrypoint._matches_bundled_cli_digest(executable, digest_marker)
+
+    marker_target = tmp_path / "marker-target"
+    marker_target.write_text(
+        hashlib.sha256(executable.read_bytes()).hexdigest() + "\n",
+        encoding="ascii",
+    )
+    digest_marker.symlink_to(marker_target)
+    assert not entrypoint._matches_bundled_cli_digest(executable, digest_marker)
+
+
+@pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-160")
+@pytest.mark.ac("AC-F11-210")
+def test_in_process_cli_preserves_nonzero_report_exit_code(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    result = entrypoint._run_cli_in_process(
+        [
+            "/opt/venv/bin/attest",
+            "verify",
+            "--input",
+            os.fspath(repository / "missing.json"),
+            "--identity",
+            "https://github.com/example/project/.github/workflows/verify.yml@refs/heads/main",
+            "--issuer",
+            "https://token.actions.githubusercontent.com",
+            "--json",
+            "--no-color",
+        ],
+        environment={"NO_COLOR": "1"},
+        repository=repository,
+    )
+
+    report = json.loads(result.stdout)
+    assert result.returncode == 5
+    assert report["exitCode"] == result.returncode
+    assert report["outcome"] == "failed"
 
 
 @pytest.mark.ac("AC-F11-020")
@@ -865,8 +976,12 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-010")
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
+    workspace = tomllib.loads(
+        (Path(__file__).parents[2] / "pyproject.toml").read_text(encoding="utf-8")
+    )
 
     python_base = (
         "python:3.12.14-alpine3.23@"
@@ -874,7 +989,36 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     )
     assert dockerfile.count(python_base) == 2
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
-    assert "apk add --no-cache binutils=2.45.1-r0" in dockerfile
+    for build_package in (
+        "binutils=2.45.1-r0",
+        "cargo=1.91.1-r2",
+        "gcc=15.2.0-r2",
+        "libffi-dev=3.5.2-r0",
+        "musl-dev=1.2.5-r23",
+        "openssl-dev=3.5.9-r0",
+        "pkgconf=2.5.1-r0",
+        "rust=1.91.1-r2",
+    ):
+        assert build_package in dockerfile
+    assert "--no-binary-package cryptography" in dockerfile
+    assert "--no-build-isolation-package cryptography" in dockerfile
+    assert "--only-group action-build" in dockerfile
+    assert "uv pip uninstall --python /opt/venv/bin/python maturin setuptools" in dockerfile
+    assert "OPENSSL_STATIC=0" in dockerfile
+    assert 'pathlib.Path("/opt/attest/attest-console-script.sha256")' in dockerfile
+    assert "hashlib.sha256(console_script.read_bytes()).hexdigest()" in dockerfile
+    for runtime_package in (
+        "git=2.52.0-r0",
+        "libcrypto3=3.5.9-r0",
+        "libgcc=15.2.0-r2",
+        "libssl3=3.5.9-r0",
+    ):
+        assert runtime_package in dockerfile
+    assert "cryptography.libs" not in dockerfile
+    assert workspace["dependency-groups"]["action-build"] == [
+        "maturin==1.15.0",
+        "setuptools==84.0.0",
+    ]
     assert "strip --strip-unneeded" in dockerfile
     assert "securesystemslib/_vendor/ed25519/test_data" in dockerfile
     assert "--compile-bytecode" not in dockerfile
@@ -914,17 +1058,17 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     pull_groups = (
         """FROM scratch AS pull-a
 COPY --from=system-lib / /
-COPY --from=venv-rfc3161 /split/ /
+COPY --from=venv-pydantic /split/ /
 COPY --from=python-lib /usr/local/lib /usr/local/lib
 """,
         """FROM scratch AS pull-b
 COPY --from=venv-crypto /split/ /
+COPY --from=venv-rfc3161 /split/ /
 COPY --from=python-rest / /
 COPY --from=system-git / /
 """,
         """FROM scratch AS pull-c
 COPY --from=venv-rest /opt/venv /opt/venv
-COPY --from=venv-pydantic /split/ /
 COPY --from=python-dynload / /
 COPY --from=system-core / /
 """,
@@ -938,7 +1082,6 @@ COPY --from=system-core / /
         "COPY --from=pull-c / /",
         "COPY --from=runtime /opt/attest /opt/attest",
     ]
-    assert "RUN apk add --no-cache git=2.52.0-r0" in dockerfile
     assert "/usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info" in dockerfile
     for excluded_runtime_path in (
         "/usr/local/bin/2to3",

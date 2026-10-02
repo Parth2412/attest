@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 import os
 import re
@@ -11,6 +13,7 @@ import subprocess  # nosec B404
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, Never, TextIO
@@ -19,6 +22,7 @@ type JsonValue = bool | int | float | str | list[JsonValue] | dict[str, JsonValu
 type JsonObject = dict[str, JsonValue]
 
 _ATTEST_EXECUTABLE: Final[Path] = Path("/opt/venv/bin/attest")
+_ATTEST_CONSOLE_SCRIPT_DIGEST: Final[Path] = Path("/opt/attest/attest-console-script.sha256")
 _GIT_EXECUTABLE: Final[Path] = Path("/usr/bin/git")
 _EVENT_LIMIT: Final[int] = 1024 * 1024
 _POLICY_LIMIT: Final[int] = 1024 * 1024
@@ -105,6 +109,15 @@ class ReportFacts:
     review_state: str
     human_approvals: int
     attestation_ref: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CliProcessResult:
+    """Captured CLI result independent of its execution boundary."""
+
+    returncode: int
+    stdout: bytes
+    stderr: bytes
 
 
 @dataclass(frozen=True, slots=True)
@@ -836,12 +849,86 @@ def _cli_arguments(
     return arguments, output
 
 
+def _run_cli_in_process(
+    arguments: Sequence[str],
+    *,
+    environment: Mapping[str, str],
+    repository: Path,
+) -> CliProcessResult:
+    parent_environment = dict(os.environ)
+    parent_stdin = sys.stdin
+    try:
+        directory_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+    except OSError:
+        _raise("ERR-INTERNAL-001")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    try:
+        os.environ.clear()
+        os.environ.update(environment)
+        os.chdir(repository)
+        sys.stdin = io.StringIO("")
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            from attest_cli.app import app
+
+            result = app(
+                args=list(arguments[1:]),
+                prog_name=arguments[0],
+                standalone_mode=False,
+            )
+        returncode = result if isinstance(result, int) and not isinstance(result, bool) else 0
+        return CliProcessResult(
+            returncode=returncode,
+            stdout=stdout.getvalue().encode("utf-8"),
+            stderr=stderr.getvalue().encode("utf-8"),
+        )
+    except (OSError, UnicodeError):
+        _raise("ERR-INTERNAL-001")
+    finally:
+        sys.stdin = parent_stdin
+        try:
+            os.fchdir(directory_fd)
+        finally:
+            os.close(directory_fd)
+            os.environ.clear()
+            os.environ.update(parent_environment)
+
+
+def _matches_bundled_cli_digest(executable: Path, digest_marker: Path) -> bool:
+    try:
+        expected_raw = _read_absolute_regular(digest_marker, maximum_size=65)
+        executable_raw = _read_absolute_regular(executable, maximum_size=4096)
+        expected = expected_raw.decode("ascii", errors="strict").removesuffix("\n")
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return (
+        expected_raw == f"{expected}\n".encode("ascii")
+        and _DIGEST_PATTERN.fullmatch(expected) is not None
+        and secrets.compare_digest(hashlib.sha256(executable_raw).hexdigest(), expected)
+    )
+
+
 def _run_cli(
     arguments: Sequence[str],
     *,
     environment: Mapping[str, str],
     repository: Path,
-) -> subprocess.CompletedProcess[bytes]:
+) -> CliProcessResult | subprocess.CompletedProcess[bytes]:
+    if (
+        arguments
+        and Path(arguments[0]) == _ATTEST_EXECUTABLE
+        and _matches_bundled_cli_digest(
+            _ATTEST_EXECUTABLE,
+            _ATTEST_CONSOLE_SCRIPT_DIGEST,
+        )
+    ):
+        if not sys.flags.isolated or not sys.flags.safe_path:
+            _raise("ERR-INTERNAL-001")
+        return _run_cli_in_process(
+            arguments,
+            environment=environment,
+            repository=repository,
+        )
     try:
         return subprocess.run(  # noqa: S603  # nosec B603
             list(arguments),
@@ -1016,7 +1103,9 @@ def _denied_verification_error(report: JsonObject, mode: str) -> ActionError | N
     return ActionError(failure_code, message, remediation, 4)
 
 
-def _parse_report(process: subprocess.CompletedProcess[bytes], mode: str) -> JsonObject:
+def _parse_report(
+    process: CliProcessResult | subprocess.CompletedProcess[bytes], mode: str
+) -> JsonObject:
     if len(process.stdout) > 64 * 1024 * 1024:
         _raise("ERR-INTERNAL-001")
     try:
