@@ -246,8 +246,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    env:
-      DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
@@ -283,6 +281,7 @@ jobs:
       - name: Run the real-container contract suite
         env:
           ATTEST_ACTION_IMAGE: attest-action-runtime:test
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
         shell: bash
         run: |
           mkdir -p "${RUNNER_TEMP}/container-test-evidence"

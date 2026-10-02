@@ -236,7 +236,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "org.opencontainers.image.version=0.1.5-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
-    assert image_tests["env"] == {"DOCKER_DEFAULT_PLATFORM": "${{ matrix.platform }}"}
+    assert "env" not in image_tests
     assert image_tests["strategy"] == {
         "fail-fast": False,
         "matrix": {
@@ -249,6 +249,15 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     image_test_commands = "\n".join(
         step.get("run", "") for step in image_tests["steps"] if isinstance(step, dict)
     )
+    image_test_step = next(
+        step
+        for step in image_tests["steps"]
+        if step.get("name") == "Run the real-container contract suite"
+    )
+    assert image_test_step["env"] == {
+        "ATTEST_ACTION_IMAGE": "attest-action-runtime:test",
+        "DOCKER_DEFAULT_PLATFORM": "${{ matrix.platform }}",
+    }
     assert 'docker pull --platform "${PLATFORM}" "${image}"' in image_test_commands
     assert 'docker tag "${image}" "attest-action-runtime:test"' in image_test_commands
     assert "uv run pytest action/tests/test_container.py -m container" in image_test_commands
