@@ -246,6 +246,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+    env:
+      DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:

@@ -236,6 +236,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "org.opencontainers.image.version=0.1.5-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
+    assert image_tests["env"] == {"DOCKER_DEFAULT_PLATFORM": "${{ matrix.platform }}"}
     assert image_tests["strategy"] == {
         "fail-fast": False,
         "matrix": {
