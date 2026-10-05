@@ -1,0 +1,9 @@
+[release]
+version = "0.1.4"
+distributions = ["attest-cli"]
+
+[compatibility]
+library-version = "0.1.0"
+sign-version = "0.1.1"
+store-version = "0.1.1"
+action-version = "v1.0.5"

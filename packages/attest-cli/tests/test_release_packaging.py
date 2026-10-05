@@ -13,17 +13,23 @@ import pytest
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
-PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.3.toml"
+CLI_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.4.toml"
+SIGN_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-sign.toml"
 STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-store.toml"
 UNCHANGED_LIBRARY_MANIFEST: Final[Path] = (
+    REPOSITORY_ROOT / "release/patches/0.1.5-unchanged-libraries.toml"
+)
+HISTORICAL_UNCHANGED_LIBRARY_MANIFEST: Final[Path] = (
     REPOSITORY_ROOT / "release/patches/0.1.3-unchanged-libraries.toml"
 )
+PREVIOUS_CLI_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.3.toml"
 PREVIOUS_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2.toml"
 FIRST_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
 PATCH_LIBRARY_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-libraries.toml"
 FIRST_RELEASE_VERSION: Final[str] = "0.1.0"
 STORE_PATCH_VERSION: Final[str] = "0.1.1"
-PATCH_VERSION: Final[str] = "0.1.3"
+SIGN_PATCH_VERSION: Final[str] = "0.1.1"
+CLI_PATCH_VERSION: Final[str] = "0.1.4"
 PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
     "attest-core",
     "attest-collect",
@@ -35,10 +41,10 @@ PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
 CURRENT_VERSIONS: Final[dict[str, str]] = {
     "attest-core": FIRST_RELEASE_VERSION,
     "attest-collect": FIRST_RELEASE_VERSION,
-    "attest-sign": FIRST_RELEASE_VERSION,
+    "attest-sign": SIGN_PATCH_VERSION,
     "attest-store": STORE_PATCH_VERSION,
     "attest-policy": FIRST_RELEASE_VERSION,
-    "attest-cli": PATCH_VERSION,
+    "attest-cli": CLI_PATCH_VERSION,
 }
 INTERNAL_DEPENDENCIES: Final[dict[str, tuple[str, ...]]] = {
     "attest-core": (),
@@ -49,7 +55,7 @@ INTERNAL_DEPENDENCIES: Final[dict[str, tuple[str, ...]]] = {
     "attest-cli": (
         "attest-core==0.1.0",
         "attest-collect==0.1.0",
-        "attest-sign==0.1.0",
+        "attest-sign==0.1.1",
         "attest-store==0.1.1",
         "attest-policy==0.1.0",
     ),
@@ -70,7 +76,7 @@ def _toml(path: Path) -> dict[str, Any]:
 
 
 @pytest.mark.ac("AC-F11-140")
-@pytest.mark.ac("AC-F11-180")
+@pytest.mark.ac("AC-F11-220")
 def test_release_package_set_and_metadata_are_closed() -> None:
     """REQ-F11-140: only six metadata-complete, mutually pinned projects ship."""
     release = _toml(RELEASE_MANIFEST)["release"]
@@ -78,20 +84,24 @@ def test_release_package_set_and_metadata_are_closed() -> None:
         "version": FIRST_RELEASE_VERSION,
         "distributions": list(PUBLISHED_PACKAGES),
     }
-    assert _toml(PATCH_RELEASE_MANIFEST) == {
+    assert _toml(CLI_PATCH_MANIFEST) == {
         "release": {
-            "version": PATCH_VERSION,
+            "version": CLI_PATCH_VERSION,
             "distributions": ["attest-cli"],
         },
         "compatibility": {
             "library-version": FIRST_RELEASE_VERSION,
+            "sign-version": SIGN_PATCH_VERSION,
             "store-version": STORE_PATCH_VERSION,
-            "action-version": "v1.0.3",
-            "image": (
-                "ghcr.io/parth2412/attest@sha256:"
-                "d5a370bff96f3dbe8eca341701060b73b915d9bade981e24a835f62362d2e2e1"
-            ),
+            "action-version": "v1.0.5",
         },
+    }
+    assert _toml(SIGN_PATCH_MANIFEST) == {
+        "release": {
+            "version": SIGN_PATCH_VERSION,
+            "distributions": ["attest-sign"],
+        },
+        "compatibility": {"core-version": FIRST_RELEASE_VERSION},
     }
     assert _toml(STORE_PATCH_MANIFEST) == {
         "release": {
@@ -105,10 +115,22 @@ def test_release_package_set_and_metadata_are_closed() -> None:
             "distributions": [
                 "attest-core",
                 "attest-collect",
-                "attest-sign",
                 "attest-policy",
             ],
         },
+    }
+    assert _toml(HISTORICAL_UNCHANGED_LIBRARY_MANIFEST)["release"] == {
+        "version": FIRST_RELEASE_VERSION,
+        "distributions": [
+            "attest-core",
+            "attest-collect",
+            "attest-sign",
+            "attest-policy",
+        ],
+    }
+    assert _toml(PREVIOUS_CLI_PATCH_MANIFEST)["release"] == {
+        "version": "0.1.3",
+        "distributions": ["attest-cli"],
     }
     assert _toml(PREVIOUS_PATCH_RELEASE_MANIFEST) == {
         "release": {
@@ -189,14 +211,13 @@ def test_release_package_set_and_metadata_are_closed() -> None:
     assert all(not dependency.startswith("attest-export") for dependency in cli_dependencies)
 
 
-@pytest.mark.ac("AC-F11-180")
-@pytest.mark.ac("AC-F11-190")
+@pytest.mark.ac("AC-F11-220")
 def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None:
-    """REQ-F11-180/190: the store and CLI patch artifacts remain distinct and closed."""
+    """REQ-F11-220: the signer and CLI patch artifacts remain distinct and closed."""
     artifact_directories: dict[str, Path] = {}
     for distribution, manifest in (
-        ("attest-store", STORE_PATCH_MANIFEST),
-        ("attest-cli", PATCH_RELEASE_MANIFEST),
+        ("attest-sign", SIGN_PATCH_MANIFEST),
+        ("attest-cli", CLI_PATCH_MANIFEST),
     ):
         artifact_directory = tmp_path / distribution
         artifact_directories[distribution] = artifact_directory
@@ -244,7 +265,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
         assert len(hashes.read_text(encoding="utf-8").splitlines()) == 2
 
     artifact_directory = artifact_directories["attest-cli"]
-    wheel = artifact_directory / "attest_cli-0.1.3-py3-none-any.whl"
+    wheel = artifact_directory / "attest_cli-0.1.4-py3-none-any.whl"
     changed_wheel = tmp_path / wheel.name
     with zipfile.ZipFile(wheel) as source, zipfile.ZipFile(changed_wheel, mode="w") as changed:
         for member in source.infolist():
@@ -260,7 +281,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
             str(REPOSITORY_ROOT / "scripts/validate_release_artifacts.py"),
             str(artifact_directory),
             "--manifest",
-            str(PATCH_RELEASE_MANIFEST),
+            str(CLI_PATCH_MANIFEST),
         ],
         cwd=REPOSITORY_ROOT,
         check=False,

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.0` |
+| Version | `2.6.3` |
 | Status | Baselined |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-10-05 |
 
 ---
 
@@ -293,6 +293,8 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-140` | `AC-F06-140` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-150` | `AC-F06-150` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
 | `REQ-F07-010` | `AC-F07-010` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py`, `test_protocols.py` | ✓ |
 | `REQ-F07-020` | `AC-F07-020` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
 | `REQ-F07-030` | `AC-F07-030` | `packages/attest-store/tests/test_gitref.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
@@ -385,6 +387,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F11-190` | `AC-F11-190` | `action/tests/test_major_tag_workflow.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |
 | `REQ-F11-200` | `AC-F11-200` | `action/tests/test_release_candidate.py`, `test_release_workflow.py`, `test_release_recovery_workflow.py` | ✓ |
 | `REQ-F11-210` | `AC-F11-210` | `action/tests/test_entrypoint.py`, `test_container.py`, `test_release_candidate.py`, `test_action_performance_workflow.py`, `test_release_workflow.py` | ✓ |
+| `REQ-F11-220` | `AC-F11-220` | `packages/attest-cli/tests/test_release_packaging.py`, `action/tests/test_release_candidate.py`, `test_release_workflow.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

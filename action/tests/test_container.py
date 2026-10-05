@@ -191,6 +191,7 @@ def _fake_attest(root: Path) -> Path:
 
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-180")
+@pytest.mark.ac("AC-F11-220")
 def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> None:
     inspected = _docker("image", "inspect", _image(), "--format", "{{json .Config.Entrypoint}}")
     version = _docker(
@@ -209,7 +210,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
         "/opt/attest/entrypoint.py",
     ]
     assert version.returncode == 0, version.stderr
-    assert version.stdout == "attest 0.1.3\n"
+    assert version.stdout == "attest 0.1.4\n"
 
 
 @pytest.mark.container
@@ -279,6 +280,7 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-220")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -340,7 +342,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert id.__file__.startswith(root + 'id/'); "
         "assert not id.__file__.startswith(runtime_path); "
         "assert callable(detect_github); "
-        "assert importlib.metadata.version('attest-cli') == '0.1.3'; "
+        "assert importlib.metadata.version('attest-cli') == '0.1.4'; "
         "assert pathlib.Path(root + 'attest-runtime-archive.pth').read_text() == "
         "runtime_path + '\\n'; "
         "runtime_entries = zipfile.ZipFile(runtime_path).infolist(); "
