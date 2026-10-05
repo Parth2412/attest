@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.0` |
+| Version | `1.4.1` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-10-05 |
 
 ---
 
@@ -243,6 +243,25 @@ marker; any replacement or marker failure returns to the sanitized subprocess pa
 
 ---
 
+### T-16 — Stale signing trust becomes an offline-only success path
+
+**Likelihood:** medium · **Impact:** critical
+
+A packaged or cached Sigstore trust snapshot can be older than current Fulcio/CT state. Using it as
+the sole trust root, treating an online refresh as optional, or retrying blindly after Rekor could
+accept stale trust, suppress a required failure, or create duplicate transparency entries.
+
+**C-16:** Each signing attempt may use only a same-environment offline snapshot as a latency
+bootstrap while mandatory online-mode TUF initialization runs concurrently. Success waits for that
+refresh and for Sigstore-native verification under the refreshed root, exact ambient identity and
+issuer, exact DSSE payload type, and byte-identical canonical Statement. Refresh failure and final
+verification failure remain distinct sanitized fatal errors. Only a public Sigstore
+`VerificationError` while entering the signer after Fulcio and before Rekor may wait for the
+successful refresh and start one fresh child that reloads the cache; the global two-attempt ceiling
+forbids a third child and every post-Rekor retry (`REQ-F06-140`, `ADR-055`, `ADR-056`).
+
+---
+
 ## 5. Residual risks (accepted and documented)
 
 | # | Residual risk | Why accepted |
@@ -273,6 +292,7 @@ and publishing them is worth more than the risk they represent.
 | Generated-workflow tests reject `pull_request_target`, mutable Action refs, excess permissions, and any untrusted-code execution path |
 | Action container tests prove OIDC-before-read ordering, event rejection, no repository execution/import, workflow-command escaping, credential redaction, and preservation of every non-policy failure |
 | Action runtime tests prove build tools are absent, cryptography uses the exact system OpenSSL, the bundled-script digest guard fails closed, and both execution paths preserve sanitized state, typed reports, and exact exit codes |
+| Signer tests prove mandatory online refresh overlaps only with same-environment bootstrap, success waits for refreshed-root exact-payload verification, and stale pre-Rekor recovery cannot exceed the shared two-attempt ceiling |
 | Release tests prove exact package scope, Trusted Publisher/environment binding, final context equality and exact candidate-manifest promotion, multi-platform SBOM/provenance/attestations, and immutable Action/image references |
 | `pip-audit` and `bandit` gate releases |
 
