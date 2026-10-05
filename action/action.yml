@@ -31,7 +31,7 @@ outputs:
 
 runs:
   using: docker
-  image: docker://ghcr.io/parth2412/attest@sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df
+  image: docker://ghcr.io/parth2412/attest@sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7
   args:
     - --mode
     - ${{ inputs.mode }}

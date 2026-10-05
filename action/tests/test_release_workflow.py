@@ -15,14 +15,14 @@ import yaml  # type: ignore[import-untyped]  # PyYAML lacks typing metadata.
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
-RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.4.md"
+RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.5.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
+IMAGE_DIGEST: Final[str] = "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:ef05578f882f1a55364bc14c260898cb4c656161446d04b1343e43aaabf2cb8b"
+    "sha256:e95c29f1cbfd9573e7ad3c7a2ba2333302cedcc0ee0879042e39ea16aa2a42f1"
 )
-CANDIDATE_SHA: Final[str] = "a4c47f13a0963b30f02f7bc2ef9d4d81d88cac3f"
-PRIOR_RELEASE_SHA: Final[str] = "8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8"
+CANDIDATE_SHA: Final[str] = "e83a068f213f54c9253e2b77d2e5499643c2c672"
+PRIOR_RELEASE_SHA: Final[str] = "4e73dcaf888f15967da66826d48cca5ac6684fcb"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
@@ -70,37 +70,51 @@ def _commands(job: dict[str, Any]) -> str:
     return "\n".join(step.get("run", "") for step in job["steps"] if isinstance(step, dict))
 
 
-@pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_release_is_a_closed_image_only_workflow() -> None:
-    """REQ-F11-200: v0.1.4 has no Python build or publication authority."""
+    """REQ-F11-210: v0.1.5 has no Python build or publication authority."""
     workflow = _workflow()
     assert workflow["name"] == "release"
     assert _triggers(workflow) == {
         "workflow_dispatch": {
             "inputs": {
-                "performance_run_id": {
+                "performance_run_id_1": {
                     "description": (
-                        "Successful attempt-1 Action performance run for this exact main commit"
+                        "First consecutive attempt-1 performance run for this exact main commit"
                     ),
                     "required": True,
                     "type": "string",
-                }
+                },
+                "performance_run_id_2": {
+                    "description": (
+                        "Second consecutive attempt-1 performance run for this exact main commit"
+                    ),
+                    "required": True,
+                    "type": "string",
+                },
+                "performance_run_id_3": {
+                    "description": (
+                        "Third consecutive attempt-1 performance run for this exact main commit"
+                    ),
+                    "required": True,
+                    "type": "string",
+                },
             }
         }
     }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
-        "group": "release-v0.1.4",
+        "group": "release-v0.1.5",
         "cancel-in-progress": False,
     }
     assert workflow["env"] == {
-        "PRODUCT_VERSION": "0.1.4",
-        "PRODUCT_TAG": "v0.1.4",
-        "ACTION_VERSION_TAG": "v1.0.4",
+        "PRODUCT_VERSION": "0.1.5",
+        "PRODUCT_TAG": "v0.1.5",
+        "ACTION_VERSION_TAG": "v1.0.5",
         "PUBLIC_CLI_VERSION": "0.1.3",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 36758760939,
+        "REVIEWED_CANDIDATE_RUN_ID": 37018503454,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -148,20 +162,23 @@ def test_release_is_a_closed_image_only_workflow() -> None:
     ):
         assert forbidden not in rendered
     assert "git diff --quiet" in rendered
-    assert "pyproject.toml packages release/packages.toml release/patches" in rendered
+    assert "packages release/packages.toml release/patches" in rendered
+    assert "pyproject.toml packages release/packages.toml release/patches" not in rendered
     assert '"${REVIEWED_CANDIDATE_SOURCE_SHA}:uv.lock"' in rendered
     assert '"$(git hash-object uv.lock)"' in rendered
 
 
 @pytest.mark.ac("AC-F11-100")
-@pytest.mark.ac("AC-F11-200")
-def test_release_recomputes_the_exact_attempt_one_performance_gate() -> None:
-    """REQ-F11-200: publication requires the same merged commit's retained 20-job result."""
+@pytest.mark.ac("AC-F11-210")
+def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
+    """REQ-F11-210: publication requires three exact 20-job results and all 60 samples."""
     preflight = _workflow()["jobs"]["preflight"]
-    validate = _step(preflight, "Validate the exact performance run")
+    validate = _step(preflight, "Validate the three consecutive performance runs")
     assert validate["env"] == {
         "GH_TOKEN": "${{ github.token }}",
-        "PERFORMANCE_RUN_ID": "${{ inputs.performance_run_id }}",
+        "PERFORMANCE_RUN_ID_1": "${{ inputs.performance_run_id_1 }}",
+        "PERFORMANCE_RUN_ID_2": "${{ inputs.performance_run_id_2 }}",
+        "PERFORMANCE_RUN_ID_3": "${{ inputs.performance_run_id_3 }}",
     }
     for fragment in (
         '.name == "measure Action cold start"',
@@ -170,36 +187,44 @@ def test_release_recomputes_the_exact_attempt_one_performance_gate() -> None:
         ".head_sha == $sha",
         ".run_attempt == 1",
         '.conclusion == "success"',
+        'expected_events=("push" "workflow_dispatch" "workflow_dispatch")',
+        "actions/workflows/action-performance.yml/runs?branch=main&per_page=100",
+        "latest three exact-commit performance runs are not the supplied sequence",
     ):
         assert fragment in validate["run"]
 
-    download = _step(preflight, "Download the exact performance evidence")
-    assert download["with"] == {
-        "name": "action-performance-v1.0.4-${{ inputs.performance_run_id }}",
-        "path": "${{ runner.temp }}/performance-evidence",
-        "github-token": "${{ github.token }}",
-        "repository": "Parth2412/attest",
-        "run-id": "${{ inputs.performance_run_id }}",
-    }
-    recompute = _step(preflight, "Recompute and retain the performance result")["run"]
+    for index in range(1, 4):
+        download = _step(preflight, f"Download performance evidence {index}")
+        assert download["with"] == {
+            "name": f"action-performance-v1.0.5-${{{{ inputs.performance_run_id_{index} }}}}",
+            "path": f"${{{{ runner.temp }}}}/performance-evidence-{index}",
+            "github-token": "${{ github.token }}",
+            "repository": "Parth2412/attest",
+            "run-id": f"${{{{ inputs.performance_run_id_{index} }}}}",
+        }
+    recompute = _step(preflight, "Recompute all performance results and the 60-sample gate")["run"]
     for fragment in (
         "scripts/summarize_action_performance.py",
+        "scripts/combine_action_performance.py",
         '--head-sha "${GITHUB_SHA}"',
         '--expected-action-sha "${GITHUB_SHA}"',
         '--expected-image-digest "${REVIEWED_IMAGE_DIGEST}"',
         "--expected-samples 20",
+        "--expected-runs 3",
+        "--expected-samples-per-run 20",
         "--threshold-seconds 15",
         "--require-run-attempt 1",
-        "recomputed-performance-summary.json",
+        "recomputed-performance-summary-${index}.json",
+        "combined-performance-summary.json",
         "cmp",
     ):
         assert fragment in recompute
 
 
 @pytest.mark.ac("AC-F11-150")
-@pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
-    """REQ-F11-200: the reviewed context, scans, labels, and identity are rechecked."""
+    """REQ-F11-210: the reviewed context, scans, labels, and identity are rechecked."""
     preflight = _workflow()["jobs"]["preflight"]
     candidate_run = _step(preflight, "Validate the reviewed candidate run")["run"]
     assert '.event == "push"' in candidate_run
@@ -209,7 +234,7 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         "scripts/prepare_action_context.py",
         "scripts/validate_release_candidate.py",
         "scripts/check_action_scan.py",
-        '"org.opencontainers.image.version": "0.1.4-candidate"',
+        '"org.opencontainers.image.version": "0.1.5-candidate"',
         "--signer-workflow",
         "--source-ref refs/heads/dev",
         "--deny-self-hosted-runners",
@@ -225,9 +250,9 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
 
 
 @pytest.mark.ac("AC-F11-090")
-@pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
-    """REQ-F11-200: only the exact manifest is promoted and public 0.1.3 signs source."""
+    """REQ-F11-210: only the exact manifest is promoted and public 0.1.3 signs source."""
     jobs = _workflow()["jobs"]
     promotion = _commands(jobs["promote-image"])
     assert "docker buildx imagetools create" in promotion
@@ -252,9 +277,9 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
 
 @pytest.mark.ac("AC-F11-080")
 @pytest.mark.ac("AC-F11-150")
-@pytest.mark.ac("AC-F11-200")
-def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
-    """REQ-F11-200: immutable v0.1.4/v1.0.4 publish before any major-tag movement."""
+@pytest.mark.ac("AC-F11-210")
+def test_release_attests_assets_and_keeps_v1_on_v1_0_4() -> None:
+    """REQ-F11-210: immutable v0.1.5/v1.0.5 publish before any major-tag movement."""
     jobs = _workflow()["jobs"]
     repository_controls = _step(
         jobs["preflight"], "Validate source and immutable repository controls"
@@ -272,7 +297,7 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
     assert attestation["with"] == {"subject-path": "release-assets/*"}
     publish = _commands(jobs["publish-release"])
     for fragment in (
-        "--notes-file release/RELEASE_NOTES-v0.1.4.md",
+        "--notes-file release/RELEASE_NOTES-v0.1.5.md",
         '"repos/${GITHUB_REPOSITORY}/releases?per_page=100"',
         '"repos/${GITHUB_REPOSITORY}/releases/${release_id}"',
         "jq -n '{draft: false, make_latest: \"true\"}'",
@@ -280,7 +305,10 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
         ".immutable == true",
         '"majorTagMoved": False',
         '"pythonDistributionsPublished": False',
-        '"performanceRunId": int(os.environ["PERFORMANCE_RUN_ID"])',
+        '"performanceRunIds": [',
+        'int(os.environ["PERFORMANCE_RUN_ID_1"])',
+        'int(os.environ["PERFORMANCE_RUN_ID_2"])',
+        'int(os.environ["PERFORMANCE_RUN_ID_3"])',
         '"candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"])',
         "release-evidence-index.json",
     ):
@@ -299,19 +327,24 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_3() -> None:
     assert all(FULL_SHA.fullmatch(reference) for reference in references)
 
 
-@pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_release_notes_state_the_bounded_artifact_set() -> None:
     notes = RELEASE_NOTES.read_text(encoding="utf-8")
     for fragment in (
-        "# attest 0.1.4 / GitHub Action v1.0.4",
+        "# attest 0.1.5 / GitHub Action v1.0.5",
         IMAGE_DIGEST,
         "python:3.12.14-alpine3.23",
+        "cryptography==50.0.1",
+        "maturin==1.15.0",
+        "setuptools==84.0.0",
+        "libcrypto3=3.5.9-r0",
+        "libssl3=3.5.9-r0",
         "git=2.52.0-r0",
-        "urllib3 to `2.8.0`",
-        "virtualenv to `21.14.1`",
+        "three consecutive",
+        "60-sample",
         "No Python distribution is rebuilt or uploaded.",
         "v1",
-        "v1.0.3",
+        "v1.0.4",
     ):
         assert fragment in notes
 

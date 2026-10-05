@@ -3,8 +3,16 @@ name: release
 on:
   workflow_dispatch:
     inputs:
-      performance_run_id:
-        description: Successful attempt-1 Action performance run for this exact main commit
+      performance_run_id_1:
+        description: First consecutive attempt-1 performance run for this exact main commit
+        required: true
+        type: string
+      performance_run_id_2:
+        description: Second consecutive attempt-1 performance run for this exact main commit
+        required: true
+        type: string
+      performance_run_id_3:
+        description: Third consecutive attempt-1 performance run for this exact main commit
         required: true
         type: string
 
@@ -12,20 +20,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-v0.1.4
+  group: release-v0.1.5
   cancel-in-progress: false
 
 env:
-  PRODUCT_VERSION: "0.1.4"
-  PRODUCT_TAG: v0.1.4
-  ACTION_VERSION_TAG: v1.0.4
+  PRODUCT_VERSION: "0.1.5"
+  PRODUCT_TAG: v0.1.5
+  ACTION_VERSION_TAG: v1.0.5
   PUBLIC_CLI_VERSION: "0.1.3"
   IMAGE_NAME: ghcr.io/parth2412/attest
-  PRIOR_RELEASE_SHA: 8dcfdaf4b16a0547222e3f174bc0c0e13e3549c8
-  REVIEWED_CANDIDATE_RUN_ID: 36758760939
-  REVIEWED_CANDIDATE_SOURCE_SHA: a4c47f13a0963b30f02f7bc2ef9d4d81d88cac3f
-  REVIEWED_CONTEXT_DIGEST: sha256:ef05578f882f1a55364bc14c260898cb4c656161446d04b1343e43aaabf2cb8b
-  REVIEWED_IMAGE_DIGEST: sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df
+  PRIOR_RELEASE_SHA: 4e73dcaf888f15967da66826d48cca5ac6684fcb
+  REVIEWED_CANDIDATE_RUN_ID: 37018503454
+  REVIEWED_CANDIDATE_SOURCE_SHA: e83a068f213f54c9253e2b77d2e5499643c2c672
+  REVIEWED_CONTEXT_DIGEST: sha256:e95c29f1cbfd9573e7ad3c7a2ba2333302cedcc0ee0879042e39ea16aa2a42f1
+  REVIEWED_IMAGE_DIGEST: sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7
 
 jobs:
   preflight:
@@ -61,7 +69,7 @@ jobs:
           uv lock --check
           mkdir -p release-preflight-evidence
           git diff --quiet "${PRIOR_RELEASE_SHA}" "${GITHUB_SHA}" -- \
-            pyproject.toml packages release/packages.toml release/patches
+            packages release/packages.toml release/patches
           test "$(git rev-parse "${REVIEWED_CANDIDATE_SOURCE_SHA}:uv.lock")" \
             = "$(git hash-object uv.lock)"
 
@@ -81,11 +89,13 @@ jobs:
                 "refs/tags/v0.1.2",
                 "refs/tags/v0.1.3",
                 "refs/tags/v0.1.4",
+                "refs/tags/v0.1.5",
                 "refs/tags/v1.0.0",
                 "refs/tags/v1.0.1",
                 "refs/tags/v1.0.2",
                 "refs/tags/v1.0.3",
-                "refs/tags/v1.0.4"
+                "refs/tags/v1.0.4",
+                "refs/tags/v1.0.5"
               ] | sort) and
             .conditions.ref_name.exclude == [] and
             ([.rules[].type] | sort) == (["deletion", "update"] | sort)
@@ -97,7 +107,7 @@ jobs:
             'any(.workflow_runs[]; .head_sha == $sha and .run_attempt == 1 and .conclusion == "success")' \
             release-preflight-evidence/main-ci-runs.json > /dev/null
 
-          for tag in v0.1.3 v1.0.3 v1; do
+          for tag in v0.1.4 v1.0.4 v1; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')" \
               = "${PRIOR_RELEASE_SHA}"
           done
@@ -107,10 +117,10 @@ jobs:
             fi
           done
 
-          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v0.1.3" \
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v0.1.4" \
             > release-preflight-evidence/prior-release.json
           jq -e --arg sha "${PRIOR_RELEASE_SHA}" '
-            .tag_name == "v0.1.3" and
+            .tag_name == "v0.1.4" and
             .target_commitish == $sha and
             .draft == false and
             .prerelease == false and
@@ -234,7 +244,7 @@ jobs:
                   "REVIEWED_CANDIDATE_SOURCE_SHA"
               ],
               "org.opencontainers.image.source": "https://github.com/Parth2412/attest",
-              "org.opencontainers.image.version": "0.1.4-candidate",
+              "org.opencontainers.image.version": "0.1.5-candidate",
           }
           for platform, image in images.items():
               if image.get("config", {}).get("Labels") != expected:
@@ -281,84 +291,158 @@ jobs:
             release-preflight-evidence/candidate-scan-linux-arm64.json
           cp "${RUNNER_TEMP}/candidate-attestation/candidate-outputs.json" \
             release-preflight-evidence/candidate-outputs.json
-      - name: Validate the exact performance run
+      - name: Validate the three consecutive performance runs
         env:
           GH_TOKEN: ${{ github.token }}
-          PERFORMANCE_RUN_ID: ${{ inputs.performance_run_id }}
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${PERFORMANCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PERFORMANCE_RUN_ID}" \
-            > release-preflight-evidence/performance-run.json
-          jq -e \
-            --argjson runId "${PERFORMANCE_RUN_ID}" \
+          run_ids=(
+            "${PERFORMANCE_RUN_ID_1}"
+            "${PERFORMANCE_RUN_ID_2}"
+            "${PERFORMANCE_RUN_ID_3}"
+          )
+          expected_events=("push" "workflow_dispatch" "workflow_dispatch")
+          previous=0
+          for offset in 0 1 2; do
+            index=$((offset + 1))
+            run_id="${run_ids[${offset}]}"
+            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+            test "${run_id}" -gt "${previous}"
+            previous="${run_id}"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              > "release-preflight-evidence/performance-run-${index}.json"
+            jq -e \
+              --argjson runId "${run_id}" \
+              --arg sha "${GITHUB_SHA}" \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg event "${expected_events[${offset}]}" '
+                .id == $runId and
+                .name == "measure Action cold start" and
+                .path == ".github/workflows/action-performance.yml" and
+                .event == $event and
+                .head_branch == "main" and
+                .head_sha == $sha and
+                .repository.full_name == $repository and
+                .status == "completed" and
+                .conclusion == "success" and
+                .run_attempt == 1
+              ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null
+          done
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/action-performance.yml/runs?branch=main&per_page=100" \
+            > release-preflight-evidence/performance-runs.json
+          if ! jq -e \
             --arg sha "${GITHUB_SHA}" \
-            --arg repository "${GITHUB_REPOSITORY}" '
-              .id == $runId and
-              .name == "measure Action cold start" and
-              .path == ".github/workflows/action-performance.yml" and
-              .event == "push" and
-              .head_branch == "main" and
-              .head_sha == $sha and
-              .repository.full_name == $repository and
-              .status == "completed" and
-              .conclusion == "success" and
-              .run_attempt == 1
-            ' release-preflight-evidence/performance-run.json > /dev/null
-      - name: Download the exact performance evidence
+            --argjson one "${PERFORMANCE_RUN_ID_1}" \
+            --argjson two "${PERFORMANCE_RUN_ID_2}" \
+            --argjson three "${PERFORMANCE_RUN_ID_3}" '
+              [.workflow_runs[] | select(.head_sha == $sha)]
+              | sort_by(.run_number)
+              | (length >= 3 and (.[-3:] | map(.id)) == [$one, $two, $three])
+            ' release-preflight-evidence/performance-runs.json > /dev/null; then
+            echo "latest three exact-commit performance runs are not the supplied sequence" >&2
+            exit 1
+          fi
+      - name: Download performance evidence 1
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: action-performance-v1.0.4-${{ inputs.performance_run_id }}
-          path: ${{ runner.temp }}/performance-evidence
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_1 }}
+          path: ${{ runner.temp }}/performance-evidence-1
           github-token: ${{ github.token }}
           repository: Parth2412/attest
-          run-id: ${{ inputs.performance_run_id }}
-      - name: Recompute and retain the performance result
+          run-id: ${{ inputs.performance_run_id_1 }}
+      - name: Download performance evidence 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_2 }}
+          path: ${{ runner.temp }}/performance-evidence-2
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ inputs.performance_run_id_2 }}
+      - name: Download performance evidence 3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_3 }}
+          path: ${{ runner.temp }}/performance-evidence-3
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ inputs.performance_run_id_3 }}
+      - name: Recompute all performance results and the 60-sample gate
         env:
-          PERFORMANCE_RUN_ID: ${{ inputs.performance_run_id }}
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
-          cmp "${RUNNER_TEMP}/performance-evidence/source/action-performance.yml" \
-            .github/workflows/action-performance.yml
-          cmp "${RUNNER_TEMP}/performance-evidence/source/config.yaml" \
-            action/performance/config.yaml
-          cmp "${RUNNER_TEMP}/performance-evidence/source/policy.yaml" \
-            action/performance/policy.yaml
-          cmp "${RUNNER_TEMP}/performance-evidence/source/summarize_action_performance.py" \
-            scripts/summarize_action_performance.py
-          python scripts/summarize_action_performance.py \
-            --jobs "${RUNNER_TEMP}/performance-evidence/jobs.json" \
-            --metadata-directory "${RUNNER_TEMP}/performance-evidence/metadata" \
-            --config action/performance/config.yaml \
-            --policy action/performance/policy.yaml \
-            --output release-preflight-evidence/recomputed-performance-summary.json \
-            --repository "${GITHUB_REPOSITORY}" \
-            --run-id "${PERFORMANCE_RUN_ID}" \
-            --run-attempt 1 \
-            --head-sha "${GITHUB_SHA}" \
-            --expected-action-sha "${GITHUB_SHA}" \
-            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
-            --expected-samples 20 \
-            --threshold-seconds 15 \
-            --require-run-attempt 1
-          cmp "${RUNNER_TEMP}/performance-evidence/summary.json" \
-            release-preflight-evidence/recomputed-performance-summary.json
-          cp "${RUNNER_TEMP}/performance-evidence/summary.json" \
-            release-preflight-evidence/performance-summary.json
-          cp "${RUNNER_TEMP}/performance-evidence/jobs.json" \
-            release-preflight-evidence/performance-jobs.json
-          cp "${RUNNER_TEMP}/performance-evidence/source/action-performance.yml" \
-            release-preflight-evidence/performance-workflow.yml
-          for sample in "${RUNNER_TEMP}"/performance-evidence/metadata/sample-*.json; do
-            cp "${sample}" \
-              "release-preflight-evidence/performance-$(basename "${sample}")"
+          run_ids=(
+            "${PERFORMANCE_RUN_ID_1}"
+            "${PERFORMANCE_RUN_ID_2}"
+            "${PERFORMANCE_RUN_ID_3}"
+          )
+          for offset in 0 1 2; do
+            index=$((offset + 1))
+            evidence="${RUNNER_TEMP}/performance-evidence-${index}"
+            run_id="${run_ids[${offset}]}"
+            cmp "${evidence}/source/action-performance.yml" \
+              .github/workflows/action-performance.yml
+            cmp "${evidence}/source/config.yaml" action/performance/config.yaml
+            cmp "${evidence}/source/policy.yaml" action/performance/policy.yaml
+            cmp "${evidence}/source/summarize_action_performance.py" \
+              scripts/summarize_action_performance.py
+            cmp "${evidence}/source/combine_action_performance.py" \
+              scripts/combine_action_performance.py
+            python scripts/summarize_action_performance.py \
+              --jobs "${evidence}/jobs.json" \
+              --metadata-directory "${evidence}/metadata" \
+              --config action/performance/config.yaml \
+              --policy action/performance/policy.yaml \
+              --output \
+                "release-preflight-evidence/recomputed-performance-summary-${index}.json" \
+              --repository "${GITHUB_REPOSITORY}" \
+              --run-id "${run_id}" \
+              --run-attempt 1 \
+              --head-sha "${GITHUB_SHA}" \
+              --expected-action-sha "${GITHUB_SHA}" \
+              --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
+              --expected-samples 20 \
+              --threshold-seconds 15 \
+              --require-run-attempt 1
+            cmp "${evidence}/summary.json" \
+              "release-preflight-evidence/recomputed-performance-summary-${index}.json"
+            cp "${evidence}/summary.json" \
+              "release-preflight-evidence/performance-summary-${index}.json"
+            cp "${evidence}/jobs.json" \
+              "release-preflight-evidence/performance-jobs-${index}.json"
+            for sample in "${evidence}"/metadata/sample-*.json; do
+              cp "${sample}" \
+                "release-preflight-evidence/performance-${index}-$(basename "${sample}")"
+            done
           done
+          python scripts/combine_action_performance.py \
+            --summary release-preflight-evidence/performance-summary-1.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_1}" \
+            --summary release-preflight-evidence/performance-summary-2.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_2}" \
+            --summary release-preflight-evidence/performance-summary-3.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_3}" \
+            --output release-preflight-evidence/combined-performance-summary.json \
+            --repository "${GITHUB_REPOSITORY}" \
+            --head-sha "${GITHUB_SHA}" \
+            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
+            --expected-runs 3 \
+            --expected-samples-per-run 20 \
+            --threshold-seconds 15
+          cp "${RUNNER_TEMP}/performance-evidence-1/source/action-performance.yml" \
+            release-preflight-evidence/performance-workflow.yml
       - name: Retain release preflight evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-preflight-evidence-v0.1.4
+          name: release-preflight-evidence-v0.1.5
           path: release-preflight-evidence
           if-no-files-found: error
           include-hidden-files: false
@@ -377,28 +461,36 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-preflight-evidence-v0.1.4
+          name: release-preflight-evidence-v0.1.5
           path: preflight
       - name: Assemble the image-only release assets
         env:
-          PERFORMANCE_RUN_ID: ${{ inputs.performance_run_id }}
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          cp action/action.yml release-assets/action-v1.0.4.yml
+          cp action/action.yml release-assets/action-v1.0.5.yml
           cp preflight/candidate-image-manifest.json \
-            release-assets/image-manifest-v0.1.4.json
+            release-assets/image-manifest-v0.1.5.json
           cp preflight/candidate-image-manifest-linux-amd64.json \
-            release-assets/image-manifest-linux-amd64-v0.1.4.json
+            release-assets/image-manifest-linux-amd64-v0.1.5.json
           cp preflight/candidate-image-manifest-linux-arm64.json \
-            release-assets/image-manifest-linux-arm64-v0.1.4.json
+            release-assets/image-manifest-linux-arm64-v0.1.5.json
           cp preflight/candidate-image-sbom.spdx.json \
-            release-assets/image-sbom-v0.1.4.spdx.json
+            release-assets/image-sbom-v0.1.5.spdx.json
           cp preflight/candidate-image-provenance.slsa.json \
-            release-assets/image-provenance-v0.1.4.slsa.json
-          cp preflight/performance-summary.json \
-            release-assets/performance-summary-v1.0.4.json
+            release-assets/image-provenance-v0.1.5.slsa.json
+          cp preflight/performance-summary-1.json \
+            release-assets/performance-run-1-summary-v1.0.5.json
+          cp preflight/performance-summary-2.json \
+            release-assets/performance-run-2-summary-v1.0.5.json
+          cp preflight/performance-summary-3.json \
+            release-assets/performance-run-3-summary-v1.0.5.json
+          cp preflight/combined-performance-summary.json \
+            release-assets/performance-summary-v1.0.5.json
           python3 - <<'PY'
           import json
           import os
@@ -406,8 +498,8 @@ jobs:
 
           contract = {
               "schemaVersion": 1,
-              "requirement": "REQ-F11-200",
-              "acceptanceCriterion": "AC-F11-200",
+              "requirement": "REQ-F11-210",
+              "acceptanceCriterion": "AC-F11-210",
               "repository": os.environ["GITHUB_REPOSITORY"],
               "releaseCommit": os.environ["GITHUB_SHA"],
               "productVersion": os.environ["PRODUCT_VERSION"],
@@ -421,17 +513,21 @@ jobs:
                   "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
                   "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
               },
-              "performanceRunId": int(os.environ["PERFORMANCE_RUN_ID"]),
+              "performanceRunIds": [
+                  int(os.environ["PERFORMANCE_RUN_ID_1"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_2"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_3"]),
+              ],
               "majorTagMoved": False,
           }
-          Path("release-assets/release-contract-v0.1.4.json").write_text(
+          Path("release-assets/release-contract-v0.1.5.json").write_text(
               json.dumps(contract, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
           PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-assets-v0.1.4
+          name: release-assets-v0.1.5
           path: release-assets
           if-no-files-found: error
           include-hidden-files: false
@@ -449,7 +545,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-assets-v0.1.4
+          name: release-assets-v0.1.5
           path: release-assets
       - name: Attest the image-only release assets
         id: attest
@@ -478,7 +574,7 @@ jobs:
             release-asset-attestation-evidence/github-release-asset-attestations.jsonl
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-asset-attestation-evidence-v0.1.4
+          name: release-asset-attestation-evidence-v0.1.5
           path: release-asset-attestation-evidence
           if-no-files-found: error
           include-hidden-files: false
@@ -544,7 +640,7 @@ jobs:
             > image-promotion-evidence/promotion-state.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: image-promotion-evidence-v0.1.4
+          name: image-promotion-evidence-v0.1.5
           path: image-promotion-evidence
           if-no-files-found: error
           include-hidden-files: false
@@ -622,7 +718,7 @@ jobs:
             > release-dogfood-evidence/public-verification.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-dogfood-evidence-v0.1.4
+          name: release-dogfood-evidence-v0.1.5
           path: release-dogfood-evidence
           if-no-files-found: error
           include-hidden-files: false
@@ -647,27 +743,29 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-assets-v0.1.4
+          name: release-assets-v0.1.5
           path: retained/release-assets
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-preflight-evidence-v0.1.4
+          name: release-preflight-evidence-v0.1.5
           path: retained/preflight
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-asset-attestation-evidence-v0.1.4
+          name: release-asset-attestation-evidence-v0.1.5
           path: retained/attestations
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: image-promotion-evidence-v0.1.4
+          name: image-promotion-evidence-v0.1.5
           path: retained/promotion
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-dogfood-evidence-v0.1.4
+          name: release-dogfood-evidence-v0.1.5
           path: retained/dogfood
       - name: Assemble the immutable release evidence index
         env:
-          PERFORMANCE_RUN_ID: ${{ inputs.performance_run_id }}
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
@@ -708,7 +806,11 @@ jobs:
               "repository": os.environ["GITHUB_REPOSITORY"],
               "releaseCommit": os.environ["GITHUB_SHA"],
               "releaseRunId": int(os.environ["GITHUB_RUN_ID"]),
-              "performanceRunId": int(os.environ["PERFORMANCE_RUN_ID"]),
+              "performanceRunIds": [
+                  int(os.environ["PERFORMANCE_RUN_ID_1"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_2"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_3"]),
+              ],
               "candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"]),
               "candidateSource": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
               "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
@@ -764,7 +866,7 @@ jobs:
               --target "${GITHUB_SHA}" \
               --draft \
               --title "attest ${PRODUCT_VERSION} / Action ${ACTION_VERSION_TAG}" \
-              --notes-file release/RELEASE_NOTES-v0.1.4.md
+              --notes-file release/RELEASE_NOTES-v0.1.5.md
             release_state=draft
             for attempt in $(seq 1 30); do
               gh api --paginate --slurp \
