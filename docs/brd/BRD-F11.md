@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054` reliability correction underway |
+| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-056` correction underway |
 
 ---
 
@@ -254,6 +254,31 @@ rebuilding to image `0.1.5`, source record `v0.1.5`, and immutable Action `v1.0.
 distribution changes. Moving `v1` from `v1.0.4` remains forbidden until immutable release,
 dogfood, public onboarding, fork-denial, performance, and independent review evidence all verify.
 
+### 4.1.6 Mandatory trust-refresh release amendment
+
+`ADR-055` amends the image-only part of §4.1.5 after the first exact performance proof exposed
+serialized Sigstore trust initialization as a material signing cost. The corrected signer overlaps
+a same-environment offline bootstrap with mandatory online trust initialization, withholds success
+until refreshed-root identity-bound DSSE verification returns the exact canonical payload, and
+retains the same hard deadline and fail-closed error boundary. `ADR-056` adds only one bounded
+fresh-process recovery for a stale pre-Rekor certificate/SCT bootstrap, after the already-running
+online refresh succeeds; every other failure and the global two-attempt ceiling remain unchanged.
+
+Because those production bytes change, the release publishes exactly `attest-sign==0.1.1` and
+compatibility package `attest-cli==0.1.4`, whose internal dependency is exactly
+`attest-sign==0.1.1`. Core, collect, policy, and store remain at their existing public versions and
+must not be rebuilt or uploaded. Each new distribution is built once, published through its own
+protected PyPI Trusted Publisher environment, matched byte-for-byte against the public files, and
+clean-installed on Python 3.12 and 3.13. Exact recovery from an already successful publication
+requires the earlier successful workflow run and validated OIDC publication evidence; it never
+uses `skip-existing` or treats an unknown public file as acceptable.
+
+The failed performance candidate remains immutable negative evidence. A new unique candidate must
+repeat the entire two-platform, container, scan, SBOM, provenance, identity-attestation, and three
+consecutive attempt-1 performance sequence before the bounded Python packages, exact reviewed image
+`0.1.5`, source `v0.1.5`, and Action `v1.0.5` may be published. The independent `v1` promotion
+rules remain unchanged.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -301,6 +326,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-190` | The remote-discovery correction **MUST** publish only store `0.1.1`, CLI `0.1.3`, immutable Action `v1.0.3`, source record `v0.1.3`, and the exact reviewed image candidate promoted as `0.1.3`; it **MUST** retain every earlier public artifact and attestation ref, import remote sibling refs without overwrite or `FETCH_HEAD`, preserve import failures locally, and move `v1` only after the complete corrected proof succeeds. |
 | `REQ-F11-200` | The cold-start correction **MUST** use the digest-pinned Alpine runtime and exact package set in `ADR-053`, publish no Python distribution, promote only an exact reviewed `0.1.4-candidate` manifest as image `0.1.4`, and create source `v0.1.4` plus immutable Action `v1.0.4` only after the unchanged 20-job p95 gate passes; it **MUST NOT** move `v1` until the complete release, dogfood, public-proof, and performance evidence verifies. |
 | `REQ-F11-210` | The repeatability correction **MUST** preserve every `0.1.4`/`v1.0.4` record; build locked cryptography from its hash-locked sdist using the exact removable toolchain and exact matching runtime OpenSSL in `ADR-054`; enable in-process CLI execution only for the digest-matched bundled script under isolated Python; pass both-platform container, scan, SBOM, provenance, and identity-attestation gates; and publish only exact reviewed image `0.1.5`, source `v0.1.5`, and Action `v1.0.5` with no Python distribution after three consecutive attempt-1 20-job measurements and their combined 60 samples each meet p95 below 15 seconds. It **MUST NOT** move `v1` until the complete release, dogfood, public-proof, fork-denial, and performance evidence verifies independently. |
+| `REQ-F11-220` | As the `ADR-055` amendment to `REQ-F11-210`, the correction **MUST** publish exactly `attest-sign==0.1.1` and `attest-cli==0.1.4` with the CLI exact-pinning that signer, through their separate protected Trusted Publisher environments; it **MUST** verify exact public bytes and clean installs on Python 3.12 and 3.13, retain validated OIDC evidence for a fresh or exact-resume path, and **MUST NOT** rebuild or upload any other Python distribution. The new unique image candidate and exact merged Action **MUST** repeat every supply-chain and three-run performance gate before any bounded release record is published. |
 
 ## 6. Acceptance criteria
 
@@ -327,6 +353,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-190` | Two fresh CI-like repositories publish distinct denied and approved Bundles for one ChangeSet under immutable base and sibling refs; the store/CLI/Image/Action `0.1.1`/`0.1.3` release set verifies publicly, and a new bot-authored proof completes blocked-before-check, no-review denial, independent approval, successful rerun, malicious-content non-execution, and safe fork failure before `v1` moves. |
 | `AC-F11-200` | The retained candidate proves the exact Alpine base and package, both target platforms, clean scans, SBOM, provenance, and identity-bound attestation; the exact merged Action then passes 20 fresh attempt-1 hosted measurements below 15 s p95 before the image-only `0.1.4`/Action `v1.0.4` release and reviewed `v1` promotion complete without any new PyPI file. |
 | `AC-F11-210` | Tests and retained candidate evidence prove the locked source build, absence of build tools, exact dynamic OpenSSL, three balanced zstd layers, digest-guarded/fallback CLI boundaries, both target platforms, clean scans, SBOM, provenance, and identity-bound attestation; the exact merged Action and candidate digest then pass three consecutive fresh attempt-1 20-job hosted measurements individually and as a combined 60-sample set below 15 s p95 before the image-only `0.1.5`/Action `v1.0.5` release and independently reviewed `v1` promotion complete without any new PyPI file or mutation of an earlier record. |
+| `AC-F11-220` | Package and workflow contracts prove the exact signer/CLI versions and dependency, unchanged-distribution exclusion, separate protected OIDC publishers, no `skip-existing`, exact public-byte comparison, Python 3.12/3.13 clean installs, and validated prior-run recovery evidence; the new candidate, three-run performance proof, immutable `0.1.5`/`v0.1.5`/`v1.0.5` records, dogfood, public proof, fork denial, and independent `v1` promotion then complete without mutating an earlier artifact. |
 
 ## 7. Evidence retention
 
@@ -335,7 +362,9 @@ tag, release, image, package, SBOM, provenance, and Bundle identifiers; status-c
 branch-protection response; exact generated files; success, blocked, fork-failure, malicious-fixture,
 and missing-permission logs; outputs; the historical 20-job release measurement; and all three
 ADR-054 20-job measurements plus the combined 60-sample result. Evidence is indexed from the
-immutable GitHub Release and contains no credential.
+immutable GitHub Release and contains no credential. For the `ADR-055` amendment it also retains
+the exact signer/CLI build hashes, PyPI public-byte verification, clean-install results, protected
+Trusted Publisher context, and any validated prior publication run used for exact recovery.
 
 ## 8. Out of scope
 
@@ -355,9 +384,9 @@ write authority.
 - [x] The retained 20-run measurement meets p95 below 15 seconds
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
 - [x] Cross-cutting obligations satisfied
-- [ ] The `0.1.5-candidate` satisfies the locked build, runtime, two-platform, security, and supply-chain boundary in `ADR-054`
+- [ ] The new `0.1.5-candidate` satisfies the locked build, runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-056`
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
-- [ ] Exact image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without a Python publication
+- [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run

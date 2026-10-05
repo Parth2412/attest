@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.1` |
+| Version | `1.7.2` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-09-23 |
+| Last updated | 2026-10-05 |
 
 ---
 
@@ -320,9 +320,9 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | `0.1.0` for core, collect, sign, and policy; store `0.1.1`; CLI `0.1.3` after the public-proof corrections | Python-native teams; CLI pins store `0.1.1` and the other four libraries at `0.1.0`, no export package until F-12 |
-| GHCR | `ghcr.io/parth2412/attest:0.1.4` reviewed multi-platform Alpine container plus immutable digest; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, immutable `v1.0.4`, reviewed moving `v1`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| PyPI | Current core/collect/sign/policy `0.1.0`, store `0.1.1`, and CLI `0.1.3`; the bounded `ADR-055` release changes only sign to `0.1.1` and CLI to `0.1.4` | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
+| GHCR | Current `ghcr.io/parth2412/attest:0.1.4`; reviewed `0.1.5` multi-platform Alpine manifest only after the complete candidate/performance gates; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable/promoted `v1.0.4`; bounded immutable `v1.0.5` only after its release gates; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The released performance-correction image records and pins the verified
@@ -339,14 +339,20 @@ correction, new reviewed image, and independent patch versions are governed by `
 attestation discovery and its bounded store/CLI/Action patch set are governed by `ADR-052`.
 The image-only cold-start correction, pre-publication 20-job gate, container `0.1.4`, and Action
 `v1.0.4` are governed by `ADR-053`; no Python distribution changes in that patch.
-`ADR-054` authorizes a subsequent image-only `0.1.5`/Action `v1.0.5` reliability correction. Its
+`ADR-054` authorizes a subsequent `0.1.5`/Action `v1.0.5` reliability correction. Its
 candidate builds locked `cryptography==50.0.1` from the hash-locked sdist with build-only
 `maturin==1.15.0`, `setuptools==84.0.0`, and exact Alpine Rust/C/OpenSSL packages, then removes the
 build toolchain. Runtime OpenSSL is exact `libcrypto3=3.5.9-r0` plus `libssl3=3.5.9-r0`. The
 isolated Action interpreter may invoke the bundled CLI in-process only when its console script
 matches a build-generated SHA-256 marker; marker failure retains the subprocess path. Publication
 requires three consecutive 20-job attempt-1 measurements whose individual and combined
-nearest-rank p95 values are below 15 seconds. No Python distribution changes in this patch.
+nearest-rank p95 values are below 15 seconds. `ADR-055` amends the package boundary: mandatory
+online trust refresh and refreshed-root verification change signer bytes, so the release publishes
+only `attest-sign==0.1.1` and `attest-cli==0.1.4`, with the latter exact-pinning the former.
+`ADR-056` retains those versions while allowing one refresh-gated fresh-process recovery from a
+stale pre-Rekor trust bootstrap. Each package uses its separate protected Trusted Publisher,
+public files must byte-match the single build, and Python 3.12/3.13 clean installs must pass; core,
+collect, store, policy, and export are not rebuilt or uploaded.
 
 ---
 

@@ -1,7 +1,8 @@
 # attest 0.1.5 / GitHub Action v1.0.5
 
-This image-only patch restores repeatable GitHub-hosted cold-start headroom while preserving the
-public CLI, verification rules, outputs, and failure semantics.
+This bounded patch restores the public signer's verified trust-material refresh path, publishes a
+CLI that consumes that signer exactly, and restores repeatable GitHub-hosted cold-start headroom.
+Verification rules, outputs, and failure semantics remain fail closed.
 
 ## Release contents
 
@@ -23,16 +24,22 @@ public CLI, verification rules, outputs, and failure semantics.
 - The exact merged Action and candidate digest must pass three consecutive fresh attempt-1 hosted
   measurements of 20 jobs each. Every individual p95 and the combined 60-sample p95 must remain
   below 15 seconds.
-- No Python distribution is rebuilt or uploaded. Public Python packages remain at their existing
-  released versions, including `attest-cli==0.1.3`.
+- `attest-sign==0.1.1` is rebuilt from the reviewed source and published through its protected
+  PyPI Trusted Publisher environment.
+- `attest-cli==0.1.4` exact-pins `attest-sign==0.1.1`; both public distributions are byte-matched
+  against locally built wheels and source archives, then clean-installed on Python 3.12 and 3.13.
+- No other Python distribution is rebuilt or uploaded. Public versions remain
+  `attest-core==0.1.0`, `attest-collect==0.1.0`, `attest-store==0.1.1`, and
+  `attest-policy==0.1.0`.
 
 ## Immutability and promotion
 
 Product/source tag `v0.1.5` and immutable Action tag `v1.0.5` resolve to the reviewed release
-commit. Existing `0.1.4`, `v0.1.4`, and `v1.0.4` records remain unchanged. The moving `v1` tag
-stays on `v1.0.4` until the separate protected promotion revalidates the immutable release,
-production dogfood, public same-repository proof, malicious-content non-execution, safe fork
-denial, and all retained performance evidence.
+commit. Existing `0.1.4`, `v0.1.4`, and `v1.0.4` image and GitHub records remain unchanged; the
+new Python patch versions are additive and immutable. The moving `v1` tag stays on `v1.0.4` until
+the separate protected promotion revalidates the immutable release, production dogfood, public
+same-repository proof, malicious-content non-execution, safe fork denial, and all retained
+performance evidence.
 
 Use immutable Action tag `v1.0.5` or its full release commit SHA until that independent promotion
 completes.
