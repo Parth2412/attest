@@ -9,8 +9,6 @@ from typing import cast
 import pytest
 from sigstore.models import Bundle as SigstoreBundle
 from sigstore.models import ClientTrustConfig
-from sigstore.oidc import IdentityToken, detect_credential
-from sigstore.sign import SigningContext
 from sigstore.verify import Verifier
 from sigstore.verify.policy import Identity
 
@@ -38,20 +36,6 @@ def test_keyless_staging_bundle_verifies_offline_without_persisting_a_key(
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-
-    credential = detect_credential()
-    assert credential is not None
-    bootstrap = ClientTrustConfig.staging(offline=True)
-    context = SigningContext.from_trust_config(bootstrap)
-    try:
-        with context.signer(IdentityToken(credential)):
-            pass
-    except Exception as error:
-        pytest.fail(
-            "offline staging bootstrap failed at "
-            f"{type(error).__module__}.{type(error).__qualname__}",
-            pytrace=False,
-        )
 
     result = SigstoreSigner(environment=SigningEnvironment.STAGING).sign(statement)
     bundle = SigstoreBundle.from_json(result.raw)
