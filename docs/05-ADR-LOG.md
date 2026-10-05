@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.23.0` |
+| Version | `1.24.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-10-05 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -2949,6 +2949,102 @@ entrypoint model against GitHub's official Docker Action documentation.
 
 Acceptance authorizes the normative document updates and the reviewed candidate/release sequence;
 it does not authorize publication unless every recorded gate above passes.
+
+---
+
+## ADR-055 — Overlap signing with mandatory online trust refresh and verify before success
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F06`, `BRD-F11`, `CH-09`, `F-06`, `F-11` · **Amends:** `ADR-020`, `ADR-037`,
+`ADR-054`
+
+**Context.** The first exact ADR-054 performance proof exercised merged Action commit
+`69247b1938191a9eb8da9bf5d45d54bc3d68e0f4` and candidate image
+`sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7`. Run
+`37276171958`, attempt 1, completed all 20 independent signing jobs but measured p50 12 seconds
+and nearest-rank p95 16 seconds, so publication correctly stopped before any `v0.1.5` or
+`v1.0.5` record was created. Its sorted durations were 8, 9, 9, 10, 10, 11, 11, 11, 11, 12,
+12, 12, 12, 13, 14, 14, 15, 15, 16, and 17 seconds.
+
+The retained slow-job logs show both image variability and a repeatable signing cost. Inspection
+of the exact `sigstore==4.5.0` source and executable timing probes established that every
+`ClientTrustConfig.production()` or `.staging()` call performs online-mode TUF initialization
+before Fulcio and Rekor work begins. Fresh staging initialization contributed approximately
+1.7–3.5 seconds in the observed environment, while the same package-provided or cached trust
+material could initialize in offline mode in approximately 0.3 seconds. Making the entire signing
+operation offline would remove TUF freshness, freeze-attack, and rollback protections and is not
+an acceptable optimization.
+
+**Decision.** Every keyless signing attempt must retain an environment-specific Sigstore
+online-mode TUF trust initialization. The attempt may first create a separate same-environment
+offline trust snapshot and use it to construct the one ephemeral Sigstore signing context while
+the online-mode initialization executes concurrently. The offline snapshot is only a latency
+bootstrap; it is never sufficient for successful output.
+
+After Fulcio and Rekor return a Bundle, the attempt must wait for the online-mode initialization
+to succeed. It must then reparse the serialized Bundle and use Sigstore's public `Verifier`, the
+trusted root from that online-mode configuration, and the exact ambient certificate identity and
+issuer policy to perform native DSSE verification. The returned payload type must equal
+`application/vnd.in-toto+json`, and the returned payload bytes must equal the exact RFC 8785
+Statement bytes supplied to `sign_dsse`. Only then may the worker report success. Online trust
+initialization failure is `ERR-SIGN-306`; any refreshed-root verification, identity, payload-type,
+or payload-byte failure is `ERR-SIGN-305`. Upstream diagnostics and credentials remain suppressed.
+
+The existing spawned-process 120-second hard deadline bounds both concurrent operations. Once
+the worker reports the Rekor stage, timeout remains non-retryable. A Rekor entry may therefore
+exist if signing succeeds but the concurrent refresh or final verification later fails; no Bundle
+is emitted as successful in that case, and the transparency entry remains immutable evidence of
+the attempted signing operation.
+
+This internal correction changes no `Signer` protocol, CLI option, configuration key, credential
+input, predicate byte, or dependency version. It publishes only changed distribution
+`attest-sign==0.1.1` and compatibility distribution `attest-cli==0.1.4`, whose exact internal pin
+moves from `attest-sign==0.1.0` to `attest-sign==0.1.1`. The five other distribution versions
+remain unchanged.
+
+The failed candidate digest, its GitHub attestation, and run `37276171958` remain immutable
+negative evidence. A new uniquely referenced two-platform candidate must pass the complete
+container, cryptographic, scan, SBOM, provenance, and identity-attestation gates. The exact merged
+Action commit and new digest must restart all three fresh attempt-1 20-job measurements; every
+individual p95 and the combined 60-sample p95 remain strictly below 15 seconds. Only after those
+gates may the release workflow publish the two exact Python distributions through their existing
+PyPI Trusted Publisher environments, promote the reviewed image as `0.1.5`, and create source
+`v0.1.5` and Action `v1.0.5`. Moving `v1` remains forbidden until dogfood, onboarding,
+fork-denial, public verification, and independent review complete.
+
+**Rationale.** Online TUF initialization and Sigstore-native verification preserve trust
+freshness and make the refreshed root, certificate identity, transparency evidence, signature,
+payload type, and exact bytes preconditions of success. Running the network-bound refresh beside
+Fulcio/Rekor work removes serialized latency without weakening a verification rule or changing the
+public contract. Publishing the signer and CLI is required because their bytes and exact internal
+dependency pin change; describing this as an image-only patch would be false.
+
+**Rejected alternatives.** Offline-only signing was rejected because cached or packaged metadata
+alone does not establish current TUF freshness. Skipping the refreshed-root verification, treating
+refresh failure as a warning, or returning before the refresh finishes would create a security
+bypass. Relaxing the p95 threshold, excluding image pull, accepting the failed run, or publishing
+after fewer samples would weaken `REQ-F11-100`. Repurposing an existing Python version, image tag,
+source tag, Action tag, or candidate reference would rewrite public history. Adding a manual trust
+flag or token input would widen the public security surface without a product requirement.
+
+**Consequences.** F-06 gains a concurrent internal operation and an additional native verification
+boundary, both covered by the existing hard process deadline. Tests must prove that online-mode
+initialization begins before signing finishes, success waits for it, the online trusted root and
+exact identity policy reach `Verifier`, exact payload equality is enforced, and failures remain
+sanitized and correctly classified. F-11 must amend the prepared v1.0.5 workflow from image-only
+publication to the exact two-distribution release and repeat every candidate and performance gate.
+The optimization is not production-ready until both implementation sessions and the public proof
+complete.
+
+### ADR-055 implementation plan
+
+| Session | Requirement | Production work | Files |
+|---|---|---|---|
+| F-06 | `REQ-F06-140` | Overlap one same-environment offline bootstrap with mandatory online-mode TUF initialization; withhold success until native refreshed-root identity-bound DSSE verification returns the exact canonical payload | `packages/attest-sign/src/attest_sign/dsse.py`, `sigstore_signer.py`, signer tests, `BRD-F06`, traceability |
+| F-11 | `REQ-F11-220` | Publish only signer `0.1.1` and CLI `0.1.4`; rebuild and prove a new candidate; repeat the three-run soak; promote immutable v0.1.5/v1.0.5 records only after every gate | package metadata and manifests, `uv.lock`, Action image/workflows/tests, release evidence, `BRD-F11` |
+
+Acceptance authorizes both bounded sessions. It does not authorize an offline-only success path,
+publication before the required evidence, or movement of `v1` before independent review.
 
 ---
 

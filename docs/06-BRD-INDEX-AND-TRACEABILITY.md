@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.0` |
+| Version | `2.6.1` |
 | Status | Baselined |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-10-05 |
 
 ---
 
@@ -293,6 +293,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F06-110` | `AC-F06-110` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-120` | `AC-F06-120` | `packages/attest-sign/tests/test_protocols.py`, `test_sigstore_signer.py` | ✓ |
 | `REQ-F06-130` | `AC-F06-130` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
+| `REQ-F06-140` | `AC-F06-140` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
 | `REQ-F07-010` | `AC-F07-010` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py`, `test_protocols.py` | ✓ |
 | `REQ-F07-020` | `AC-F07-020` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
 | `REQ-F07-030` | `AC-F07-030` | `packages/attest-store/tests/test_gitref.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |

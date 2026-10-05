@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-05` |
-| Status | Done · completion reconciled by `ADR-045` |
+| Status | Done · refreshed-trust correction completed by `ADR-055` |
 
 ---
 
@@ -82,6 +82,7 @@ detection.
 | `REQ-F06-110` | The identity and effective OIDC issuer obtained from ambient detection **MUST** be validated against the actual leaf certificate with Sigstore's public identity policy and reported in the `Bundle` result so the user can configure verification constraints. The X.509 CA issuer distinguished name is not this value. |
 | `REQ-F06-120` | Every signing attempt **MUST** execute in an isolated child process with a positive hard deadline, defaulting to 120 seconds. The parent **MUST** terminate an expired worker. A pre-Rekor timeout permits at most one fresh attempt; once Rekor submission begins, the operation **MUST NOT** be retried. Deadline exhaustion raises `ERR-SIGN-304` (`ADR-037`). |
 | `REQ-F06-130` | No secret, token, or key material **MUST** appear in logs, diagnostics, or error messages. |
+| `REQ-F06-140` | Every signing attempt **MUST** initiate environment-specific Sigstore trust initialization in online mode and **MUST NOT** report success until it completes. The attempt **MAY** sign concurrently from a separate same-environment offline trust snapshot, but before success it **MUST** use Sigstore's public verifier with the online trusted root and exact ambient identity/issuer policy, and **MUST** prove that the verified DSSE payload type and bytes equal the exact canonical Statement supplied for signing. There is no offline-only success path. Online trust failure raises `ERR-SIGN-306`; refreshed verification or payload mismatch raises `ERR-SIGN-305` (`ADR-055`). |
 
 ## 6. Acceptance criteria
 
@@ -100,6 +101,7 @@ detection.
 | `AC-F06-110` | The reported identity string is suitable for pasting into a verification constraint. |
 | `AC-F06-120` | A hanging worker is terminated and yields `ERR-SIGN-304`; a pre-Rekor timeout is attempted no more than twice, and a Rekor-stage timeout is attempted exactly once. |
 | `AC-F06-130` | A full-suite scan of captured output contains no token-like strings. |
+| `AC-F06-140` | Deterministic barriers prove the online-mode initialization overlaps signing while success waits for it; the resulting Bundle reaches Sigstore-native DSSE verification with the online trusted root and exact identity/issuer, exact payload type and bytes are required, and online-initialization or refreshed-verification failures emit only their stable sanitized codes. |
 
 ## 7. Error codes
 

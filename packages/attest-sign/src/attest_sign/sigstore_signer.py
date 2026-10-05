@@ -1,4 +1,4 @@
-"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037."""
+"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037/055."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import multiprocessing
 import os
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -17,11 +18,12 @@ from sigstore.models import Bundle as SigstoreBundle
 from sigstore.models import ClientTrustConfig
 from sigstore.oidc import IdentityToken, detect_credential
 from sigstore.sign import SigningContext
+from sigstore.verify import Verifier
 from sigstore.verify.policy import Identity
 
 from attest_core.constants import DSSE_PAYLOAD_TYPE
 from attest_core.models.statement import Statement
-from attest_sign.dsse import to_sigstore_statement
+from attest_sign.dsse import canonical_statement_bytes, to_sigstore_statement
 from attest_sign.errors import SignError, SignErrorCode, sign_error
 from attest_sign.protocols import Bundle, SigningEnvironment
 
@@ -106,11 +108,15 @@ def _certificate_identity(identity_token: IdentityToken, issuer: str) -> str:
     return f"https://github.com/{workflow_ref}"
 
 
-def _load_trust_config(environment: SigningEnvironment) -> ClientTrustConfig:
+def _load_trust_config(
+    environment: SigningEnvironment,
+    *,
+    offline: bool,
+) -> ClientTrustConfig:
     if environment is SigningEnvironment.PRODUCTION:
-        return ClientTrustConfig.production()
+        return ClientTrustConfig.production(offline=offline)
     if environment is SigningEnvironment.STAGING:
-        return ClientTrustConfig.staging()
+        return ClientTrustConfig.staging(offline=offline)
     raise sign_error("ERR-SIGN-306")
 
 
@@ -121,6 +127,7 @@ def _sign_once(
 ) -> _SuccessMessage:
     """Perform one stage-reported Sigstore operation inside a worker process."""
     try:
+        expected_payload = canonical_statement_bytes(statement)
         dsse_statement = to_sigstore_statement(statement)
     except Exception:
         raise sign_error("ERR-SIGN-305") from None
@@ -139,33 +146,58 @@ def _sign_once(
 
     emit_stage(_WorkerStage.CONFIGURATION)
     try:
-        trust_config = _load_trust_config(environment)
-        signing_context = SigningContext.from_trust_config(trust_config)
+        bootstrap_config = _load_trust_config(environment, offline=True)
+        signing_context = SigningContext.from_trust_config(bootstrap_config)
     except SignError:
         raise
     except Exception:
         raise sign_error("ERR-SIGN-306") from None
 
-    emit_stage(_WorkerStage.FULCIO)
-    try:
-        with signing_context.signer(identity_token) as signer:
-            emit_stage(_WorkerStage.REKOR)
-            try:
-                sigstore_bundle = signer.sign_dsse(dsse_statement)
-            except Exception:
-                raise sign_error("ERR-SIGN-303") from None
-    except SignError:
-        raise
-    except Exception:
-        raise sign_error("ERR-SIGN-302") from None
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="attest-sigstore-trust") as executor:
+        try:
+            online_config_future = executor.submit(
+                _load_trust_config,
+                environment,
+                offline=False,
+            )
+        except Exception:
+            raise sign_error("ERR-SIGN-306") from None
 
-    try:
-        issuer = identity_token.federated_issuer
-        identity = _certificate_identity(identity_token, issuer)
-        Identity(identity=identity, issuer=issuer).verify(sigstore_bundle.signing_certificate)
-        raw = sigstore_bundle.to_json().encode("utf-8")
-    except Exception:
-        raise sign_error("ERR-SIGN-305") from None
+        emit_stage(_WorkerStage.FULCIO)
+        try:
+            with signing_context.signer(identity_token) as signer:
+                emit_stage(_WorkerStage.REKOR)
+                try:
+                    sigstore_bundle = signer.sign_dsse(dsse_statement)
+                except Exception:
+                    raise sign_error("ERR-SIGN-303") from None
+        except SignError:
+            raise
+        except Exception:
+            raise sign_error("ERR-SIGN-302") from None
+
+        try:
+            raw = sigstore_bundle.to_json().encode("utf-8")
+            reparsed_bundle = SigstoreBundle.from_json(raw)
+            issuer = identity_token.federated_issuer
+            identity = _certificate_identity(identity_token, issuer)
+            identity_policy = Identity(identity=identity, issuer=issuer)
+        except Exception:
+            raise sign_error("ERR-SIGN-305") from None
+
+        try:
+            online_config = online_config_future.result()
+        except Exception:
+            raise sign_error("ERR-SIGN-306") from None
+
+        try:
+            payload_type, payload = Verifier(trusted_root=online_config.trusted_root).verify_dsse(
+                reparsed_bundle, identity_policy
+            )
+            if payload_type != DSSE_PAYLOAD_TYPE or payload != expected_payload:
+                _invalid_bundle()
+        except Exception:
+            raise sign_error("ERR-SIGN-305") from None
 
     return _SuccessMessage(raw=raw, identity=identity, issuer=issuer)
 

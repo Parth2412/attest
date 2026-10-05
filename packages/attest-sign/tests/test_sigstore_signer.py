@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import threading
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -16,6 +18,7 @@ from sigstore.models import Bundle as SigstoreBundle
 from sigstore.oidc import IdentityToken
 
 from attest_core import Statement
+from attest_core.constants import DSSE_PAYLOAD_TYPE
 from attest_sign import Bundle, SigningEnvironment, SigstoreSigner
 from attest_sign import sigstore_signer as module
 from attest_sign.errors import SignError, sign_error
@@ -174,6 +177,25 @@ class _FakeIdentityPolicy:
         type(self).observed = (self._identity, self._issuer, certificate)
 
 
+class _FakeTrustConfig:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.trusted_root = f"{name}-root"
+
+
+class _FakeVerifier:
+    observed: tuple[object, object, object] | None = None
+
+    def __init__(self, *, trusted_root: object) -> None:
+        self._trusted_root = trusted_root
+
+    def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+        type(self).observed = (self._trusted_root, bundle, policy)
+        assert isinstance(policy, _FakeIdentityPolicy)
+        policy.verify(_FakeBundle.signing_certificate)
+        return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+
 class _FakeUpstreamSigner:
     def __init__(self, *, failure: Exception | None = None) -> None:
         self.failure = failure
@@ -213,14 +235,32 @@ def _install_successful_boundary(
     class FakeSigningContext:
         @classmethod
         def from_trust_config(cls, trust_config: object) -> _FakeContext:
-            assert trust_config == "staging-trust"
+            assert isinstance(trust_config, _FakeTrustConfig)
+            assert trust_config.name == "staging-bootstrap"
             return context
 
-    monkeypatch.setattr(module, "_load_trust_config", lambda environment: "staging-trust")
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        suffix = "bootstrap" if offline else "online"
+        return _FakeTrustConfig(f"staging-{suffix}")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
     monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
     monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
     monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
     monkeypatch.setattr(module, "Identity", _FakeIdentityPolicy)
+    monkeypatch.setattr(module, "Verifier", _FakeVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda statement: b"canonical-statement",
+        raising=False,
+    )
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: _FakeBundle(raw))
     monkeypatch.setattr(module, "to_sigstore_statement", lambda statement: object())
     monkeypatch.setenv(
         "GITHUB_WORKFLOW_REF",
@@ -557,24 +597,208 @@ def test_trust_configuration_maps_each_explicit_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """REQ-F06-070: each explicit environment selects only its matching root."""
+    calls: list[tuple[str, bool]] = []
 
     class FakeClientTrustConfig:
         @classmethod
-        def production(cls) -> str:
+        def production(cls, offline: bool = False) -> str:
+            calls.append(("production", offline))
             return "production-root"
 
         @classmethod
-        def staging(cls) -> str:
+        def staging(cls, offline: bool = False) -> str:
+            calls.append(("staging", offline))
             return "staging-root"
 
     monkeypatch.setattr(module, "ClientTrustConfig", FakeClientTrustConfig)
     production = next(item for item in SigningEnvironment if item.value == "production")
 
-    assert cast(str, module._load_trust_config(production)) == "production-root"
-    assert cast(str, module._load_trust_config(SigningEnvironment.STAGING)) == "staging-root"
+    assert cast(str, module._load_trust_config(production, offline=False)) == "production-root"
+    assert (
+        cast(str, module._load_trust_config(SigningEnvironment.STAGING, offline=True))
+        == "staging-root"
+    )
+    assert calls == [("production", False), ("staging", True)]
     with pytest.raises(SignError) as captured:
-        module._load_trust_config(cast(SigningEnvironment, "invalid"))
+        module._load_trust_config(cast(SigningEnvironment, "invalid"), offline=False)
     assert captured.value.code == "ERR-SIGN-306"
+
+
+@pytest.mark.ac("AC-F06-140")
+def test_online_trust_refresh_overlaps_signing_and_gates_success(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-140: signing overlaps refresh but cannot finish before fresh verification."""
+    online_started = threading.Event()
+    signing_completed = threading.Event()
+    release_online = threading.Event()
+    loads: list[tuple[SigningEnvironment, bool]] = []
+    reparsed = object()
+    observed: dict[str, object] = {}
+
+    class GatedSigner(_FakeUpstreamSigner):
+        def sign_dsse(self, supplied: object) -> _FakeBundle:
+            observed["signed_statement"] = supplied
+            assert online_started.wait(5)
+            signing_completed.set()
+            return _FakeBundle(json.dumps(_bundle_wire()).encode())
+
+    context = _FakeContext(GatedSigner())
+
+    class FakeSigningContext:
+        @classmethod
+        def from_trust_config(cls, trust_config: object) -> _FakeContext:
+            assert isinstance(trust_config, _FakeTrustConfig)
+            assert trust_config.name == "offline"
+            return context
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        loads.append((environment, offline))
+        if offline:
+            return _FakeTrustConfig("offline")
+        online_started.set()
+        assert release_online.wait(5)
+        return _FakeTrustConfig("online")
+
+    class RecordingIdentity:
+        def __init__(self, *, identity: str, issuer: str) -> None:
+            observed["policy"] = (identity, issuer)
+
+    class RecordingVerifier:
+        def __init__(self, *, trusted_root: object) -> None:
+            observed["trusted_root"] = trusted_root
+
+        def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+            observed["verified"] = (bundle, policy)
+            return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+    monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
+    monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
+    monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
+    monkeypatch.setattr(module, "Identity", RecordingIdentity)
+    monkeypatch.setattr(module, "Verifier", RecordingVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda supplied: b"canonical-statement",
+        raising=False,
+    )
+    signed_statement = object()
+    monkeypatch.setattr(module, "to_sigstore_statement", lambda supplied: signed_statement)
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: reparsed)
+    monkeypatch.setenv(
+        "GITHUB_WORKFLOW_REF",
+        "Org/Repo/.github/workflows/attest.yml@refs/heads/main",
+    )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(
+            module._sign_once,
+            statement,
+            SigningEnvironment.STAGING,
+            lambda stage: None,
+        )
+        assert signing_completed.wait(5)
+        assert not result.done()
+        release_online.set()
+        success = result.result(timeout=5)
+
+    expected_identity = "https://github.com/Org/Repo/.github/workflows/attest.yml@refs/heads/main"
+    assert loads == [
+        (SigningEnvironment.STAGING, True),
+        (SigningEnvironment.STAGING, False),
+    ]
+    assert observed["signed_statement"] is signed_statement
+    assert observed["policy"] == (expected_identity, _FakeToken.federated_issuer)
+    assert observed["trusted_root"] == "online-root"
+    verified_bundle, verified_policy = cast(tuple[object, object], observed["verified"])
+    assert verified_bundle is reparsed
+    assert isinstance(verified_policy, RecordingIdentity)
+    assert success.identity == expected_identity
+    assert success.issuer == _FakeToken.federated_issuer
+
+
+@pytest.mark.ac("AC-F06-140")
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        ("online", "ERR-SIGN-306"),
+        ("verify", "ERR-SIGN-305"),
+        ("payload-type", "ERR-SIGN-305"),
+        ("payload", "ERR-SIGN-305"),
+    ],
+)
+def test_refreshed_trust_failures_are_sanitized_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+    failure: str,
+    expected_code: str,
+) -> None:
+    """REQ-F06-140: no refresh or exact-payload failure can emit a successful Bundle."""
+    secret = "ghs_refreshed_trust_secret_must_not_escape"
+    context = _FakeContext(_FakeUpstreamSigner())
+
+    class FakeSigningContext:
+        @classmethod
+        def from_trust_config(cls, trust_config: object) -> _FakeContext:
+            assert isinstance(trust_config, _FakeTrustConfig)
+            return context
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        del environment
+        if not offline and failure == "online":
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("offline" if offline else "online")
+
+    class FailingVerifier:
+        def __init__(self, *, trusted_root: object) -> None:
+            assert trusted_root == "online-root"
+
+        def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+            del bundle, policy
+            if failure == "verify":
+                raise RuntimeError(secret)
+            if failure == "payload-type":
+                return "text/plain", b"canonical-statement"
+            if failure == "payload":
+                return DSSE_PAYLOAD_TYPE, b"different-statement"
+            return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+    monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
+    monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
+    monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
+    monkeypatch.setattr(module, "Identity", _FakeIdentityPolicy)
+    monkeypatch.setattr(module, "Verifier", FailingVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda supplied: b"canonical-statement",
+        raising=False,
+    )
+    monkeypatch.setattr(module, "to_sigstore_statement", lambda supplied: object())
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: object())
+    monkeypatch.setenv(
+        "GITHUB_WORKFLOW_REF",
+        "Org/Repo/.github/workflows/attest.yml@refs/heads/main",
+    )
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == expected_code
+    assert secret not in str(captured.value)
+    assert captured.value.__cause__ is None
 
 
 @pytest.mark.parametrize(
