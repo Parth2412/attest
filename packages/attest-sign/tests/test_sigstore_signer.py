@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Never, cast
 
 import pytest
+from sigstore.errors import VerificationError as SigstoreVerificationError
 from sigstore.models import Bundle as SigstoreBundle
 from sigstore.oidc import IdentityToken
 
@@ -801,6 +802,108 @@ def test_refreshed_trust_failures_are_sanitized_and_fail_closed(
     assert captured.value.__cause__ is None
 
 
+@pytest.mark.ac("AC-F06-150")
+def test_stale_bootstrap_waits_for_online_refresh_before_requesting_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: stale certificate trust retries only after refresh completes."""
+    online_started = threading.Event()
+    release_online = threading.Event()
+    stages: list[module._WorkerStage] = []
+    context = _FakeContext(
+        _FakeUpstreamSigner(),
+        enter_failure=SigstoreVerificationError("private stale SCT diagnostic"),
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            return _FakeTrustConfig("staging-bootstrap")
+        online_started.set()
+        assert release_online.wait(5)
+        return _FakeTrustConfig("staging-online")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(
+            module._sign_once,
+            statement,
+            SigningEnvironment.STAGING,
+            stages.append,
+        )
+        assert online_started.wait(5)
+        assert not result.done()
+        release_online.set()
+        with pytest.raises(module._RetryableTrustError) as captured:
+            result.result(timeout=5)
+
+    assert captured.value.__cause__ is None
+    assert stages == [
+        module._WorkerStage.IDENTITY,
+        module._WorkerStage.CONFIGURATION,
+        module._WorkerStage.FULCIO,
+    ]
+    assert context.upstream.calls == 0
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_stale_bootstrap_cannot_retry_without_successful_online_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: a failed mandatory refresh blocks the stale-trust retry."""
+    secret = "ghs_online_refresh_failure_must_not_escape"
+    context = _FakeContext(
+        _FakeUpstreamSigner(),
+        enter_failure=SigstoreVerificationError("private stale SCT diagnostic"),
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        if not offline:
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("staging-bootstrap")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-306"
+    assert secret not in str(captured.value)
+    assert captured.value.__cause__ is None
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_sigstore_verification_error_after_rekor_is_not_retryable(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: a post-Rekor Sigstore failure remains a Rekor-stage failure."""
+    context = _FakeContext(
+        _FakeUpstreamSigner(failure=SigstoreVerificationError("private Rekor diagnostic"))
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-303"
+    assert captured.value.__cause__ is None
+
+
 @pytest.mark.parametrize(
     ("terminal", "expected_code"),
     [
@@ -834,6 +937,19 @@ def test_supervisor_returns_only_a_complete_success() -> None:
     actual = module._supervise_process(process, connection, timedelta(seconds=1))
 
     assert actual is expected
+    assert process.joined == [None]
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_supervisor_preserves_only_the_private_retry_signal() -> None:
+    """REQ-F06-150: the parent receives a typed signal without upstream text."""
+    connection = _QueueConnection([module._RetryMessage()])
+    process = _FakeProcess()
+
+    with pytest.raises(module._RetryableTrustError) as captured:
+        module._supervise_process(process, connection, timedelta(seconds=1))
+
+    assert captured.value.__cause__ is None
     assert process.joined == [None]
 
 
@@ -972,6 +1088,77 @@ def test_timeout_retries_only_before_rekor(
     assert len(attempts) == 1
 
 
+@pytest.mark.ac("AC-F06-150")
+def test_public_signer_retries_stale_bootstrap_once_within_shared_attempt_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: one fresh child may follow stale trust; a third never starts."""
+    attempts = 0
+
+    def retry_then_succeed(*arguments: object) -> module._SuccessMessage:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        if attempts == 1:
+            raise module._RetryableTrustError
+        return _success()
+
+    monkeypatch.setattr(module, "_execute_attempt", retry_then_succeed)
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: object())
+    signer = SigstoreSigner(environment=SigningEnvironment.STAGING)
+
+    result = signer.sign(statement)
+
+    assert result.environment is SigningEnvironment.STAGING
+    assert attempts == 2
+
+    attempts = 0
+
+    def always_stale(*arguments: object) -> Never:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        raise module._RetryableTrustError
+
+    monkeypatch.setattr(module, "_execute_attempt", always_stale)
+
+    with pytest.raises(SignError) as captured:
+        signer.sign(statement)
+
+    assert captured.value.code == "ERR-SIGN-302"
+    assert captured.value.__cause__ is None
+    assert attempts == 2
+
+
+@pytest.mark.ac("AC-F06-120")
+@pytest.mark.ac("AC-F06-150")
+def test_stale_trust_and_timeout_share_the_two_attempt_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-120/150: mixed retry causes cannot create a third child."""
+    attempts = 0
+
+    def stale_then_timeout(*arguments: object) -> Never:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        if attempts == 1:
+            raise module._RetryableTrustError
+        raise module._AttemptTimeoutError(module._WorkerStage.FULCIO)
+
+    monkeypatch.setattr(module, "_execute_attempt", stale_then_timeout)
+    signer = SigstoreSigner(environment=SigningEnvironment.STAGING)
+
+    with pytest.raises(SignError) as captured:
+        signer.sign(statement)
+
+    assert captured.value.code == "ERR-SIGN-304"
+    assert captured.value.__cause__ is None
+    assert attempts == 2
+
+
 @pytest.mark.ac("AC-F06-120")
 def test_supervisor_terminates_a_hanging_process() -> None:
     """REQ-F06-120: the real process boundary cannot survive its deadline."""
@@ -1049,3 +1236,23 @@ def test_worker_preserves_only_codes_and_tolerates_a_closed_parent(
     broken = _BrokenConnection()
     module._signing_worker(broken, statement, SigningEnvironment.STAGING)
     assert broken.closed
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_worker_converts_stale_trust_to_a_text_free_retry_signal(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: the worker never serializes the upstream trust diagnostic."""
+
+    def request_retry(*arguments: object) -> Never:
+        del arguments
+        raise module._RetryableTrustError from None
+
+    monkeypatch.setattr(module, "_sign_once", request_retry)
+    connection = _CaptureConnection()
+
+    module._signing_worker(connection, statement, SigningEnvironment.STAGING)
+
+    assert connection.messages == [module._RetryMessage()]
+    assert connection.closed

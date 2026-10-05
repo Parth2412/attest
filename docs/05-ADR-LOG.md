@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.24.0` |
+| Version | `1.25.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-10-05 |
 
@@ -3045,6 +3045,74 @@ complete.
 
 Acceptance authorizes both bounded sessions. It does not authorize an offline-only success path,
 publication before the required evidence, or movement of `v1` before independent review.
+
+---
+
+## ADR-056 — Retry stale trust bootstrap only after verified online refresh
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Affects:** `SEC-001`, `QA-001`, `BRD-F06`,
+`F-06`, `F-11` · **Amends:** `ADR-037`, `ADR-055`
+
+**Context.** The first live staging proof of `ADR-055` failed before Rekor with
+`sigstore.errors.VerificationError: SCT verify failed`. A clean comparison established that
+Sigstore 4.5.0's packaged staging trust snapshot contained one Fulcio CA and four CT logs, while
+online staging trust contained two Fulcio CAs and five CT logs. The offline snapshot could
+therefore bootstrap a signer context but reject a certificate issued under trust material that
+the concurrently successful online refresh had just obtained. A later unchanged run succeeded,
+which demonstrated that issuance and trust state can vary but did not make the stale-bootstrap
+path reliable.
+
+**Decision.** Preserve `ADR-055`'s same-environment offline bootstrap, concurrent mandatory
+online-mode refresh, and final refreshed-root identity-bound DSSE verification. Add one bounded
+recovery only when Sigstore's public `VerificationError` is raised while entering the signer
+context after Fulcio and before the Rekor stage is emitted. The worker must first wait for the
+already-running online refresh. Refresh failure remains `ERR-SIGN-306` and forbids retry. Refresh
+success permits the worker to emit a private, text-free retry signal; the parent then starts one
+fresh isolated child, whose offline bootstrap reads the refreshed TUF cache and whose attempt
+again performs the complete mandatory online refresh and final verification from `REQ-F06-140`.
+
+The retry is never permitted for another Fulcio error, a Rekor or post-Rekor error, refreshed
+bundle verification failure, or a second certificate/SCT rejection. The stale-trust recovery and
+the existing pre-Rekor timeout recovery share one total ceiling of two child attempts. A second
+stale rejection maps to `ERR-SIGN-302`; no third child starts. Every child creates one signer
+context and retains the existing 120-second hard deadline. Because the first failure occurs while
+the signer context validates its certificate/SCT and before the Rekor stage, it creates no Rekor
+entry. Upstream exception text never crosses the child-process boundary.
+
+This is an internal correction only. It changes no public API, dependency, credential input,
+configuration key, signing environment, error-code catalog, or release version. `ADR-055`'s exact
+`attest-sign==0.1.1`, `attest-cli==0.1.4`, candidate `0.1.5-candidate`, image/source
+`0.1.5`/`v0.1.5`, Action `v1.0.5`, three-run performance proof, and public release gates remain
+unchanged.
+
+**Rationale.** The refresh that establishes current trust must complete before recovery is
+allowed, and a new process is required so the second offline bootstrap actually reloads the
+updated cache. Restricting the signal to the pre-Rekor certificate/SCT boundary prevents duplicate
+transparency-log submissions. Sharing the existing two-attempt ceiling keeps execution and side
+effects bounded while recovering the exact stale packaged-trust condition observed in staging.
+
+**Rejected alternatives.** Treating the first stale rejection as final leaves a known valid
+issuance path unreliable. Retrying before the online refresh finishes can repeat the stale input.
+Accepting the certificate without SCT verification, using online refresh as optional, parsing
+upstream diagnostic text, retrying every `VerificationError`, retrying after Rekor, or allowing a
+third attempt would weaken verification or create uncontrolled side effects. Replacing the
+concurrent design with serial online initialization would discard the approved performance
+correction rather than fixing its bounded bootstrap race.
+
+**Consequences.** F-06 gains a private retry message and a second retry cause governed by the same
+global attempt counter. Tests must prove the refresh barrier, absence of a Rekor-stage signal on
+the failed bootstrap, sanitization, exact exception boundary, fresh-child recovery, second-failure
+mapping, and mixed timeout/stale attempt ceiling. The F-11 release session remains blocked until
+the full local suite and a fresh live Sigstore staging proof pass with this implementation.
+
+### ADR-056 implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F06-150` | Convert only a pre-Rekor Sigstore certificate/SCT verification failure into a text-free retry after successful online refresh; enforce one fresh child and the shared two-attempt limit | `packages/attest-sign/src/attest_sign/sigstore_signer.py`, signer tests, `BRD-F06`, traceability |
+
+Acceptance authorizes this bounded recovery. It does not authorize broader retries, relaxed trust
+verification, publication, or movement of `v1`.
 
 ---
 
