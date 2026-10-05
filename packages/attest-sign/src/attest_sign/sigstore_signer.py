@@ -1,4 +1,4 @@
-"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037."""
+"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037/055/056."""
 
 from __future__ import annotations
 
@@ -8,20 +8,23 @@ import multiprocessing
 import os
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Never, Protocol, TypeGuard, cast
 
+from sigstore.errors import VerificationError as SigstoreVerificationError
 from sigstore.models import Bundle as SigstoreBundle
 from sigstore.models import ClientTrustConfig
 from sigstore.oidc import IdentityToken, detect_credential
 from sigstore.sign import SigningContext
+from sigstore.verify import Verifier
 from sigstore.verify.policy import Identity
 
 from attest_core.constants import DSSE_PAYLOAD_TYPE
 from attest_core.models.statement import Statement
-from attest_sign.dsse import to_sigstore_statement
+from attest_sign.dsse import canonical_statement_bytes, to_sigstore_statement
 from attest_sign.errors import SignError, SignErrorCode, sign_error
 from attest_sign.protocols import Bundle, SigningEnvironment
 
@@ -56,7 +59,12 @@ class _FailureMessage:
     code: SignErrorCode
 
 
-type _WorkerMessage = _StageMessage | _SuccessMessage | _FailureMessage
+@dataclass(frozen=True, slots=True)
+class _RetryMessage:
+    pass
+
+
+type _WorkerMessage = _StageMessage | _SuccessMessage | _FailureMessage | _RetryMessage
 
 
 class _SendConnection(Protocol):
@@ -93,6 +101,10 @@ class _AttemptTimeoutError(RuntimeError):
         super().__init__("isolated signing attempt exceeded its deadline")
 
 
+class _RetryableTrustError(RuntimeError):
+    """Request one fresh child after a verified refresh replaces stale trust."""
+
+
 class _AmbientIdentityError(ValueError):
     """Signal missing provider context needed to identify the leaf certificate."""
 
@@ -106,11 +118,15 @@ def _certificate_identity(identity_token: IdentityToken, issuer: str) -> str:
     return f"https://github.com/{workflow_ref}"
 
 
-def _load_trust_config(environment: SigningEnvironment) -> ClientTrustConfig:
+def _load_trust_config(
+    environment: SigningEnvironment,
+    *,
+    offline: bool,
+) -> ClientTrustConfig:
     if environment is SigningEnvironment.PRODUCTION:
-        return ClientTrustConfig.production()
+        return ClientTrustConfig.production(offline=offline)
     if environment is SigningEnvironment.STAGING:
-        return ClientTrustConfig.staging()
+        return ClientTrustConfig.staging(offline=offline)
     raise sign_error("ERR-SIGN-306")
 
 
@@ -121,6 +137,7 @@ def _sign_once(
 ) -> _SuccessMessage:
     """Perform one stage-reported Sigstore operation inside a worker process."""
     try:
+        expected_payload = canonical_statement_bytes(statement)
         dsse_statement = to_sigstore_statement(statement)
     except Exception:
         raise sign_error("ERR-SIGN-305") from None
@@ -139,33 +156,68 @@ def _sign_once(
 
     emit_stage(_WorkerStage.CONFIGURATION)
     try:
-        trust_config = _load_trust_config(environment)
-        signing_context = SigningContext.from_trust_config(trust_config)
+        bootstrap_config = _load_trust_config(environment, offline=True)
+        signing_context = SigningContext.from_trust_config(bootstrap_config)
     except SignError:
         raise
     except Exception:
         raise sign_error("ERR-SIGN-306") from None
 
-    emit_stage(_WorkerStage.FULCIO)
-    try:
-        with signing_context.signer(identity_token) as signer:
-            emit_stage(_WorkerStage.REKOR)
-            try:
-                sigstore_bundle = signer.sign_dsse(dsse_statement)
-            except Exception:
-                raise sign_error("ERR-SIGN-303") from None
-    except SignError:
-        raise
-    except Exception:
-        raise sign_error("ERR-SIGN-302") from None
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="attest-sigstore-trust") as executor:
+        try:
+            online_config_future = executor.submit(
+                _load_trust_config,
+                environment,
+                offline=False,
+            )
+        except Exception:
+            raise sign_error("ERR-SIGN-306") from None
 
-    try:
-        issuer = identity_token.federated_issuer
-        identity = _certificate_identity(identity_token, issuer)
-        Identity(identity=identity, issuer=issuer).verify(sigstore_bundle.signing_certificate)
-        raw = sigstore_bundle.to_json().encode("utf-8")
-    except Exception:
-        raise sign_error("ERR-SIGN-305") from None
+        emit_stage(_WorkerStage.FULCIO)
+        rekor_started = False
+        try:
+            with signing_context.signer(identity_token) as signer:
+                rekor_started = True
+                emit_stage(_WorkerStage.REKOR)
+                try:
+                    sigstore_bundle = signer.sign_dsse(dsse_statement)
+                except Exception:
+                    raise sign_error("ERR-SIGN-303") from None
+        except SignError:
+            raise
+        except SigstoreVerificationError:
+            if rekor_started:
+                raise sign_error("ERR-SIGN-302") from None
+            try:
+                online_config_future.result()
+            except Exception:
+                raise sign_error("ERR-SIGN-306") from None
+            raise _RetryableTrustError from None
+        except Exception:
+            raise sign_error("ERR-SIGN-302") from None
+
+        try:
+            raw = sigstore_bundle.to_json().encode("utf-8")
+            reparsed_bundle = SigstoreBundle.from_json(raw)
+            issuer = identity_token.federated_issuer
+            identity = _certificate_identity(identity_token, issuer)
+            identity_policy = Identity(identity=identity, issuer=issuer)
+        except Exception:
+            raise sign_error("ERR-SIGN-305") from None
+
+        try:
+            online_config = online_config_future.result()
+        except Exception:
+            raise sign_error("ERR-SIGN-306") from None
+
+        try:
+            payload_type, payload = Verifier(trusted_root=online_config.trusted_root).verify_dsse(
+                reparsed_bundle, identity_policy
+            )
+            if payload_type != DSSE_PAYLOAD_TYPE or payload != expected_payload:
+                _invalid_bundle()
+        except Exception:
+            raise sign_error("ERR-SIGN-305") from None
 
     return _SuccessMessage(raw=raw, identity=identity, issuer=issuer)
 
@@ -178,11 +230,13 @@ def _signing_worker(
     """Run one signing attempt without exposing upstream diagnostics."""
     logging.disable(logging.CRITICAL)
     try:
-        message: _SuccessMessage | _FailureMessage = _sign_once(
+        message: _SuccessMessage | _FailureMessage | _RetryMessage = _sign_once(
             statement,
             environment,
             lambda stage: connection.send(_StageMessage(stage)),
         )
+    except _RetryableTrustError:
+        message = _RetryMessage()
     except SignError as error:
         message = _FailureMessage(error.code)
     except Exception:
@@ -210,7 +264,7 @@ def _receive_message(connection: _ReceiveConnection) -> _WorkerMessage | None:
         message = connection.recv()
     except (EOFError, OSError):
         return None
-    if isinstance(message, _StageMessage | _SuccessMessage | _FailureMessage):
+    if isinstance(message, _StageMessage | _SuccessMessage | _FailureMessage | _RetryMessage):
         return message
     return _FailureMessage("ERR-SIGN-305")
 
@@ -223,7 +277,7 @@ def _supervise_process(
     """Return a complete child result or terminate the process at its deadline."""
     deadline = time.monotonic() + timeout.total_seconds()
     stage: _WorkerStage | None = None
-    terminal: _SuccessMessage | _FailureMessage | None = None
+    terminal: _SuccessMessage | _FailureMessage | _RetryMessage | None = None
 
     while True:
         remaining = deadline - time.monotonic()
@@ -234,7 +288,7 @@ def _supervise_process(
                     break
                 if isinstance(message, _StageMessage):
                     stage = message.stage
-                elif isinstance(message, _SuccessMessage | _FailureMessage):
+                elif isinstance(message, _SuccessMessage | _FailureMessage | _RetryMessage):
                     terminal = message
             if process.is_alive():
                 _terminate_process(process)
@@ -245,7 +299,7 @@ def _supervise_process(
             message = _receive_message(connection)
             if isinstance(message, _StageMessage):
                 stage = message.stage
-            elif isinstance(message, _SuccessMessage | _FailureMessage):
+            elif isinstance(message, _SuccessMessage | _FailureMessage | _RetryMessage):
                 terminal = message
 
         if not process.is_alive():
@@ -256,12 +310,14 @@ def _supervise_process(
                     break
                 if isinstance(message, _StageMessage):
                     stage = message.stage
-                elif isinstance(message, _SuccessMessage | _FailureMessage):
+                elif isinstance(message, _SuccessMessage | _FailureMessage | _RetryMessage):
                     terminal = message
             if isinstance(terminal, _SuccessMessage):
                 return terminal
             if isinstance(terminal, _FailureMessage):
                 raise sign_error(terminal.code)
+            if isinstance(terminal, _RetryMessage):
+                raise _RetryableTrustError from None
             raise sign_error("ERR-SIGN-305")
 
 
@@ -431,6 +487,10 @@ class SigstoreSigner:
             except _AttemptTimeoutError as error:
                 if error.stage is _WorkerStage.REKOR or attempts >= _MAX_PRE_REKOR_ATTEMPTS:
                     raise sign_error("ERR-SIGN-304") from None
+                continue
+            except _RetryableTrustError:
+                if attempts >= _MAX_PRE_REKOR_ATTEMPTS:
+                    raise sign_error("ERR-SIGN-302") from None
                 continue
             return _bundle_from_success(success, self._environment)
 

@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import threading
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Never, cast
 
 import pytest
+from sigstore.errors import VerificationError as SigstoreVerificationError
 from sigstore.models import Bundle as SigstoreBundle
 from sigstore.oidc import IdentityToken
 
 from attest_core import Statement
+from attest_core.constants import DSSE_PAYLOAD_TYPE
 from attest_sign import Bundle, SigningEnvironment, SigstoreSigner
 from attest_sign import sigstore_signer as module
 from attest_sign.errors import SignError, sign_error
@@ -174,6 +178,25 @@ class _FakeIdentityPolicy:
         type(self).observed = (self._identity, self._issuer, certificate)
 
 
+class _FakeTrustConfig:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.trusted_root = f"{name}-root"
+
+
+class _FakeVerifier:
+    observed: tuple[object, object, object] | None = None
+
+    def __init__(self, *, trusted_root: object) -> None:
+        self._trusted_root = trusted_root
+
+    def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+        type(self).observed = (self._trusted_root, bundle, policy)
+        assert isinstance(policy, _FakeIdentityPolicy)
+        policy.verify(_FakeBundle.signing_certificate)
+        return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+
 class _FakeUpstreamSigner:
     def __init__(self, *, failure: Exception | None = None) -> None:
         self.failure = failure
@@ -213,14 +236,32 @@ def _install_successful_boundary(
     class FakeSigningContext:
         @classmethod
         def from_trust_config(cls, trust_config: object) -> _FakeContext:
-            assert trust_config == "staging-trust"
+            assert isinstance(trust_config, _FakeTrustConfig)
+            assert trust_config.name == "staging-bootstrap"
             return context
 
-    monkeypatch.setattr(module, "_load_trust_config", lambda environment: "staging-trust")
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        suffix = "bootstrap" if offline else "online"
+        return _FakeTrustConfig(f"staging-{suffix}")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
     monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
     monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
     monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
     monkeypatch.setattr(module, "Identity", _FakeIdentityPolicy)
+    monkeypatch.setattr(module, "Verifier", _FakeVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda statement: b"canonical-statement",
+        raising=False,
+    )
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: _FakeBundle(raw))
     monkeypatch.setattr(module, "to_sigstore_statement", lambda statement: object())
     monkeypatch.setenv(
         "GITHUB_WORKFLOW_REF",
@@ -557,24 +598,310 @@ def test_trust_configuration_maps_each_explicit_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """REQ-F06-070: each explicit environment selects only its matching root."""
+    calls: list[tuple[str, bool]] = []
 
     class FakeClientTrustConfig:
         @classmethod
-        def production(cls) -> str:
+        def production(cls, offline: bool = False) -> str:
+            calls.append(("production", offline))
             return "production-root"
 
         @classmethod
-        def staging(cls) -> str:
+        def staging(cls, offline: bool = False) -> str:
+            calls.append(("staging", offline))
             return "staging-root"
 
     monkeypatch.setattr(module, "ClientTrustConfig", FakeClientTrustConfig)
     production = next(item for item in SigningEnvironment if item.value == "production")
 
-    assert cast(str, module._load_trust_config(production)) == "production-root"
-    assert cast(str, module._load_trust_config(SigningEnvironment.STAGING)) == "staging-root"
+    assert cast(str, module._load_trust_config(production, offline=False)) == "production-root"
+    assert (
+        cast(str, module._load_trust_config(SigningEnvironment.STAGING, offline=True))
+        == "staging-root"
+    )
+    assert calls == [("production", False), ("staging", True)]
     with pytest.raises(SignError) as captured:
-        module._load_trust_config(cast(SigningEnvironment, "invalid"))
+        module._load_trust_config(cast(SigningEnvironment, "invalid"), offline=False)
     assert captured.value.code == "ERR-SIGN-306"
+
+
+@pytest.mark.ac("AC-F06-140")
+def test_online_trust_refresh_overlaps_signing_and_gates_success(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-140: signing overlaps refresh but cannot finish before fresh verification."""
+    online_started = threading.Event()
+    signing_completed = threading.Event()
+    release_online = threading.Event()
+    loads: list[tuple[SigningEnvironment, bool]] = []
+    reparsed = object()
+    observed: dict[str, object] = {}
+
+    class GatedSigner(_FakeUpstreamSigner):
+        def sign_dsse(self, supplied: object) -> _FakeBundle:
+            observed["signed_statement"] = supplied
+            assert online_started.wait(5)
+            signing_completed.set()
+            return _FakeBundle(json.dumps(_bundle_wire()).encode())
+
+    context = _FakeContext(GatedSigner())
+
+    class FakeSigningContext:
+        @classmethod
+        def from_trust_config(cls, trust_config: object) -> _FakeContext:
+            assert isinstance(trust_config, _FakeTrustConfig)
+            assert trust_config.name == "offline"
+            return context
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        loads.append((environment, offline))
+        if offline:
+            return _FakeTrustConfig("offline")
+        online_started.set()
+        assert release_online.wait(5)
+        return _FakeTrustConfig("online")
+
+    class RecordingIdentity:
+        def __init__(self, *, identity: str, issuer: str) -> None:
+            observed["policy"] = (identity, issuer)
+
+    class RecordingVerifier:
+        def __init__(self, *, trusted_root: object) -> None:
+            observed["trusted_root"] = trusted_root
+
+        def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+            observed["verified"] = (bundle, policy)
+            return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+    monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
+    monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
+    monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
+    monkeypatch.setattr(module, "Identity", RecordingIdentity)
+    monkeypatch.setattr(module, "Verifier", RecordingVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda supplied: b"canonical-statement",
+        raising=False,
+    )
+    signed_statement = object()
+    monkeypatch.setattr(module, "to_sigstore_statement", lambda supplied: signed_statement)
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: reparsed)
+    monkeypatch.setenv(
+        "GITHUB_WORKFLOW_REF",
+        "Org/Repo/.github/workflows/attest.yml@refs/heads/main",
+    )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(
+            module._sign_once,
+            statement,
+            SigningEnvironment.STAGING,
+            lambda stage: None,
+        )
+        assert signing_completed.wait(5)
+        assert not result.done()
+        release_online.set()
+        success = result.result(timeout=5)
+
+    expected_identity = "https://github.com/Org/Repo/.github/workflows/attest.yml@refs/heads/main"
+    assert loads == [
+        (SigningEnvironment.STAGING, True),
+        (SigningEnvironment.STAGING, False),
+    ]
+    assert observed["signed_statement"] is signed_statement
+    assert observed["policy"] == (expected_identity, _FakeToken.federated_issuer)
+    assert observed["trusted_root"] == "online-root"
+    verified_bundle, verified_policy = cast(tuple[object, object], observed["verified"])
+    assert verified_bundle is reparsed
+    assert isinstance(verified_policy, RecordingIdentity)
+    assert success.identity == expected_identity
+    assert success.issuer == _FakeToken.federated_issuer
+
+
+@pytest.mark.ac("AC-F06-140")
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        ("online", "ERR-SIGN-306"),
+        ("verify", "ERR-SIGN-305"),
+        ("payload-type", "ERR-SIGN-305"),
+        ("payload", "ERR-SIGN-305"),
+    ],
+)
+def test_refreshed_trust_failures_are_sanitized_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+    failure: str,
+    expected_code: str,
+) -> None:
+    """REQ-F06-140: no refresh or exact-payload failure can emit a successful Bundle."""
+    secret = "ghs_refreshed_trust_secret_must_not_escape"
+    context = _FakeContext(_FakeUpstreamSigner())
+
+    class FakeSigningContext:
+        @classmethod
+        def from_trust_config(cls, trust_config: object) -> _FakeContext:
+            assert isinstance(trust_config, _FakeTrustConfig)
+            return context
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        del environment
+        if not offline and failure == "online":
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("offline" if offline else "online")
+
+    class FailingVerifier:
+        def __init__(self, *, trusted_root: object) -> None:
+            assert trusted_root == "online-root"
+
+        def verify_dsse(self, bundle: object, policy: object) -> tuple[str, bytes]:
+            del bundle, policy
+            if failure == "verify":
+                raise RuntimeError(secret)
+            if failure == "payload-type":
+                return "text/plain", b"canonical-statement"
+            if failure == "payload":
+                return DSSE_PAYLOAD_TYPE, b"different-statement"
+            return DSSE_PAYLOAD_TYPE, b"canonical-statement"
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+    monkeypatch.setattr(module, "detect_credential", lambda: "secret-ambient-token")
+    monkeypatch.setattr(module, "IdentityToken", lambda credential: _FakeToken())
+    monkeypatch.setattr(module, "SigningContext", FakeSigningContext)
+    monkeypatch.setattr(module, "Identity", _FakeIdentityPolicy)
+    monkeypatch.setattr(module, "Verifier", FailingVerifier, raising=False)
+    monkeypatch.setattr(
+        module,
+        "canonical_statement_bytes",
+        lambda supplied: b"canonical-statement",
+        raising=False,
+    )
+    monkeypatch.setattr(module, "to_sigstore_statement", lambda supplied: object())
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: object())
+    monkeypatch.setenv(
+        "GITHUB_WORKFLOW_REF",
+        "Org/Repo/.github/workflows/attest.yml@refs/heads/main",
+    )
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == expected_code
+    assert secret not in str(captured.value)
+    assert captured.value.__cause__ is None
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_stale_bootstrap_waits_for_online_refresh_before_requesting_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: stale certificate trust retries only after refresh completes."""
+    online_started = threading.Event()
+    release_online = threading.Event()
+    stages: list[module._WorkerStage] = []
+    context = _FakeContext(
+        _FakeUpstreamSigner(),
+        enter_failure=SigstoreVerificationError("private stale SCT diagnostic"),
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            return _FakeTrustConfig("staging-bootstrap")
+        online_started.set()
+        assert release_online.wait(5)
+        return _FakeTrustConfig("staging-online")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(
+            module._sign_once,
+            statement,
+            SigningEnvironment.STAGING,
+            stages.append,
+        )
+        assert online_started.wait(5)
+        assert not result.done()
+        release_online.set()
+        with pytest.raises(module._RetryableTrustError) as captured:
+            result.result(timeout=5)
+
+    assert captured.value.__cause__ is None
+    assert stages == [
+        module._WorkerStage.IDENTITY,
+        module._WorkerStage.CONFIGURATION,
+        module._WorkerStage.FULCIO,
+    ]
+    assert context.upstream.calls == 0
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_stale_bootstrap_cannot_retry_without_successful_online_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: a failed mandatory refresh blocks the stale-trust retry."""
+    secret = "ghs_online_refresh_failure_must_not_escape"
+    context = _FakeContext(
+        _FakeUpstreamSigner(),
+        enter_failure=SigstoreVerificationError("private stale SCT diagnostic"),
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        if not offline:
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("staging-bootstrap")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-306"
+    assert secret not in str(captured.value)
+    assert captured.value.__cause__ is None
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_sigstore_verification_error_after_rekor_is_not_retryable(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: a post-Rekor Sigstore failure remains a Rekor-stage failure."""
+    context = _FakeContext(
+        _FakeUpstreamSigner(failure=SigstoreVerificationError("private Rekor diagnostic"))
+    )
+    _install_successful_boundary(monkeypatch, context)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-303"
+    assert captured.value.__cause__ is None
 
 
 @pytest.mark.parametrize(
@@ -610,6 +937,19 @@ def test_supervisor_returns_only_a_complete_success() -> None:
     actual = module._supervise_process(process, connection, timedelta(seconds=1))
 
     assert actual is expected
+    assert process.joined == [None]
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_supervisor_preserves_only_the_private_retry_signal() -> None:
+    """REQ-F06-150: the parent receives a typed signal without upstream text."""
+    connection = _QueueConnection([module._RetryMessage()])
+    process = _FakeProcess()
+
+    with pytest.raises(module._RetryableTrustError) as captured:
+        module._supervise_process(process, connection, timedelta(seconds=1))
+
+    assert captured.value.__cause__ is None
     assert process.joined == [None]
 
 
@@ -748,6 +1088,77 @@ def test_timeout_retries_only_before_rekor(
     assert len(attempts) == 1
 
 
+@pytest.mark.ac("AC-F06-150")
+def test_public_signer_retries_stale_bootstrap_once_within_shared_attempt_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: one fresh child may follow stale trust; a third never starts."""
+    attempts = 0
+
+    def retry_then_succeed(*arguments: object) -> module._SuccessMessage:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        if attempts == 1:
+            raise module._RetryableTrustError
+        return _success()
+
+    monkeypatch.setattr(module, "_execute_attempt", retry_then_succeed)
+    monkeypatch.setattr(SigstoreBundle, "from_json", lambda raw: object())
+    signer = SigstoreSigner(environment=SigningEnvironment.STAGING)
+
+    result = signer.sign(statement)
+
+    assert result.environment is SigningEnvironment.STAGING
+    assert attempts == 2
+
+    attempts = 0
+
+    def always_stale(*arguments: object) -> Never:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        raise module._RetryableTrustError
+
+    monkeypatch.setattr(module, "_execute_attempt", always_stale)
+
+    with pytest.raises(SignError) as captured:
+        signer.sign(statement)
+
+    assert captured.value.code == "ERR-SIGN-302"
+    assert captured.value.__cause__ is None
+    assert attempts == 2
+
+
+@pytest.mark.ac("AC-F06-120")
+@pytest.mark.ac("AC-F06-150")
+def test_stale_trust_and_timeout_share_the_two_attempt_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-120/150: mixed retry causes cannot create a third child."""
+    attempts = 0
+
+    def stale_then_timeout(*arguments: object) -> Never:
+        nonlocal attempts
+        del arguments
+        attempts += 1
+        if attempts == 1:
+            raise module._RetryableTrustError
+        raise module._AttemptTimeoutError(module._WorkerStage.FULCIO)
+
+    monkeypatch.setattr(module, "_execute_attempt", stale_then_timeout)
+    signer = SigstoreSigner(environment=SigningEnvironment.STAGING)
+
+    with pytest.raises(SignError) as captured:
+        signer.sign(statement)
+
+    assert captured.value.code == "ERR-SIGN-304"
+    assert captured.value.__cause__ is None
+    assert attempts == 2
+
+
 @pytest.mark.ac("AC-F06-120")
 def test_supervisor_terminates_a_hanging_process() -> None:
     """REQ-F06-120: the real process boundary cannot survive its deadline."""
@@ -825,3 +1236,23 @@ def test_worker_preserves_only_codes_and_tolerates_a_closed_parent(
     broken = _BrokenConnection()
     module._signing_worker(broken, statement, SigningEnvironment.STAGING)
     assert broken.closed
+
+
+@pytest.mark.ac("AC-F06-150")
+def test_worker_converts_stale_trust_to_a_text_free_retry_signal(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-150: the worker never serializes the upstream trust diagnostic."""
+
+    def request_retry(*arguments: object) -> Never:
+        del arguments
+        raise module._RetryableTrustError from None
+
+    monkeypatch.setattr(module, "_sign_once", request_retry)
+    connection = _CaptureConnection()
+
+    module._signing_worker(connection, statement, SigningEnvironment.STAGING)
+
+    assert connection.messages == [module._RetryMessage()]
+    assert connection.closed
