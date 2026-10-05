@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7"
+    "sha256:91deb4d8b29ad72b6f580060f950538a9ff04ef7c2d4161a9ef2babdbd4e7cf8"
 )
 
 
@@ -183,6 +183,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-190")
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-220")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -193,9 +194,10 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert triggers["push"]["branches"] == ["dev"]
     assert "workflow_dispatch" in triggers
     assert {
-        "release/patches/0.1.3-unchanged-libraries.toml",
+        "release/patches/0.1.5-unchanged-libraries.toml",
         "release/patches/0.1.1-store.toml",
-        "release/patches/0.1.3.toml",
+        "release/patches/0.1.1-sign.toml",
+        "release/patches/0.1.4.toml",
     } <= set(triggers["push"]["paths"])
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"]["cancel-in-progress"] is False
@@ -228,9 +230,10 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
     for manifest in (
-        "release/patches/0.1.3-unchanged-libraries.toml",
+        "release/patches/0.1.5-unchanged-libraries.toml",
         "release/patches/0.1.1-store.toml",
-        "release/patches/0.1.3.toml",
+        "release/patches/0.1.1-sign.toml",
+        "release/patches/0.1.4.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
     assert "org.opencontainers.image.version=0.1.5-candidate" in str(jobs["build"]["steps"])

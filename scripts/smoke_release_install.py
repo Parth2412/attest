@@ -20,10 +20,10 @@ PUBLISHED_IMPORTS: Final[dict[str, str]] = {
 EXPECTED_VERSIONS: Final[dict[str, str]] = {
     "attest-core": "0.1.0",
     "attest-collect": "0.1.0",
-    "attest-sign": "0.1.0",
+    "attest-sign": "0.1.1",
     "attest-store": "0.1.1",
     "attest-policy": "0.1.0",
-    "attest-cli": "0.1.3",
+    "attest-cli": "0.1.4",
 }
 
 
