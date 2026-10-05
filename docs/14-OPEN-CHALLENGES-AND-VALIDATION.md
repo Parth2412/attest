@@ -307,7 +307,7 @@ performance-target amendment or follow-up ADR is required.
 
 ## 11. `CH-09` — Is container cold start acceptable?
 
-**Status:** OPEN · **Blocks:** F-11 DoD · **Cost:** 1 day · Week 8
+**Status:** CLOSED · **Blocks:** F-11 DoD · **Cost:** 1 day · Week 8
 
 `REQ-F11-100` requires under 15 s p95. This is the one place the Python decision (`ADR-012`)
 carries measurable risk.
@@ -320,6 +320,23 @@ durations and use nearest-rank p95: observation 19. Do not substitute local Dock
 container-only probe, or a workflow duration that includes checkout (`ADR-046`).
 
 **Gate:** p95 under 15 s.
+
+**Outcome (2026-10-01):** Passed for the exact release gate after the documented `ADR-053`
+slim-runtime correction. The original run `36033851434`, attempt 1, failed with p50 16 s and
+nearest-rank p95 20 s. Exact release-commit run `36761068084`, attempt 1, then retained 20
+successful samples with p50 11 s and nearest-rank p95 14 s for commit
+`4e73dcaf888f15967da66826d48cca5ac6684fcb` and image
+`sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`. The reviewed image was
+released without rebuilding as `0.1.4`; immutable `v0.1.4` and `v1.0.4` records, public dogfood,
+same-repository proof, fork denial, and reviewed moving `v1` promotion all completed.
+
+The measurement remains fail-closed on every push. Post-release monitoring run `36872334911`
+measured p50 11 s and p95 16 s, and run `36905961561` measured p50 13 s and p95 17 s against the
+same image digest. Accepted `ADR-054` addresses that retained operational regression with a locked
+smaller runtime, digest-guarded single-interpreter path, and three consecutive 20-job gates plus a
+combined 60-sample gate before any `0.1.5`/`v1.0.5` record is created. The correction does not
+replace the exact attempt-1 release acceptance evidence that closed this challenge or mutate the
+immutable `0.1.4`/`v1.0.4` release.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
@@ -342,7 +359,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | OPEN | — | — | — |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911` and `36905961561` retained later p95 regressions; accepted `ADR-054` governs the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054` |
 
 ---
 
