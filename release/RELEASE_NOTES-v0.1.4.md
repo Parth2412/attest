@@ -1,0 +1,35 @@
+# attest 0.1.4 / GitHub Action v1.0.4
+
+This image-only correction reduces GitHub Action cold-start transfer cost while preserving the
+released Python package graph and public Action interface.
+
+## Changed artifacts
+
+- GitHub Action `v1.0.4` pins the reviewed multi-platform image manifest
+  `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`.
+- Image `0.1.4` uses digest-pinned `python:3.12.14-alpine3.23`, exact Alpine package
+  `git=2.52.0-r0`, removes unused runtime content, strips native extension symbols, precompiles
+  hot modules, archives standard-library code and pure-Python runtime packages, removes duplicate
+  bytecode caches, Python-only build/test tooling, unused native libraries, and non-product system
+  data, upgrades PyJWT to `2.15.1` and urllib3 to `2.8.0`, and publishes both runtime
+  manifests with four OCI zstd-compressed layers balanced across Docker's three concurrent
+  downloads.
+- Locked build and validation tooling upgrades virtualenv to `21.14.1`.
+- The candidate covers `linux/amd64` and `linux/arm64`, has zero vulnerability and secret
+  findings, and retains SBOM, maximum SLSA provenance, closed-context evidence, and an
+  identity-bound GitHub artifact attestation.
+- Product/source tag and immutable GitHub Release `v0.1.4` retain the exact candidate,
+  performance, promotion, asset-attestation, and production-dogfood evidence.
+
+No Python distribution is rebuilt or uploaded. The public package versions remain
+`attest-core==0.1.0`, `attest-collect==0.1.0`, `attest-sign==0.1.0`,
+`attest-store==0.1.1`, `attest-policy==0.1.0`, and `attest-cli==0.1.3`.
+
+## Upgrade
+
+Use immutable Action tag `v1.0.4` or its full release commit SHA. Public same-repository proof PR
+`Parth2412/attest-action-proof#6`, fork-denial PR #7, release evidence, and performance evidence
+verified; protected promotion run `36872903768` then moved `v1` from `v1.0.3` to the exact
+`v1.0.4` release commit.
+
+Every earlier Python file, image, source tag, Action tag, and GitHub Release remains immutable.

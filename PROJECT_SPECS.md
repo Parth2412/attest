@@ -3,9 +3,11 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; seven workspace packages at 0.1.0. F-01 through F-10 are
-  complete; F-11 is In progress under `ADR-046`; F-12 is Planned.
-- **Last Updated**: 2026-09-16
+- **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.4`,
+  immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-10 and the initial F-11
+  release are complete; the `ADR-054` F-11 reliability correction is In progress and F-12 is
+  Planned.
+- **Last Updated**: 2026-10-02
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -26,10 +28,12 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Pre-alpha implementation.** BOOT-001 and F-01 through F-10 are complete.
-  F-11 is In progress and F-12 is Planned in `BRD-INDEX §7.1`.
-- **Build Status**: Locked local and GitHub Actions gates are green on Python 3.12 and 3.13 across
-  Linux and macOS. Every pull request and `dev`/`main` push must retain this state.
+- **Development Stage**: **Public pre-alpha.** BOOT-001, F-01 through F-10, and the initial F-11
+  release are complete. F-11 is In progress only for the bounded `ADR-054` reliability correction;
+  F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and `ROADMAP-001`.
+- **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
+  across Linux and macOS. The separate fail-closed Action performance monitor is currently red as
+  recorded below; every required gate remains enforced rather than bypassed.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
@@ -39,16 +43,18 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The full local gate passes 1,100 tests with two intentional
-  environment-dependent skips.
+  entrypoint and startup contracts. The v1.0.4 reconciliation gate passes 1,226 tests with two
+  intentional environment-dependent skips and 14 explicitly deselected live tests.
 - **Known Issues**:
-  - F-11's delivery surface remains scaffolded while its accepted implementation/release contract
-    is executed; F-12 remains unimplemented.
-  - Six empirical challenges remain open. `CH-01` and `CH-02` closed on 2026-09-10; `CH-08`
-    closed on 2026-09-11 with a supported-Git monorepo benchmark.
-- **Next Milestone**: Implement F-11's closed Action wrapper and multi-platform candidate image,
-  then complete protected PyPI/GHCR/Action publication, dogfood, public-repository, fork, and
-  20-run performance proofs. F-12 later exposes `attest export`.
+  - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
+  - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
+    evidence are not complete.
+  - Exact release performance passed at p95 14 s, but fail-closed monitoring runs `36872334911`
+    and `36905961561` measured p95 16 s and 17 s against the same image digest. Accepted `ADR-054`
+    governs the locked `0.1.5`/`v1.0.5` correction and three-run release soak.
+- **Next Milestone**: Stabilise repeated Action cold-start measurements, enable and validate
+  production security automation, complete the remaining external M2 gates, close `CH-04` with
+  practising-auditor evidence, then implement F-12 and its clean-container export verification.
 
 ---
 
@@ -119,7 +125,7 @@ project/
 ├── spec/                   SPEC-001 mirror; pre-feature schema/vector placeholders
 ├── examples/{hooks/,workflows/}
 ├── action/{action.yml,Dockerfile}
-├── packages/               seven distributions; F-01–F-10 active, F-11–F-12 delivery surfaces scaffolded
+├── packages/               seven workspaces; six published distributions and F-12 scaffold
 ├── skills/                 three attest-specific agent skills
 └── agents/                 nine attest agent charters
 ```
@@ -143,7 +149,7 @@ out of order means inventing those contracts.
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
-| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ◐ in progress |
+| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ✓ done |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
 ### The two irreducible ideas (`MPD-001 §5.2`)
@@ -343,7 +349,7 @@ and must be updated in the same commit.
 | `CH-06` | Will anyone pay, and who signs? | Market | M3 exit | **OPEN** |
 | `CH-07` | Will anyone else implement the spec? | Strategic | standards thesis | **OPEN** |
 | `CH-08` | Does it hold at monorepo scale? | Technical | F-02 DoD | **CLOSED 2026-09-11** |
-| `CH-09` | Is container cold start acceptable? | Technical | F-11 DoD | **OPEN** |
+| `CH-09` | Is container cold start acceptable? | Technical | F-11 DoD | **CLOSED 2026-10-01** |
 
 `CH-02` assumption **C** was demonstrated by signing as identity X and confirming that
 verification constrained to identity Y failed. The comprehensive strict staging and library
@@ -356,6 +362,11 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-01**: Completed F-07, F-10, and F-11 after public v1.0.3 storage/CLI proof and the
+  `ADR-053` image-only v1.0.4 correction. Exact release run `36761068084` passed the 20-job gate at
+  p95 14 s; immutable release, production dogfood, same-repository and fork proofs, and protected
+  moving-major promotion run `36872903768` completed. The one-time v0.1.4 recovery workflow was
+  then retired while its immutable run and artifacts remained retained.
 - **2026-09-16**: Accepted `ADR-046` and started F-11 with a closed five-input Action contract,
   six-package product 0.1.0 publication scope, independent Action v1.0.0/v1 lifecycle, two-phase
   digest-reviewed release, and exact public repository, fork-safety, and 20-run performance proof.

@@ -3,34 +3,48 @@ name: release
 on:
   workflow_dispatch:
     inputs:
-      prior_publication_run_id:
-        description: Prior release run that published the exact PyPI artifacts
-        required: false
+      performance_run_id_1:
+        description: First consecutive attempt-1 performance run for this exact main commit
+        required: true
+        type: string
+      performance_run_id_2:
+        description: Second consecutive attempt-1 performance run for this exact main commit
+        required: true
+        type: string
+      performance_run_id_3:
+        description: Third consecutive attempt-1 performance run for this exact main commit
+        required: true
         type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-v0.1.1
+  group: release-v0.1.5
   cancel-in-progress: false
 
 env:
-  PRODUCT_VERSION: "0.1.1"
-  PRODUCT_TAG: v0.1.1
-  ACTION_VERSION_TAG: v1.0.1
+  PRODUCT_VERSION: "0.1.5"
+  PRODUCT_TAG: v0.1.5
+  ACTION_VERSION_TAG: v1.0.5
+  PUBLIC_CLI_VERSION: "0.1.3"
   IMAGE_NAME: ghcr.io/parth2412/attest
-  REVIEWED_IMAGE_DIGEST: sha256:0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3
-  FIRST_RELEASE_SHA: a1c59cc67bf67aba22ffca876309f855ea8663af
+  PRIOR_RELEASE_SHA: 4e73dcaf888f15967da66826d48cca5ac6684fcb
+  REVIEWED_CANDIDATE_RUN_ID: 37018503454
+  REVIEWED_CANDIDATE_SOURCE_SHA: e83a068f213f54c9253e2b77d2e5499643c2c672
+  REVIEWED_CONTEXT_DIGEST: sha256:e95c29f1cbfd9573e7ad3c7a2ba2333302cedcc0ee0879042e39ea16aa2a42f1
+  REVIEWED_IMAGE_DIGEST: sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7
 
 jobs:
   preflight:
     if: github.repository == 'Parth2412/attest' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       actions: read
+      attestations: read
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,8 +52,13 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Validate patch source and repository controls
+      - name: Validate source and immutable repository controls
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -48,259 +67,474 @@ jobs:
           test "${GITHUB_SHA}" = "$(git rev-parse HEAD)"
           test "$(git branch --show-current)" = "main"
           uv lock --check
+          mkdir -p release-preflight-evidence
+          git diff --quiet "${PRIOR_RELEASE_SHA}" "${GITHUB_SHA}" -- \
+            packages release/packages.toml release/patches
+          test "$(git rev-parse "${REVIEWED_CANDIDATE_SOURCE_SHA}:uv.lock")" \
+            = "$(git hash-object uv.lock)"
 
-          mkdir -p patch-preflight-evidence
           gh api "repos/${GITHUB_REPOSITORY}/rulesets" \
-            > patch-preflight-evidence/rulesets.json
+            > release-preflight-evidence/rulesets.json
           ruleset_id="$(jq -er \
             '.[] | select(.name == "Protect immutable release tags" and .target == "tag" and .enforcement == "active") | .id' \
-            patch-preflight-evidence/rulesets.json)"
+            release-preflight-evidence/rulesets.json)"
           gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}" \
-            > patch-preflight-evidence/tag-ruleset.json
+            > release-preflight-evidence/tag-ruleset.json
           jq -e '
             (.bypass_actors // []) == [] and
             (.conditions.ref_name.include | sort) ==
-              (["refs/tags/v0.1.0", "refs/tags/v0.1.1", "refs/tags/v1.0.0", "refs/tags/v1.0.1"] | sort) and
+              ([
+                "refs/tags/v0.1.0",
+                "refs/tags/v0.1.1",
+                "refs/tags/v0.1.2",
+                "refs/tags/v0.1.3",
+                "refs/tags/v0.1.4",
+                "refs/tags/v0.1.5",
+                "refs/tags/v1.0.0",
+                "refs/tags/v1.0.1",
+                "refs/tags/v1.0.2",
+                "refs/tags/v1.0.3",
+                "refs/tags/v1.0.4",
+                "refs/tags/v1.0.5"
+              ] | sort) and
             .conditions.ref_name.exclude == [] and
             ([.rules[].type] | sort) == (["deletion", "update"] | sort)
-          ' patch-preflight-evidence/tag-ruleset.json > /dev/null
-
-          gh api "repos/${GITHUB_REPOSITORY}/environments/pypi-attest-cli" \
-            > patch-preflight-evidence/pypi-attest-cli-environment.json
-          jq -e --arg owner "${GITHUB_REPOSITORY_OWNER}" '
-            .name == "pypi-attest-cli" and
-            .can_admins_bypass == false and
-            .deployment_branch_policy.protected_branches == true and
-            .deployment_branch_policy.custom_branch_policies == false and
-            ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
-            ([
-              .protection_rules[] |
-              select(.type == "required_reviewers") |
-              .prevent_self_review
-            ] == [false]) and
-            ([
-              .protection_rules[] |
-              select(.type == "required_reviewers") |
-              .reviewers[] |
-              {type, login: .reviewer.login}
-            ] == [{type: "User", login: $owner}])
-          ' patch-preflight-evidence/pypi-attest-cli-environment.json > /dev/null
+          ' release-preflight-evidence/tag-ruleset.json > /dev/null
 
           gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=100" \
-            > patch-preflight-evidence/main-ci-runs.json
+            > release-preflight-evidence/main-ci-runs.json
           jq -e --arg sha "${GITHUB_SHA}" \
-            'any(.workflow_runs[]; .head_sha == $sha and .conclusion == "success")' \
-            patch-preflight-evidence/main-ci-runs.json > /dev/null
+            'any(.workflow_runs[]; .head_sha == $sha and .run_attempt == 1 and .conclusion == "success")' \
+            release-preflight-evidence/main-ci-runs.json > /dev/null
 
-          for tag in v0.1.0 v1.0.0 v1; do
+          for tag in v0.1.4 v1.0.4 v1; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')" \
-              = "${FIRST_RELEASE_SHA}"
+              = "${PRIOR_RELEASE_SHA}"
           done
-          test "$(git tag --points-at "${FIRST_RELEASE_SHA}" | LC_ALL=C sort)" = $'v0.1.0\nv1\nv1.0.0'
           for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
-            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" > /dev/null 2>&1; then
-              echo "patch preflight: tag already exists: ${tag}" >&2
-              exit 1
+            if observed="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha' 2>/dev/null)"; then
+              test "${observed}" = "${GITHUB_SHA}"
             fi
           done
-          if gh release view "${PRODUCT_TAG}" > /dev/null 2>&1; then
-            echo "patch preflight: release already exists: ${PRODUCT_TAG}" >&2
-            exit 1
-          fi
 
-          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v0.1.0" \
-            > patch-preflight-evidence/first-release.json
-          jq -e --arg sha "${FIRST_RELEASE_SHA}" '
-            .tag_name == "v0.1.0" and
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v0.1.4" \
+            > release-preflight-evidence/prior-release.json
+          jq -e --arg sha "${PRIOR_RELEASE_SHA}" '
+            .tag_name == "v0.1.4" and
             .target_commitish == $sha and
             .draft == false and
             .prerelease == false and
             .immutable == true
-          ' patch-preflight-evidence/first-release.json > /dev/null
-
-          curl --fail --silent --show-error \
-            https://pypi.org/pypi/attest-cli/0.1.0/json \
-            > patch-preflight-evidence/attest-cli-pypi.json
-          jq -e '
-            .info.name == "attest-cli" and
-            .info.version == "0.1.0" and
-            ([.urls[].filename] | sort) == (
-              [
-                "attest_cli-0.1.0-py3-none-any.whl",
-                "attest_cli-0.1.0.tar.gz"
-              ] | sort
+          ' release-preflight-evidence/prior-release.json > /dev/null
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            > release-preflight-evidence/release-pages.json
+          jq -e --arg sha "${GITHUB_SHA}" --arg tag "${PRODUCT_TAG}" '
+            [.[][] | select(.tag_name == $tag)] as $matches |
+            ($matches | length) <= 1 and
+            (
+              ($matches | length) == 0 or
+              (
+                $matches[0].target_commitish == $sha and
+                $matches[0].prerelease == false and
+                (
+                  ($matches[0].draft == true and $matches[0].immutable == false) or
+                  ($matches[0].draft == false and $matches[0].immutable == true)
+                )
+              )
             )
-          ' patch-preflight-evidence/attest-cli-pypi.json > /dev/null
-
-          uv run --no-project python - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          project = tomllib.loads(
-              Path("packages/attest-cli/pyproject.toml").read_text(encoding="utf-8")
-          )["project"]
-          patch = tomllib.loads(
-              Path("release/patches/0.1.1.toml").read_text(encoding="utf-8")
-          )
-          dependencies = {
-              value for value in project["dependencies"] if value.startswith("attest-")
-          }
-          expected = {
-              "attest-core==0.1.0",
-              "attest-collect==0.1.0",
-              "attest-sign==0.1.0",
-              "attest-store==0.1.0",
-              "attest-policy==0.1.0",
-          }
-          if project["version"] != "0.1.1" or dependencies != expected:
-              raise SystemExit("CLI patch metadata differs from the closed contract")
-          if patch["release"] != {
-              "version": "0.1.1",
-              "distributions": ["attest-cli"],
-          }:
-              raise SystemExit("patch manifest differs from the closed distribution set")
-          if patch["compatibility"] != {
-              "library-version": "0.1.0",
-              "action-version": "v1.0.1",
-              "image": (
-                  "ghcr.io/parth2412/attest@sha256:"
-                  "0e5073cb4f2a9cc484f15aded43b7f0b8ac432a0a8b31fc401b7e361cd0509f3"
-              ),
-          }:
-              raise SystemExit("patch compatibility differs from the closed contract")
-          PY
-
-          current_image="$(awk '/^  image: docker:\/\// {sub(/^  image: docker:\/\//, ""); print}' action/action.yml)"
-          test "${current_image}" = "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"
-          if grep -F "github." action/action.yml > /dev/null; then
-            echo "patch preflight: Action metadata references an unsupported context" >&2
-            exit 1
-          fi
-
-          docker buildx imagetools inspect \
-            "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" --raw \
-            > patch-preflight-evidence/image-manifest.json
-          observed="sha256:$(sha256sum patch-preflight-evidence/image-manifest.json | cut -d ' ' -f 1)"
-          test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          manifest = json.loads(
-              Path("patch-preflight-evidence/image-manifest.json").read_text(encoding="utf-8")
-          )
-          platforms = {
-              f"{item['platform']['os']}/{item['platform']['architecture']}"
-              for item in manifest["manifests"]
-              if item["platform"]["os"] != "unknown"
-          }
-          if platforms != {"linux/amd64", "linux/arm64"}:
-              raise SystemExit(f"unexpected image platforms: {sorted(platforms)}")
-          PY
-      - name: Retain patch preflight evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: patch-preflight-evidence-v0.1.1
-          path: patch-preflight-evidence
-          if-no-files-found: error
-          retention-days: 90
-
-  build-cli:
-    needs: preflight
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 0, persist-credentials: false }
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
-      - name: Build and validate only the CLI patch
+          ' release-preflight-evidence/release-pages.json > /dev/null
+      - name: Validate the reviewed candidate run
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          uv build --package attest-cli --out-dir build/patch-dist \
-            --clear --no-create-gitignore
-          uv run --no-project python scripts/validate_release_artifacts.py \
-            build/patch-dist \
-            --manifest release/patches/0.1.1.toml \
-            --hash-output build/SHA256SUMS
-          mkdir -p build/release-assets
-          cp build/patch-dist/* build/release-assets/
-          cp build/SHA256SUMS build/release-assets/SHA256SUMS
-          git archive \
-            --format=tar.gz \
-            --prefix="attest-${PRODUCT_VERSION}/" \
-            --output="build/release-assets/attest-${PRODUCT_VERSION}-source.tar.gz" \
-            "${GITHUB_SHA}"
-          cd build/release-assets
-          sha256sum "attest-${PRODUCT_VERSION}-source.tar.gz" >> SHA256SUMS
-          LC_ALL=C sort --key=2 --output=SHA256SUMS SHA256SUMS
-          LC_ALL=C sort --check=quiet --key=2 SHA256SUMS
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REVIEWED_CANDIDATE_RUN_ID}" \
+            > release-preflight-evidence/candidate-run.json
+          jq -e \
+            --arg source "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --arg repository "${GITHUB_REPOSITORY}" '
+              .name == "action-candidate" and
+              .path == ".github/workflows/action-candidate.yml" and
+              .event == "push" and
+              .head_branch == "dev" and
+              .head_sha == $source and
+              .repository.full_name == $repository and
+              .status == "completed" and
+              .conclusion == "success" and
+              .run_attempt == 1
+            ' release-preflight-evidence/candidate-run.json > /dev/null
+      - name: Download the reviewed candidate build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: cli-distributions-v0.1.1
-          path: build/patch-dist
-          if-no-files-found: error
-          retention-days: 90
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          name: action-candidate-build-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-build
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed amd64 scan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-assets-v0.1.1
-          path: build/release-assets
+          name: action-candidate-scan-linux-amd64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-scan-amd64
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed arm64 scan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-scan-linux-arm64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-scan-arm64
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed candidate attestation evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-attestation-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-attestation
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Prove candidate context, image, scans, and identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --no-project python scripts/prepare_action_context.py \
+            "${RUNNER_TEMP}/release-action-context" \
+            --manifest-output release-preflight-evidence/current-context-manifest.json \
+            --digest-output release-preflight-evidence/current-context-digest.txt
+          uv run --no-project python scripts/validate_release_candidate.py \
+            --evidence-directory "${RUNNER_TEMP}/candidate-build" \
+            --current-context-manifest release-preflight-evidence/current-context-manifest.json \
+            --action-manifest action/action.yml \
+            --expected-context-digest "${REVIEWED_CONTEXT_DIGEST}" \
+            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}"
+
+          docker buildx imagetools inspect \
+            "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" --raw \
+            > release-preflight-evidence/live-image-manifest.json
+          observed="sha256:$(sha256sum release-preflight-evidence/live-image-manifest.json | cut -d ' ' -f 1)"
+          test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
+          cmp "${RUNNER_TEMP}/candidate-build/manifest.json" \
+            release-preflight-evidence/live-image-manifest.json
+          docker buildx imagetools inspect \
+            "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" --format '{{json .Image}}' \
+            > release-preflight-evidence/live-image-configs.json
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          images = json.loads(
+              Path("release-preflight-evidence/live-image-configs.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if set(images) != {"linux/amd64", "linux/arm64"}:
+              raise SystemExit(f"unexpected live image platforms: {sorted(images)}")
+          expected = {
+              "io.github.parth2412.attest.context-digest": os.environ[
+                  "REVIEWED_CONTEXT_DIGEST"
+              ],
+              "org.opencontainers.image.revision": os.environ[
+                  "REVIEWED_CANDIDATE_SOURCE_SHA"
+              ],
+              "org.opencontainers.image.source": "https://github.com/Parth2412/attest",
+              "org.opencontainers.image.version": "0.1.5-candidate",
+          }
+          for platform, image in images.items():
+              if image.get("config", {}).get("Labels") != expected:
+                  raise SystemExit(f"invalid image labels for {platform}")
+          PY
+
+          python3 scripts/check_action_scan.py \
+            "${RUNNER_TEMP}/candidate-scan-amd64/trivy-linux-amd64.json"
+          python3 scripts/check_action_scan.py \
+            "${RUNNER_TEMP}/candidate-scan-arm64/trivy-linux-arm64.json"
+          jq -e \
+            --arg imageRef "${IMAGE_NAME}:candidate-${REVIEWED_CANDIDATE_SOURCE_SHA}-${REVIEWED_CANDIDATE_RUN_ID}-1" \
+            --arg context "${REVIEWED_CONTEXT_DIGEST}" \
+            --arg image "${REVIEWED_IMAGE_DIGEST}" '
+              ."image-ref" == $imageRef and
+              ."context-digest" == $context and
+              ."image-digest" == $image
+            ' "${RUNNER_TEMP}/candidate-attestation/candidate-outputs.json" > /dev/null
+          gh attestation verify \
+            "oci://${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/action-candidate.yml" \
+            --source-digest "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --source-ref refs/heads/dev \
+            --deny-self-hosted-runners \
+            --format json \
+            > release-preflight-evidence/candidate-attestation-verification.json
+
+          cp "${RUNNER_TEMP}/candidate-build/context-manifest.json" \
+            release-preflight-evidence/candidate-context-manifest.json
+          cp "${RUNNER_TEMP}/candidate-build/manifest.json" \
+            release-preflight-evidence/candidate-image-manifest.json
+          cp "${RUNNER_TEMP}/candidate-build/manifest-linux-amd64.json" \
+            release-preflight-evidence/candidate-image-manifest-linux-amd64.json
+          cp "${RUNNER_TEMP}/candidate-build/manifest-linux-arm64.json" \
+            release-preflight-evidence/candidate-image-manifest-linux-arm64.json
+          cp "${RUNNER_TEMP}/candidate-build/sbom.spdx.json" \
+            release-preflight-evidence/candidate-image-sbom.spdx.json
+          cp "${RUNNER_TEMP}/candidate-build/provenance.slsa.json" \
+            release-preflight-evidence/candidate-image-provenance.slsa.json
+          cp "${RUNNER_TEMP}/candidate-scan-amd64/trivy-linux-amd64.json" \
+            release-preflight-evidence/candidate-scan-linux-amd64.json
+          cp "${RUNNER_TEMP}/candidate-scan-arm64/trivy-linux-arm64.json" \
+            release-preflight-evidence/candidate-scan-linux-arm64.json
+          cp "${RUNNER_TEMP}/candidate-attestation/candidate-outputs.json" \
+            release-preflight-evidence/candidate-outputs.json
+      - name: Validate the three consecutive performance runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_ids=(
+            "${PERFORMANCE_RUN_ID_1}"
+            "${PERFORMANCE_RUN_ID_2}"
+            "${PERFORMANCE_RUN_ID_3}"
+          )
+          expected_events=("push" "workflow_dispatch" "workflow_dispatch")
+          previous=0
+          for offset in 0 1 2; do
+            index=$((offset + 1))
+            run_id="${run_ids[${offset}]}"
+            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+            test "${run_id}" -gt "${previous}"
+            previous="${run_id}"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              > "release-preflight-evidence/performance-run-${index}.json"
+            jq -e \
+              --argjson runId "${run_id}" \
+              --arg sha "${GITHUB_SHA}" \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg event "${expected_events[${offset}]}" '
+                .id == $runId and
+                .name == "measure Action cold start" and
+                .path == ".github/workflows/action-performance.yml" and
+                .event == $event and
+                .head_branch == "main" and
+                .head_sha == $sha and
+                .repository.full_name == $repository and
+                .status == "completed" and
+                .conclusion == "success" and
+                .run_attempt == 1
+              ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null
+          done
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/action-performance.yml/runs?branch=main&per_page=100" \
+            > release-preflight-evidence/performance-runs.json
+          if ! jq -e \
+            --arg sha "${GITHUB_SHA}" \
+            --argjson one "${PERFORMANCE_RUN_ID_1}" \
+            --argjson two "${PERFORMANCE_RUN_ID_2}" \
+            --argjson three "${PERFORMANCE_RUN_ID_3}" '
+              [.workflow_runs[] | select(.head_sha == $sha)]
+              | sort_by(.run_number)
+              | (length >= 3 and (.[-3:] | map(.id)) == [$one, $two, $three])
+            ' release-preflight-evidence/performance-runs.json > /dev/null; then
+            echo "latest three exact-commit performance runs are not the supplied sequence" >&2
+            exit 1
+          fi
+      - name: Download performance evidence 1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_1 }}
+          path: ${{ runner.temp }}/performance-evidence-1
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ inputs.performance_run_id_1 }}
+      - name: Download performance evidence 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_2 }}
+          path: ${{ runner.temp }}/performance-evidence-2
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ inputs.performance_run_id_2 }}
+      - name: Download performance evidence 3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-performance-v1.0.5-${{ inputs.performance_run_id_3 }}
+          path: ${{ runner.temp }}/performance-evidence-3
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ inputs.performance_run_id_3 }}
+      - name: Recompute all performance results and the 60-sample gate
+        env:
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_ids=(
+            "${PERFORMANCE_RUN_ID_1}"
+            "${PERFORMANCE_RUN_ID_2}"
+            "${PERFORMANCE_RUN_ID_3}"
+          )
+          for offset in 0 1 2; do
+            index=$((offset + 1))
+            evidence="${RUNNER_TEMP}/performance-evidence-${index}"
+            run_id="${run_ids[${offset}]}"
+            cmp "${evidence}/source/action-performance.yml" \
+              .github/workflows/action-performance.yml
+            cmp "${evidence}/source/config.yaml" action/performance/config.yaml
+            cmp "${evidence}/source/policy.yaml" action/performance/policy.yaml
+            cmp "${evidence}/source/summarize_action_performance.py" \
+              scripts/summarize_action_performance.py
+            cmp "${evidence}/source/combine_action_performance.py" \
+              scripts/combine_action_performance.py
+            python scripts/summarize_action_performance.py \
+              --jobs "${evidence}/jobs.json" \
+              --metadata-directory "${evidence}/metadata" \
+              --config action/performance/config.yaml \
+              --policy action/performance/policy.yaml \
+              --output \
+                "release-preflight-evidence/recomputed-performance-summary-${index}.json" \
+              --repository "${GITHUB_REPOSITORY}" \
+              --run-id "${run_id}" \
+              --run-attempt 1 \
+              --head-sha "${GITHUB_SHA}" \
+              --expected-action-sha "${GITHUB_SHA}" \
+              --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
+              --expected-samples 20 \
+              --threshold-seconds 15 \
+              --require-run-attempt 1
+            cmp "${evidence}/summary.json" \
+              "release-preflight-evidence/recomputed-performance-summary-${index}.json"
+            cp "${evidence}/summary.json" \
+              "release-preflight-evidence/performance-summary-${index}.json"
+            cp "${evidence}/jobs.json" \
+              "release-preflight-evidence/performance-jobs-${index}.json"
+            for sample in "${evidence}"/metadata/sample-*.json; do
+              cp "${sample}" \
+                "release-preflight-evidence/performance-${index}-$(basename "${sample}")"
+            done
+          done
+          python scripts/combine_action_performance.py \
+            --summary release-preflight-evidence/performance-summary-1.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_1}" \
+            --summary release-preflight-evidence/performance-summary-2.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_2}" \
+            --summary release-preflight-evidence/performance-summary-3.json \
+            --expected-run-id "${PERFORMANCE_RUN_ID_3}" \
+            --output release-preflight-evidence/combined-performance-summary.json \
+            --repository "${GITHUB_REPOSITORY}" \
+            --head-sha "${GITHUB_SHA}" \
+            --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
+            --expected-runs 3 \
+            --expected-samples-per-run 20 \
+            --threshold-seconds 15
+          cp "${RUNNER_TEMP}/performance-evidence-1/source/action-performance.yml" \
+            release-preflight-evidence/performance-workflow.yml
+      - name: Retain release preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-preflight-evidence-v0.1.5
+          path: release-preflight-evidence
           if-no-files-found: error
+          include-hidden-files: false
           retention-days: 90
 
-  smoke-cli:
-    needs: build-cli
+  assemble-assets:
+    needs: preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.11.2"
-          python-version: ${{ matrix.python }}
-          enable-cache: false
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: cli-distributions-v0.1.1
-          path: dist
-      - name: Install and smoke-test the CLI patch
+          name: release-preflight-evidence-v0.1.5
+          path: preflight
+      - name: Assemble the image-only release assets
+        env:
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
-          uv venv build/patch-smoke --python "${{ matrix.python }}" --clear
-          uv pip install \
-            --python build/patch-smoke/bin/python \
-            --strict \
-            --no-cache \
-            dist/attest_cli-0.1.1-py3-none-any.whl
-          build/patch-smoke/bin/python - <<'PY'
-          from importlib import metadata
+          mkdir -p release-assets
+          cp action/action.yml release-assets/action-v1.0.5.yml
+          cp preflight/candidate-image-manifest.json \
+            release-assets/image-manifest-v0.1.5.json
+          cp preflight/candidate-image-manifest-linux-amd64.json \
+            release-assets/image-manifest-linux-amd64-v0.1.5.json
+          cp preflight/candidate-image-manifest-linux-arm64.json \
+            release-assets/image-manifest-linux-arm64-v0.1.5.json
+          cp preflight/candidate-image-sbom.spdx.json \
+            release-assets/image-sbom-v0.1.5.spdx.json
+          cp preflight/candidate-image-provenance.slsa.json \
+            release-assets/image-provenance-v0.1.5.slsa.json
+          cp preflight/performance-summary-1.json \
+            release-assets/performance-run-1-summary-v1.0.5.json
+          cp preflight/performance-summary-2.json \
+            release-assets/performance-run-2-summary-v1.0.5.json
+          cp preflight/performance-summary-3.json \
+            release-assets/performance-run-3-summary-v1.0.5.json
+          cp preflight/combined-performance-summary.json \
+            release-assets/performance-summary-v1.0.5.json
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
 
-          assert metadata.version("attest-cli") == "0.1.1"
-          for distribution in (
-              "attest-core",
-              "attest-collect",
-              "attest-sign",
-              "attest-store",
-              "attest-policy",
-          ):
-              assert metadata.version(distribution) == "0.1.0"
+          contract = {
+              "schemaVersion": 1,
+              "requirement": "REQ-F11-210",
+              "acceptanceCriterion": "AC-F11-210",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "releaseCommit": os.environ["GITHUB_SHA"],
+              "productVersion": os.environ["PRODUCT_VERSION"],
+              "productTag": os.environ["PRODUCT_TAG"],
+              "actionTag": os.environ["ACTION_VERSION_TAG"],
+              "publicCliVersion": os.environ["PUBLIC_CLI_VERSION"],
+              "pythonDistributionsPublished": False,
+              "candidate": {
+                  "runId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"]),
+                  "source": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
+                  "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
+                  "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
+              },
+              "performanceRunIds": [
+                  int(os.environ["PERFORMANCE_RUN_ID_1"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_2"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_3"]),
+              ],
+              "majorTagMoved": False,
+          }
+          Path("release-assets/release-contract-v0.1.5.json").write_text(
+              json.dumps(contract, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
           PY
-          build/patch-smoke/bin/attest --help > /dev/null
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets-v0.1.5
+          path: release-assets
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 90
 
   attest-artifacts:
-    needs: [build-cli, smoke-cli]
+    needs: assemble-assets
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -311,20 +545,20 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-assets-v0.1.1
+          name: release-assets-v0.1.5
           path: release-assets
-      - name: Attest the source and release artifacts
+      - name: Attest the image-only release assets
         id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: release-assets/*
-      - name: Publicly verify every GitHub artifact attestation
+      - name: Publicly verify every release asset attestation
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p patch-attestation-evidence
+          mkdir -p release-asset-attestation-evidence
           for subject in release-assets/*; do
             name="$(basename "${subject}")"
             gh attestation verify "${subject}" \
@@ -334,320 +568,89 @@ jobs:
               --source-ref refs/heads/main \
               --deny-self-hosted-runners \
               --format json \
-              > "patch-attestation-evidence/${name}.verification.json"
+              > "release-asset-attestation-evidence/${name}.verification.json"
           done
           cp "${{ steps.attest.outputs.bundle-path }}" \
-            patch-attestation-evidence/github-artifact-attestations.jsonl
+            release-asset-attestation-evidence/github-release-asset-attestations.jsonl
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-attestation-evidence-v0.1.1
-          path: patch-attestation-evidence
+          name: release-asset-attestation-evidence-v0.1.5
+          path: release-asset-attestation-evidence
           if-no-files-found: error
+          include-hidden-files: false
           retention-days: 90
 
-  inspect-publication:
-    needs: [build-cli, smoke-cli]
+  promote-image:
+    needs: preflight
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
-      actions: read
       contents: read
-    outputs:
-      publication-required: ${{ steps.inspect.outputs.publication-required }}
+      packages: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: cli-distributions-v0.1.1
-          path: dist
-      - name: Inspect the exact public CLI patch
-        id: inspect
-        env:
-          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Promote the exact candidate manifest without rebuilding
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p publication-state-evidence
-          status="$(curl \
-            --silent \
-            --show-error \
-            --output publication-state-evidence/attest-cli-0.1.1.json \
-            --write-out '%{http_code}' \
-            https://pypi.org/pypi/attest-cli/0.1.1/json)"
-          case "${status}" in
-            200)
-              if ! [[ "${PRIOR_PUBLICATION_RUN_ID}" =~ ^[1-9][0-9]*$ ]]; then
-                echo "publication inspection: an existing patch requires its prior run ID" >&2
-                exit 1
-              fi
-              uv run --no-project python scripts/verify_published_release.py \
-                dist \
-                --manifest release/patches/0.1.1.toml \
-                --version "${PRODUCT_VERSION}" \
-                | tee publication-state-evidence/existing-publication-verification.txt
-              publication_required=false
-              publication_state=existing-exact
-              ;;
-            404)
-              if test -n "${PRIOR_PUBLICATION_RUN_ID}"; then
-                echo "publication inspection: prior run ID supplied for an absent patch" >&2
-                exit 1
-              fi
-              publication_required=true
-              publication_state=absent
-              ;;
-            *)
-              echo "publication inspection: PyPI returned HTTP ${status}" >&2
+          release_image="${IMAGE_NAME}:${PRODUCT_VERSION}"
+          mkdir -p image-promotion-evidence
+          inspection_state=""
+          for attempt in $(seq 1 5); do
+            if docker buildx imagetools inspect "${release_image}" --raw \
+              > image-promotion-evidence/promoted-image-manifest.json \
+              2> image-promotion-evidence/initial-inspection.txt; then
+              inspection_state=present
+              break
+            fi
+            if grep -Eiq 'manifest unknown|manifest_unknown|not found' \
+              image-promotion-evidence/initial-inspection.txt; then
+              inspection_state=absent
+              break
+            fi
+            if test "${attempt}" = "5"; then
+              echo "image promotion: registry state remained indeterminate" >&2
               exit 1
-              ;;
-          esac
-          sha256sum dist/* | LC_ALL=C sort --key=2 \
-            > publication-state-evidence/rebuilt-cli-sha256.txt
-          export publication_required publication_state
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          evidence = {
-              "schemaVersion": 1,
-              "distribution": "attest-cli",
-              "version": os.environ["PRODUCT_VERSION"],
-              "state": os.environ["publication_state"],
-              "publicationRequired": os.environ["publication_required"] == "true",
-              "priorPublicationRunId": os.environ["PRIOR_PUBLICATION_RUN_ID"] or None,
-              "inspectionCommit": os.environ["GITHUB_SHA"],
-              "inspectionRunId": int(os.environ["GITHUB_RUN_ID"]),
-          }
-          Path("publication-state-evidence/publication-state.json").write_text(
-              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-          PY
-          echo "publication-required=${publication_required}" >> "${GITHUB_OUTPUT}"
-      - name: Validate the prior Trusted Publishing run
-        if: steps.inspect.outputs.publication-required == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_PUBLICATION_RUN_ID}" \
-            > publication-state-evidence/prior-publication-run.json
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_PUBLICATION_RUN_ID}/jobs?per_page=100" \
-            > publication-state-evidence/prior-publication-jobs.json
-          jq -e --arg repository "${GITHUB_REPOSITORY}" '
-            .repository.full_name == $repository and
-            .path == ".github/workflows/release.yml" and
-            .event == "workflow_dispatch" and
-            .head_branch == "main" and
-            (.conclusion == "success" or .conclusion == "failure")
-          ' publication-state-evidence/prior-publication-run.json > /dev/null
-          prior_sha="$(jq -er .head_sha publication-state-evidence/prior-publication-run.json)"
-          git merge-base --is-ancestor "${prior_sha}" "${GITHUB_SHA}"
-          jq -e '
-            any(.jobs[]; .name == "publish-cli" and .conclusion == "success")
-          ' publication-state-evidence/prior-publication-jobs.json > /dev/null
-      - name: Retrieve the prior Trusted Publishing evidence
-        if: steps.inspect.outputs.publication-required == 'false'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: trusted-publisher-evidence-attest-cli-v0.1.1
-          path: prior-trusted-publisher
-          run-id: ${{ inputs.prior_publication_run_id }}
-          github-token: ${{ github.token }}
-      - name: Validate and retain the prior Trusted Publishing evidence
-        if: steps.inspect.outputs.publication-required == 'false'
-        env:
-          PRIOR_PUBLICATION_RUN_ID: ${{ inputs.prior_publication_run_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import shutil
-          from pathlib import Path
-
-          source = Path("prior-trusted-publisher/attest-cli.json")
-          evidence = json.loads(source.read_text(encoding="utf-8"))
-          run = json.loads(
-              Path("publication-state-evidence/prior-publication-run.json").read_text(
-                  encoding="utf-8"
-              )
-          )
-          expected = {
-              "authentication": "oidc-trusted-publishing",
-              "distribution": "attest-cli",
-              "environment": "pypi-attest-cli",
-              "repository": os.environ["GITHUB_REPOSITORY"],
-              "releaseCommit": run["head_sha"],
-              "releaseRef": "refs/heads/main",
-              "releaseRunId": int(os.environ["PRIOR_PUBLICATION_RUN_ID"]),
-          }
-          for key, value in expected.items():
-              if evidence.get(key) != value:
-                  raise SystemExit(f"prior Trusted Publishing evidence mismatch: {key}")
-          if evidence.get("workflowRef") != (
-              f"{os.environ['GITHUB_REPOSITORY']}/.github/workflows/"
-              "release.yml@refs/heads/main"
-          ):
-              raise SystemExit("prior Trusted Publishing workflow identity mismatch")
-          shutil.copyfile(
-              source,
-              "publication-state-evidence/prior-trusted-publisher-attest-cli.json",
-          )
-          PY
+            fi
+            sleep 2
+          done
+          if test "${inspection_state}" = "present"; then
+            promotion_state=existing-exact
+          elif test "${inspection_state}" = "absent"; then
+            docker buildx imagetools create \
+              --tag "${release_image}" \
+              "${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"
+            docker buildx imagetools inspect "${release_image}" --raw \
+              > image-promotion-evidence/promoted-image-manifest.json
+            promotion_state=created
+          else
+            echo "image promotion: registry state was not classified" >&2
+            exit 1
+          fi
+          observed="sha256:$(sha256sum image-promotion-evidence/promoted-image-manifest.json | cut -d ' ' -f 1)"
+          test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
+          printf '%s\n' "${release_image}@${REVIEWED_IMAGE_DIGEST}" \
+            > image-promotion-evidence/release-image.txt
+          printf '%s\n' "${promotion_state}" \
+            > image-promotion-evidence/promotion-state.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: publication-state-evidence-v0.1.1
-          path: publication-state-evidence
+          name: image-promotion-evidence-v0.1.5
+          path: image-promotion-evidence
           if-no-files-found: error
-          retention-days: 90
-
-  publish-cli:
-    needs: [attest-artifacts, inspect-publication, smoke-cli]
-    if: needs.inspect-publication.outputs.publication-required == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment:
-      name: pypi-attest-cli
-      url: https://pypi.org/p/attest-cli
-    permissions:
-      actions: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: cli-distributions-v0.1.1
-          path: dist
-      - name: Record the bounded Trusted Publishing context
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
-          mkdir -p trusted-publisher-evidence
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          evidence = {
-              "schemaVersion": 1,
-              "authentication": "oidc-trusted-publishing",
-              "distribution": "attest-cli",
-              "environment": "pypi-attest-cli",
-              "repository": os.environ["GITHUB_REPOSITORY"],
-              "releaseCommit": os.environ["GITHUB_SHA"],
-              "releaseRef": os.environ["GITHUB_REF"],
-              "releaseRunAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
-              "releaseRunId": int(os.environ["GITHUB_RUN_ID"]),
-              "workflowRef": os.environ["GITHUB_WORKFLOW_REF"],
-              "publisherAction": (
-                  "pypa/gh-action-pypi-publish@"
-                  "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
-              ),
-          }
-          Path("trusted-publisher-evidence/attest-cli.json").write_text(
-              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-          PY
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: trusted-publisher-evidence-attest-cli-v0.1.1
-          path: trusted-publisher-evidence
-          if-no-files-found: error
-          retention-days: 90
-      - name: Publish the CLI patch with Trusted Publishing
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
-        with:
-          packages-dir: dist/
-          verify-metadata: true
-          skip-existing: false
-          print-hash: true
-          attestations: true
-
-  verify-published-cli:
-    needs: [attest-artifacts, inspect-publication, publish-cli]
-    if: >-
-      always() && needs.attest-artifacts.result == 'success' &&
-      needs.inspect-publication.result == 'success' &&
-      (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      actions: read
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version: "0.11.2"
-          python-version: ${{ matrix.python }}
-          enable-cache: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release-assets-v0.1.1
-          path: release-assets
-      - name: Verify public CLI bytes and clean installation
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p public-cli-evidence
-          uv run --no-project python scripts/verify_published_release.py \
-            release-assets \
-            --manifest release/patches/0.1.1.toml \
-            --version "${PRODUCT_VERSION}" \
-            | tee "public-cli-evidence/pypi-verification-python-${{ matrix.python }}.txt"
-          uv venv build/public-cli-smoke --python "${{ matrix.python }}" --clear
-          uv pip install \
-            --python build/public-cli-smoke/bin/python \
-            --strict \
-            --no-cache \
-            "attest-cli==${PRODUCT_VERSION}"
-          uv pip freeze --python build/public-cli-smoke/bin/python \
-            > "public-cli-evidence/installed-python-${{ matrix.python }}.txt"
-          build/public-cli-smoke/bin/python - <<'PY'
-          from importlib import metadata
-
-          assert metadata.version("attest-cli") == "0.1.1"
-          for distribution in (
-              "attest-core",
-              "attest-collect",
-              "attest-sign",
-              "attest-store",
-              "attest-policy",
-          ):
-              assert metadata.version(distribution) == "0.1.0"
-          PY
-          build/public-cli-smoke/bin/attest --help > /dev/null
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: public-cli-evidence-python-${{ matrix.python }}-v0.1.1
-          path: public-cli-evidence
-          if-no-files-found: error
+          include-hidden-files: false
           retention-days: 90
 
   dogfood:
-    needs: verify-published-cli
-    if: >-
-      always() && needs.verify-published-cli.result == 'success'
+    needs: promote-image
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      actions: read
       contents: read
       id-token: write
     env:
@@ -660,26 +663,33 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
-      - name: Install the public CLI patch in isolation
-        shell: bash
-        run: |
-          uv venv build/patch-dogfood --python 3.12 --clear
-          uv pip install \
-            --python build/patch-dogfood/bin/python \
-            --strict \
-            --no-cache \
-            "attest-cli==${PRODUCT_VERSION}"
-      - name: Attest and publicly verify the patch source
+      - name: Install the unchanged public CLI
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/release-evidence
-          build/patch-dogfood/bin/attest run \
-            --output "build/release-evidence/attest-${PRODUCT_TAG}.bundle.json" \
+          mkdir -p release-dogfood-evidence
+          uv venv build/release-dogfood --python 3.12 --clear
+          uv pip install \
+            --python build/release-dogfood/bin/python \
+            --strict \
+            --no-cache \
+            "attest-cli==${PUBLIC_CLI_VERSION}"
+          build/release-dogfood/bin/python - <<'PY'
+          from importlib import metadata
+
+          if metadata.version("attest-cli") != "0.1.3":
+              raise SystemExit("unexpected public CLI version")
+          PY
+      - name: Attest and publicly verify the release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          build/release-dogfood/bin/attest run \
+            --output "release-dogfood-evidence/attest-${PRODUCT_TAG}.bundle.json" \
             --repository . \
-            --work-directory build/release-evidence/work \
+            --work-directory release-dogfood-evidence/work \
             --policy release/attest-release-policy.yaml \
-            --base "${FIRST_RELEASE_SHA}" \
+            --base "${PRIOR_RELEASE_SHA}" \
             --head "${GITHUB_SHA}" \
             --target-branch main \
             --git-backend subprocess \
@@ -689,15 +699,15 @@ jobs:
             --verify-environment production \
             --online \
             --store-backend filesystem \
-            --store-directory build/release-evidence/store \
-            --fallback-directory build/release-evidence/fallback \
+            --store-directory release-dogfood-evidence/store \
+            --fallback-directory release-dogfood-evidence/fallback \
             --config release/attest-release-config.yaml \
             --json \
-            > build/release-evidence/attest-run-report.json
-          build/patch-dogfood/bin/attest verify \
-            --input "build/release-evidence/attest-${PRODUCT_TAG}.bundle.json" \
+            > release-dogfood-evidence/attest-run-report.json
+          build/release-dogfood/bin/attest verify \
+            --input "release-dogfood-evidence/attest-${PRODUCT_TAG}.bundle.json" \
             --repository . \
-            --base "${FIRST_RELEASE_SHA}" \
+            --base "${PRIOR_RELEASE_SHA}" \
             --head "${GITHUB_SHA}" \
             --identity "${RELEASE_IDENTITY}" \
             --issuer "${OIDC_ISSUER}" \
@@ -705,22 +715,22 @@ jobs:
             --online \
             --config release/attest-release-config.yaml \
             --json \
-            > build/release-evidence/public-verification.json
-      - name: Retain attest dogfood evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+            > release-dogfood-evidence/public-verification.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: attest-release-evidence-v0.1.1
-          path: build/release-evidence
+          name: release-dogfood-evidence-v0.1.5
+          path: release-dogfood-evidence
           if-no-files-found: error
           include-hidden-files: false
           retention-days: 90
 
   publish-release:
-    needs: [attest-artifacts, dogfood, verify-published-cli]
+    needs: [attest-artifacts, dogfood, promote-image]
     if: >-
-      always() && needs.attest-artifacts.result == 'success' &&
+      always() &&
+      needs.attest-artifacts.result == 'success' &&
       needs.dogfood.result == 'success' &&
-      needs.verify-published-cli.result == 'success'
+      needs.promote-image.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -733,13 +743,29 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-assets-v0.1.1
-          path: release-assets
+          name: release-assets-v0.1.5
+          path: retained/release-assets
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: "*-evidence*v0.1.1"
-          path: retained-evidence
-      - name: Assemble the retained release evidence index
+          name: release-preflight-evidence-v0.1.5
+          path: retained/preflight
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-asset-attestation-evidence-v0.1.5
+          path: retained/attestations
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-promotion-evidence-v0.1.5
+          path: retained/promotion
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-dogfood-evidence-v0.1.5
+          path: retained/dogfood
+      - name: Assemble the immutable release evidence index
+        env:
+          PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
+          PERFORMANCE_RUN_ID_2: ${{ inputs.performance_run_id_2 }}
+          PERFORMANCE_RUN_ID_3: ${{ inputs.performance_run_id_3 }}
         shell: bash
         run: |
           set -euo pipefail
@@ -752,24 +778,21 @@ jobs:
           from pathlib import Path
 
           root = Path("final-release-assets")
-          for source_root in (Path("release-assets"), Path("retained-evidence")):
-              for path in sorted(source_root.rglob("*"), key=lambda item: item.as_posix()):
-                  relative = path.relative_to(source_root)
-                  if any(part.startswith(".") for part in relative.parts):
-                      raise SystemExit(f"hidden retained evidence is forbidden: {path}")
-                  if path.is_dir() and not path.is_symlink():
-                      continue
-                  if not path.is_file() or path.is_symlink():
-                      raise SystemExit(f"invalid retained evidence: {path}")
-                  target = root / path.name
-                  if target.exists():
-                      raise SystemExit(f"duplicate release asset name: {path.name}")
-                  shutil.copyfile(path, target)
+          for path in sorted(Path("retained").rglob("*"), key=lambda item: item.as_posix()):
+              relative = path.relative_to("retained")
+              if any(part.startswith(".") for part in relative.parts):
+                  raise SystemExit(f"hidden retained evidence is forbidden: {path}")
+              if path.is_dir() and not path.is_symlink():
+                  continue
+              if not path.is_file() or path.is_symlink():
+                  raise SystemExit(f"invalid retained evidence: {path}")
+              target = root / path.name
+              if target.exists():
+                  raise SystemExit(f"duplicate release asset name: {path.name}")
+              shutil.copyfile(path, target)
 
           assets = []
           for path in sorted(root.iterdir(), key=lambda item: item.name):
-              if not path.is_file() or path.is_symlink():
-                  raise SystemExit(f"invalid release asset: {path}")
               content = path.read_bytes()
               assets.append(
                   {
@@ -782,14 +805,20 @@ jobs:
               "schemaVersion": 1,
               "repository": os.environ["GITHUB_REPOSITORY"],
               "releaseCommit": os.environ["GITHUB_SHA"],
-              "releaseRunId": os.environ["GITHUB_RUN_ID"],
-              "firstReleaseCommit": os.environ["FIRST_RELEASE_SHA"],
-              "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
-              "majorTagMoved": False,
-              "tags": [
-                  os.environ["PRODUCT_TAG"],
-                  os.environ["ACTION_VERSION_TAG"],
+              "releaseRunId": int(os.environ["GITHUB_RUN_ID"]),
+              "performanceRunIds": [
+                  int(os.environ["PERFORMANCE_RUN_ID_1"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_2"]),
+                  int(os.environ["PERFORMANCE_RUN_ID_3"]),
               ],
+              "candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"]),
+              "candidateSource": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
+              "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
+              "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
+              "publicCliVersion": os.environ["PUBLIC_CLI_VERSION"],
+              "pythonDistributionsPublished": False,
+              "majorTagMoved": False,
+              "tags": [os.environ["PRODUCT_TAG"], os.environ["ACTION_VERSION_TAG"]],
               "assets": assets,
           }
           (root / "release-evidence-index.json").write_text(
@@ -797,29 +826,80 @@ jobs:
               encoding="utf-8",
           )
           PY
-      - name: Create, verify, and publish the immutable patch Release
+      - name: Create, verify, and publish the immutable release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "${PRODUCT_TAG}" \
-            --target "${GITHUB_SHA}" \
-            --draft \
-            --title "attest CLI ${PRODUCT_VERSION} / Action v1.0.1" \
-            --notes-file release/RELEASE_NOTES-v0.1.1.md
-          gh release upload "${PRODUCT_TAG}" final-release-assets/*
+          release_state=absent
+          release_id=""
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            > release-pages.json
+          release_count="$(jq -r --arg tag "${PRODUCT_TAG}" \
+            '[.[][] | select(.tag_name == $tag)] | length' release-pages.json)"
+          test "${release_count}" -le 1
+          if test "${release_count}" = "1"; then
+            release_id="$(jq -r --arg tag "${PRODUCT_TAG}" \
+              '.[][] | select(.tag_name == $tag) | .id' release-pages.json)"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              > release-state.json
+            jq -e --arg sha "${GITHUB_SHA}" --arg tag "${PRODUCT_TAG}" '
+              .tag_name == $tag and
+              .target_commitish == $sha and
+              .prerelease == false
+            ' release-state.json > /dev/null
+            if jq -e '.draft == true' release-state.json > /dev/null; then
+              release_state=draft
+            elif jq -e '.draft == false and .immutable == true' \
+              release-state.json > /dev/null; then
+              release_state=published
+            else
+              echo "release publication: existing release is neither resumable nor immutable" >&2
+              exit 1
+            fi
+          fi
+
+          if test "${release_state}" = "absent"; then
+            gh release create "${PRODUCT_TAG}" \
+              --target "${GITHUB_SHA}" \
+              --draft \
+              --title "attest ${PRODUCT_VERSION} / Action ${ACTION_VERSION_TAG}" \
+              --notes-file release/RELEASE_NOTES-v0.1.5.md
+            release_state=draft
+            for attempt in $(seq 1 30); do
+              gh api --paginate --slurp \
+                "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+                > release-pages.json
+              release_count="$(jq -r --arg tag "${PRODUCT_TAG}" \
+                '[.[][] | select(.tag_name == $tag)] | length' release-pages.json)"
+              test "${release_count}" -le 1
+              release_id="$(jq -r --arg tag "${PRODUCT_TAG}" \
+                '.[][] | select(.tag_name == $tag) | .id' release-pages.json)"
+              if test -n "${release_id}"; then
+                break
+              fi
+              if test "${attempt}" = "30"; then
+                echo "release publication: draft release was not observed" >&2
+                exit 1
+              fi
+              sleep 2
+            done
+          fi
+          if test "${release_state}" = "draft"; then
+            gh release upload "${PRODUCT_TAG}" final-release-assets/* --clobber
+          fi
 
           for attempt in $(seq 1 30); do
-            gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              --jq ".[] | select(.tag_name == \"${PRODUCT_TAG}\" and .draft == true)" \
-              > release-draft.json
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              > release-state.json
             if python3 - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
-          release = json.loads(Path("release-draft.json").read_text(encoding="utf-8"))
+          release = json.loads(Path("release-state.json").read_text(encoding="utf-8"))
           remote = {item["name"]: item["digest"] for item in release["assets"]}
           local = {
               path.name: f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
@@ -827,23 +907,29 @@ jobs:
               if path.is_file()
           }
           if remote != local:
-              raise SystemExit("draft release assets differ from retained local evidence")
+              raise SystemExit("release assets differ from retained local evidence")
           PY
             then
               break
             fi
             if test "${attempt}" = "30"; then
-              echo "patch release: draft asset digests were not observed" >&2
+              echo "release publication: exact asset digests were not observed" >&2
               exit 1
             fi
             sleep 2
           done
 
-          gh release edit "${PRODUCT_TAG}" --draft=false --latest
+          if test "${release_state}" = "draft"; then
+            jq -n '{draft: false, make_latest: "true"}' \
+              | gh api --method PATCH \
+                "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+                --input - > release-publish-request.json
+          fi
           for attempt in $(seq 1 30); do
             gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PRODUCT_TAG}" \
               > release-published.json
-            if jq -e '
+            if jq -e --arg sha "${GITHUB_SHA}" '
+              .target_commitish == $sha and
               .draft == false and
               .prerelease == false and
               .immutable == true
@@ -851,18 +937,24 @@ jobs:
               break
             fi
             if test "${attempt}" = "30"; then
-              echo "patch release: immutable state was not observed" >&2
+              echo "release publication: immutable state was not observed" >&2
               exit 1
             fi
             sleep 10
           done
 
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-            --field ref="refs/tags/${ACTION_VERSION_TAG}" \
-            --field sha="${GITHUB_SHA}" > /dev/null
+          if action_sha="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/${ACTION_VERSION_TAG}" \
+            --jq '.object.sha' 2>/dev/null)"; then
+            test "${action_sha}" = "${GITHUB_SHA}"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --field ref="refs/tags/${ACTION_VERSION_TAG}" \
+              --field sha="${GITHUB_SHA}" > /dev/null
+          fi
           for tag in "${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq '.object.sha')" \
               = "${GITHUB_SHA}"
           done
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v1" --jq '.object.sha')" \
-            = "${FIRST_RELEASE_SHA}"
+            = "${PRIOR_RELEASE_SHA}"

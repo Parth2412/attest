@@ -48,13 +48,15 @@ cli-performance:
     uv run pytest packages/attest-cli/tests/test_cli_surface.py::test_ten_clean_installed_help_processes_each_finish_under_300ms -m performance
 
 package-contract:
-    uv build --package attest-core --out-dir build/release-dist --clear --no-create-gitignore
-    uv build --package attest-collect --out-dir build/release-dist --no-create-gitignore
-    uv build --package attest-sign --out-dir build/release-dist --no-create-gitignore
-    uv build --package attest-store --out-dir build/release-dist --no-create-gitignore
-    uv build --package attest-policy --out-dir build/release-dist --no-create-gitignore
-    uv build --package attest-cli --out-dir build/release-dist --no-create-gitignore
-    uv run --no-project python scripts/validate_release_artifacts.py build/release-dist --hash-output build/SHA256SUMS
+    uv build --package attest-core --out-dir build/library-dist --clear --no-create-gitignore
+    uv build --package attest-collect --out-dir build/library-dist --no-create-gitignore
+    uv build --package attest-sign --out-dir build/library-dist --no-create-gitignore
+    uv build --package attest-policy --out-dir build/library-dist --no-create-gitignore
+    uv run --no-project python scripts/validate_release_artifacts.py build/library-dist --manifest release/patches/0.1.3-unchanged-libraries.toml --hash-output build/LIBRARY-SHA256SUMS
+    uv build --package attest-store --out-dir build/store-dist --clear --no-create-gitignore
+    uv run --no-project python scripts/validate_release_artifacts.py build/store-dist --manifest release/patches/0.1.1-store.toml --hash-output build/STORE-SHA256SUMS
+    uv build --package attest-cli --out-dir build/cli-dist --clear --no-create-gitignore
+    uv run --no-project python scripts/validate_release_artifacts.py build/cli-dist --manifest release/patches/0.1.3.toml --hash-output build/CLI-SHA256SUMS
 
 action-contract:
     uv run --no-project python scripts/prepare_action_context.py build/action-context --manifest-output build/action-context-manifest.json --digest-output build/action-context.sha256
