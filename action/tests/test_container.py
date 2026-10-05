@@ -278,6 +278,7 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-210")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -372,7 +373,24 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "removed = ('aifc', 'cgi', 'cgitb', 'crypt', 'curses', 'dbm', 'nntplib', "
         "'ossaudiodev', 'sqlite3', 'telnetlib', 'tkinter', 'turtle', 'unittest', "
         "'venv', 'wsgiref', 'xmlrpc'); "
-        "assert all(find_spec(name) is None for name in removed)",
+        "assert all(find_spec(name) is None for name in removed); "
+        "assert find_spec('maturin') is None; "
+        "assert find_spec('setuptools') is None",
+    )
+    dynamic_crypto = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "from cryptography.hazmat.backends.openssl.backend import backend; "
+        "from cryptography.hazmat.primitives import hashes; "
+        "hashes.Hash(hashes.SHA256()).finalize(); "
+        "assert backend.openssl_version_text().startswith('OpenSSL 3.5.9 '); "
+        "maps = open('/proc/self/maps', encoding='utf-8').read(); "
+        "assert '/usr/lib/libcrypto.so.3' in maps",
     )
 
     assert inspected.returncode == 0, inspected.stderr
@@ -380,6 +398,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
     assert layout.returncode == 0, layout.stderr
     assert archive.returncode == 0, archive.stderr
     assert runtime.returncode == 0, runtime.stderr
+    assert dynamic_crypto.returncode == 0, dynamic_crypto.stderr
 
 
 @pytest.mark.container

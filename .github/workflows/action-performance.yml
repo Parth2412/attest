@@ -1,6 +1,7 @@
 name: measure Action cold start
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -10,6 +11,7 @@ on:
       - "packages/**"
       - "pyproject.toml"
       - "scripts/summarize_action_performance.py"
+      - "scripts/combine_action_performance.py"
       - "uv.lock"
 
 permissions:
@@ -58,7 +60,7 @@ jobs:
         env:
           ACTION_CONCLUSION: ${{ steps.action.outcome }}
           ACTION_SHA: ${{ github.sha }}
-          IMAGE_DIGEST: sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df
+          IMAGE_DIGEST: sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7
           SAMPLE: ${{ matrix.sample }}
         shell: bash
         run: |
@@ -179,6 +181,7 @@ jobs:
           cp action/performance/config.yaml performance-evidence/source/
           cp action/performance/policy.yaml performance-evidence/source/
           cp scripts/summarize_action_performance.py performance-evidence/source/
+          cp scripts/combine_action_performance.py performance-evidence/source/
       - name: Enforce the 20-job cold-start gate
         shell: bash
         run: |
@@ -194,7 +197,7 @@ jobs:
             --run-attempt "${GITHUB_RUN_ATTEMPT}" \
             --head-sha "${GITHUB_SHA}" \
             --expected-action-sha "${GITHUB_SHA}" \
-            --expected-image-digest "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df" \
+            --expected-image-digest "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7" \
             --expected-samples 20 \
             --threshold-seconds 15 \
             --require-run-attempt 1
@@ -214,13 +217,13 @@ jobs:
               performance-evidence/summary.json
             jq -r '"- Gate passed: \(.metric.passed)"' performance-evidence/summary.json
             echo "- Exact merged Action: \`${GITHUB_SHA}\`"
-            echo "- Image: \`sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df\`"
+            echo "- Image: \`sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7\`"
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain complete performance evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: action-performance-v1.0.4-${{ github.run_id }}
+          name: action-performance-v1.0.5-${{ github.run_id }}
           path: performance-evidence
           if-no-files-found: error
           retention-days: 90

@@ -19,8 +19,9 @@ PERFORMANCE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-
 PERFORMANCE_CONFIG: Final[Path] = REPOSITORY_ROOT / "action/performance/config.yaml"
 PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.yaml"
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
+COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df"
+IMAGE_DIGEST: Final[str] = "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_IDENTITY: Final[str] = (
@@ -72,6 +73,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     workflow = _workflow()
     assert workflow["name"] == "measure Action cold start"
     assert _triggers(workflow) == {
+        "workflow_dispatch": None,
         "push": {
             "branches": ["main"],
             "paths": [
@@ -81,9 +83,10 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
                 "packages/**",
                 "pyproject.toml",
                 "scripts/summarize_action_performance.py",
+                "scripts/combine_action_performance.py",
                 "uv.lock",
             ],
-        }
+        },
     }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
@@ -147,7 +150,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     rendered = PERFORMANCE_WORKFLOW.read_text(encoding="utf-8")
     assert "secrets." not in rendered
     assert "pull_request_target:" not in rendered
-    assert "workflow_dispatch:" not in rendered
+    assert "workflow_dispatch:" in rendered
     assert "docker pull" not in rendered
 
 
@@ -208,6 +211,9 @@ def test_performance_fixture_is_frozen_to_staging_and_exact_identity() -> None:
     assert "--expected-samples 20" in commands
     assert "--threshold-seconds 15" in commands
     assert "--require-run-attempt 1" in commands
+    assert "action-performance-v1.0.5-${{ github.run_id }}" in PERFORMANCE_WORKFLOW.read_text(
+        encoding="utf-8"
+    )
 
 
 def _timestamp(seconds: float) -> str:
@@ -377,3 +383,130 @@ def test_summarizer_fails_closed_on_incomplete_or_slow_evidence(
     assert output.exists()
     summary = json.loads(output.read_text(encoding="utf-8"))
     assert summary["metric"]["passed"] is False
+
+
+def _write_summary(path: Path, *, run_id: int, durations: list[float]) -> None:
+    ordered = sorted(durations)
+    p50 = ordered[9]
+    p95 = ordered[18]
+    payload = {
+        "schemaVersion": 1,
+        "requirement": "REQ-F11-100",
+        "acceptanceCriterion": "AC-F11-100",
+        "repository": "Parth2412/attest",
+        "workflowRun": {
+            "id": run_id,
+            "attempt": 1,
+            "url": f"https://github.com/Parth2412/attest/actions/runs/{run_id}",
+            "headSha": ACTION_SHA,
+        },
+        "action": {"commit": ACTION_SHA, "imageDigest": IMAGE_DIGEST},
+        "fixture": {
+            "signingEnvironment": "staging",
+            "verificationEnvironment": "staging",
+            "workflowIdentity": WORKFLOW_IDENTITY,
+            "configSha256": "1" * 64,
+            "policySha256": "2" * 64,
+        },
+        "metric": {
+            "definition": (
+                "Action step including image pull and wrapper/CLI work; checkout excluded"
+            ),
+            "sampleCount": 20,
+            "thresholdSecondsExclusive": 15.0,
+            "nearestRankP50Seconds": p50,
+            "nearestRankP95Seconds": p95,
+            "sortedSeconds": ordered,
+            "passed": p95 < 15,
+        },
+        "measurements": [
+            {
+                "sample": sample,
+                "jobId": run_id * 100 + sample,
+                "measuredSeconds": duration,
+            }
+            for sample, duration in enumerate(durations, start=1)
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _run_combiner(
+    tmp_path: Path,
+    *,
+    run_ids: tuple[int, int, int] = (40, 41, 42),
+    durations: tuple[list[float], list[float], list[float]] | None = None,
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    observed = durations or ([10.0] * 20, [11.0] * 20, [12.0] * 20)
+    summaries: list[Path] = []
+    for index, (run_id, values) in enumerate(zip(run_ids, observed, strict=True), start=1):
+        summary = tmp_path / f"summary-{index}.json"
+        _write_summary(summary, run_id=run_id, durations=values)
+        summaries.append(summary)
+    output = tmp_path / "combined.json"
+    command = [
+        sys.executable,
+        str(COMBINER),
+        "--output",
+        str(output),
+        "--repository",
+        "Parth2412/attest",
+        "--head-sha",
+        ACTION_SHA,
+        "--expected-image-digest",
+        IMAGE_DIGEST,
+        "--expected-runs",
+        "3",
+        "--expected-samples-per-run",
+        "20",
+        "--threshold-seconds",
+        "15",
+    ]
+    for run_id, summary in zip(run_ids, summaries, strict=True):
+        command.extend(("--expected-run-id", str(run_id), "--summary", str(summary)))
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    return result, output
+
+
+@pytest.mark.ac("AC-F11-210")
+def test_combiner_enforces_three_runs_and_the_combined_sixty_sample_p95(tmp_path: Path) -> None:
+    """REQ-F11-210: three passing 20-job runs also produce an independent 60-sample gate."""
+    result, output = _run_combiner(tmp_path)
+    assert result.returncode == 0, result.stderr
+    combined = json.loads(output.read_text(encoding="utf-8"))
+    assert combined["requirement"] == "REQ-F11-210"
+    assert combined["acceptanceCriterion"] == "AC-F11-210"
+    assert combined["performanceRunIds"] == [40, 41, 42]
+    assert combined["individualNearestRankP95Seconds"] == [10.0, 11.0, 12.0]
+    assert combined["metric"] == {
+        "definition": "Combined Action step durations from three consecutive hosted runs",
+        "sampleCount": 60,
+        "thresholdSecondsExclusive": 15.0,
+        "nearestRankP50Seconds": 11.0,
+        "nearestRankP95Seconds": 12.0,
+        "sortedSeconds": [10.0] * 20 + [11.0] * 20 + [12.0] * 20,
+        "passed": True,
+    }
+
+
+@pytest.mark.ac("AC-F11-210")
+@pytest.mark.parametrize(
+    ("run_ids", "durations", "message"),
+    [
+        ((40, 40, 42), None, "run IDs must be unique and strictly increasing"),
+        (
+            (40, 41, 42),
+            ([10.0] * 20, [11.0] * 20, [15.0] * 20),
+            "every individual run must pass",
+        ),
+    ],
+)
+def test_combiner_fails_closed_on_nonconsecutive_or_slow_evidence(
+    tmp_path: Path,
+    run_ids: tuple[int, int, int],
+    durations: tuple[list[float], list[float], list[float]] | None,
+    message: str,
+) -> None:
+    result, _ = _run_combiner(tmp_path, run_ids=run_ids, durations=durations)
+    assert result.returncode != 0
+    assert message in result.stderr

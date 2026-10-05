@@ -112,7 +112,7 @@ jobs:
   build:
     needs: validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -165,7 +165,7 @@ jobs:
             io.github.parth2412.attest.context-digest=${{ steps.context.outputs.digest }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=0.1.4-candidate
+            org.opencontainers.image.version=0.1.5-candidate
           sbom: true
           provenance: mode=max
       - name: Retain and validate the manifests, SBOM, and provenance
@@ -239,6 +239,63 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  test-image:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            slug: linux-amd64
+          - platform: linux/arm64
+            slug: linux-arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
+      - run: uv sync --locked --all-packages
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with: { platforms: "amd64,arm64" }
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Pull the exact candidate platform
+        env:
+          IMAGE_DIGEST: ${{ needs.build.outputs.image-digest }}
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${IMAGE_NAME}@${IMAGE_DIGEST}"
+          docker pull --platform "${PLATFORM}" "${image}"
+          docker tag "${image}" "attest-action-runtime:test"
+      - name: Run the real-container contract suite
+        env:
+          ATTEST_ACTION_IMAGE: attest-action-runtime:test
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/container-test-evidence"
+          uv run pytest action/tests/test_container.py -m container \
+            --junitxml "${RUNNER_TEMP}/container-test-evidence/${{ matrix.slug }}.xml"
+      - name: Retain platform container-test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: action-candidate-container-${{ matrix.slug }}-${{ github.sha }}
+          path: ${{ runner.temp }}/container-test-evidence
+          if-no-files-found: error
+          retention-days: 90
+
   scan:
     needs: build
     runs-on: ubuntu-24.04
@@ -288,7 +345,7 @@ jobs:
         run: python3 scripts/check_action_scan.py "trivy-${{ matrix.slug }}.json"
 
   attest:
-    needs: [build, scan]
+    needs: [build, test-image, scan]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
