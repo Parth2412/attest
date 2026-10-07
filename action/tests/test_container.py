@@ -215,6 +215,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
 
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-200")
+@pytest.mark.ac("AC-F11-220")
 def test_runtime_omits_build_and_nonproduct_facilities() -> None:
     result = _docker(
         "run",
@@ -223,7 +224,7 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
         "/bin/sh",
         _image(),
         "-c",
-        "test ! -e /usr/local/bin/pip && "
+        "set -x; test ! -e /usr/local/bin/pip && "
         "test ! -e /usr/local/bin/pip3 && "
         "test ! -e /usr/local/bin/pip3.12 && "
         "test ! -e /usr/local/bin/2to3 && "
@@ -244,10 +245,44 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
         "test ! -e /etc/apk && "
         "test ! -e /usr/bin/scanelf && "
         "test ! -e /usr/bin/git-shell && "
+        "test ! -e /usr/bin/awk && "
+        "test ! -e /usr/bin/wget && "
+        'test "$(/bin/busybox find /usr/bin -mindepth 1 -maxdepth 1 | '
+        '/bin/busybox wc -l)" -eq 3 && '
+        "test -e /usr/bin/git && "
+        "test -L /usr/bin/git-receive-pack && "
+        'test "$(/bin/busybox readlink /usr/bin/git-receive-pack)" = "git" && '
+        "test -L /usr/bin/git-upload-pack && "
+        'test "$(/bin/busybox readlink /usr/bin/git-upload-pack)" = "git" && '
         "test ! -e /usr/libexec/git-core/git-http-fetch && "
         "test ! -e /usr/libexec/git-core/git-http-push && "
         "test ! -e /usr/libexec/git-core/git-sh-i18n--envsubst && "
         "test ! -e /usr/libexec/git-core/mergetools && "
+        "test ! -e /usr/libexec/git-core/git-add && "
+        "test ! -e /usr/libexec/git-core/git-push && "
+        "test -e /usr/libexec/git-core/git-remote-http && "
+        "test -L /usr/libexec/git-core/git-remote-https && "
+        'test "$(/bin/busybox readlink /usr/libexec/git-core/git-remote-https)" '
+        '= "git-remote-http" && '
+        'test "$(/bin/busybox find /usr/libexec/git-core -mindepth 1 -maxdepth 1 | '
+        '/bin/busybox wc -l)" -eq 2 && '
+        "test -L /bin/sh && "
+        'test "$(/bin/busybox readlink /bin/sh)" = "/bin/busybox" && '
+        "test ! -e /sbin && "
+        "test ! -e /usr/sbin && "
+        "test ! -e /etc/inittab && "
+        "test ! -e /etc/periodic && "
+        "test -e /etc/alpine-release && "
+        "test -L /etc/os-release && "
+        'test "$(/bin/busybox readlink /etc/os-release)" = "../usr/lib/os-release" && '
+        'case "$(/bin/busybox cat /etc/alpine-release)" in '
+        "3.23.[0-9]*) true ;; *) false ;; esac && "
+        "test -L /etc/ssl/cert.pem && "
+        'test "$(/bin/busybox readlink /etc/ssl/cert.pem)" '
+        '= "certs/ca-certificates.crt" && '
+        "test -e /etc/ssl/certs/ca-certificates.crt && "
+        'test "$(/bin/busybox find /etc/ssl/certs -mindepth 1 -maxdepth 1 | '
+        '/bin/busybox wc -l)" -eq 1 && '
         "test ! -e /usr/lib/libapk.so.3 && "
         "test ! -e /usr/lib/libbrotlienc.so.1 && "
         "test ! -e /usr/lib/libexpat.so.1 && "
@@ -256,12 +291,16 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
         "test ! -e /usr/lib/libpcre2-posix.so.3 && "
         "test ! -e /usr/lib/libverto.so.1 && "
         "test ! -e /usr/lib/krb5 && "
+        'test "$(/bin/busybox find /lib -mindepth 1 -maxdepth 1 '
+        "-type l -name 'libc.musl-*.so.1' | /bin/busybox wc -l)\" -eq 1 && "
         "test -e /usr/share/zoneinfo/UTC && "
-        'test "$(find /usr/share/zoneinfo -type f | wc -l)" -eq 1 && '
-        'test "$(find /usr/local -type f | wc -l)" -le 100 && '
-        'test -z "$(find /usr/local/lib/python3.12 -maxdepth 1 '
+        'test "$(/bin/busybox find /usr/share/zoneinfo -type f | '
+        '/bin/busybox wc -l)" -eq 1 && '
+        'test "$(/bin/busybox find /usr/local -type f | '
+        '/bin/busybox wc -l)" -le 100 && '
+        'test -z "$(/bin/busybox find /usr/local/lib/python3.12 -maxdepth 1 '
         "-type d -name 'config-*' -print -quit)\" && "
-        'test -z "$(find /usr/local/lib/python3.12/lib-dynload -maxdepth 1 '
+        'test -z "$(/bin/busybox find /usr/local/lib/python3.12/lib-dynload -maxdepth 1 '
         "-type f \\( -name '_test*.so' -o -name '_ctypes_test.*.so' "
         "-o -name '_curses*.so' -o -name '_dbm*.so' -o -name '_gdbm*.so' "
         "-o -name '_sqlite3*.so' -o -name '_tkinter*.so' "
@@ -271,6 +310,42 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
         "-o -name 'xxsubtype.*.so' \\) -print -quit)\" && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip && "
         "test ! -e /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
+@pytest.mark.ac("AC-F07-040")
+@pytest.mark.ac("AC-F11-220")
+def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> None:
+    source = docker_mount_root / "source"
+    _initialize_repository(source)
+    remote = docker_mount_root / "remote.git"
+    remote.mkdir()
+    _git(remote, "init", "--bare")
+    consumer = docker_mount_root / "consumer"
+    consumer.mkdir()
+    _git(consumer, "init")
+
+    result = _docker(
+        "run",
+        "--rm",
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
+        "--volume",
+        f"{docker_mount_root}:/fixtures",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "git -C /fixtures/source push --porcelain -- "
+        "/fixtures/remote.git HEAD:refs/attestations/test && "
+        'test -n "$(git ls-remote --refs /fixtures/remote.git '
+        'refs/attestations/test)" && '
+        "git -C /fixtures/consumer fetch --quiet --no-tags "
+        "--no-write-fetch-head --no-recurse-submodules --refmap= "
+        "/fixtures/remote.git refs/attestations/test",
     )
 
     assert result.returncode == 0, result.stderr
@@ -308,7 +383,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "test ! -e /opt/venv/lib/python3.12/site-packages/pygments.zip && "
         "test ! -e /opt/venv/lib/python3.12/site-packages/pygments-archive.pth && "
         "test ! -e /opt/venv/lib/python3.12/site-packages/pygments-2.21.0.dist-info && "
-        'test -z "$(find /usr/local/lib/python3.12 /opt/venv '
+        'test -z "$(/bin/busybox find /usr/local/lib/python3.12 /opt/venv '
         '-type d -name __pycache__ -print -quit)"',
     )
     archive = _docker(
@@ -343,6 +418,12 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert not id.__file__.startswith(runtime_path); "
         "assert callable(detect_github); "
         "assert importlib.metadata.version('attest-cli') == '0.1.4'; "
+        "metadata_roots = list(pathlib.Path(root).glob('*.dist-info')); "
+        "assert len(metadata_roots) == 51; "
+        "assert all((metadata / 'METADATA').is_file() for metadata in metadata_roots); "
+        "assert not any(path.name in {'RECORD', 'WHEEL', 'INSTALLER', 'REQUESTED', "
+        "'direct_url.json', 'entry_points.txt', 'top_level.txt'} "
+        "for metadata in metadata_roots for path in metadata.iterdir()); "
         "assert pathlib.Path(root + 'attest-runtime-archive.pth').read_text() == "
         "runtime_path + '\\n'; "
         "runtime_entries = zipfile.ZipFile(runtime_path).infolist(); "
