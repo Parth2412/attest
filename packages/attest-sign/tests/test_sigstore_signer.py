@@ -661,6 +661,7 @@ def test_online_trust_refresh_overlaps_signing_and_gates_success(
     ) -> _FakeTrustConfig:
         loads.append((environment, offline))
         if offline:
+            assert online_started.wait(5)
             return _FakeTrustConfig("offline")
         online_started.set()
         assert release_online.wait(5)
@@ -711,10 +712,8 @@ def test_online_trust_refresh_overlaps_signing_and_gates_success(
         success = result.result(timeout=5)
 
     expected_identity = "https://github.com/Org/Repo/.github/workflows/attest.yml@refs/heads/main"
-    assert loads == [
-        (SigningEnvironment.STAGING, True),
-        (SigningEnvironment.STAGING, False),
-    ]
+    assert sorted(offline for _, offline in loads) == [False, True]
+    assert all(environment is SigningEnvironment.STAGING for environment, _ in loads)
     assert observed["signed_statement"] is signed_statement
     assert observed["policy"] == (expected_identity, _FakeToken.federated_issuer)
     assert observed["trusted_root"] == "online-root"

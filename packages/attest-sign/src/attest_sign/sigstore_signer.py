@@ -155,14 +155,6 @@ def _sign_once(
         raise sign_error("ERR-SIGN-301") from None
 
     emit_stage(_WorkerStage.CONFIGURATION)
-    try:
-        bootstrap_config = _load_trust_config(environment, offline=True)
-        signing_context = SigningContext.from_trust_config(bootstrap_config)
-    except SignError:
-        raise
-    except Exception:
-        raise sign_error("ERR-SIGN-306") from None
-
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix="attest-sigstore-trust") as executor:
         try:
             online_config_future = executor.submit(
@@ -170,6 +162,14 @@ def _sign_once(
                 environment,
                 offline=False,
             )
+        except Exception:
+            raise sign_error("ERR-SIGN-306") from None
+
+        try:
+            bootstrap_config = _load_trust_config(environment, offline=True)
+            signing_context = SigningContext.from_trust_config(bootstrap_config)
+        except SignError:
+            raise
         except Exception:
             raise sign_error("ERR-SIGN-306") from None
 

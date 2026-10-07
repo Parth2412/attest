@@ -347,6 +347,18 @@ for path in archive_members:
 for root in roots:
     for cache in sorted(root.rglob("__pycache__"), reverse=True):
         shutil.rmtree(cache)
+for metadata_root in sorted(site_packages.glob("*.dist-info")):
+    for path in sorted(metadata_root.iterdir()):
+        if (
+            path.name == "METADATA"
+            or path.name == "licenses"
+            or path.name.startswith(("LICENSE", "COPYING", "NOTICE"))
+        ):
+            continue
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
 for directory in sorted(standard_library.rglob("*"), reverse=True):
     if directory.is_dir():
         try:
@@ -358,26 +370,58 @@ PYTHON
 FROM scratch AS system-lib
 COPY --from=runtime /usr/lib /usr/lib
 
+FROM runtime AS system-git-files
+RUN destination=/split \
+    && mkdir -p \
+        "${destination}/usr/bin" \
+        "${destination}/usr/libexec/git-core" \
+    && cp /usr/bin/git "${destination}/usr/bin/git" \
+    && ln -s git "${destination}/usr/bin/git-receive-pack" \
+    && ln -s git "${destination}/usr/bin/git-upload-pack" \
+    && cp \
+        /usr/libexec/git-core/git-remote-http \
+        "${destination}/usr/libexec/git-core/git-remote-http" \
+    && ln -s \
+        git-remote-http \
+        "${destination}/usr/libexec/git-core/git-remote-https"
+
 FROM scratch AS system-git
-COPY --from=runtime /usr/bin /usr/bin
-COPY --from=runtime /usr/libexec /usr/libexec
+COPY --from=system-git-files /split/ /
+
+FROM runtime AS system-core-files
+RUN destination=/split \
+    && mkdir -p \
+        "${destination}/bin" \
+        "${destination}/etc/ssl/certs" \
+        "${destination}/lib" \
+        "${destination}/usr/share/zoneinfo" \
+    && mkdir -m 1777 "${destination}/tmp" \
+    && cp /bin/busybox "${destination}/bin/busybox" \
+    && ln -s /bin/busybox "${destination}/bin/sh" \
+    && cp \
+        /etc/alpine-release \
+        /etc/group \
+        /etc/passwd \
+        "${destination}/etc/" \
+    && ln -s ../usr/lib/os-release "${destination}/etc/os-release" \
+    && cp \
+        /etc/ssl/certs/ca-certificates.crt \
+        "${destination}/etc/ssl/certs/ca-certificates.crt" \
+    && ln -s certs/ca-certificates.crt "${destination}/etc/ssl/cert.pem" \
+    && cp \
+        /etc/ssl/ct_log_list.cnf \
+        /etc/ssl/openssl.cnf \
+        "${destination}/etc/ssl/" \
+    && cp -a \
+        /lib/ld-musl-*.so.1 \
+        /lib/libc.musl-*.so.1 \
+        "${destination}/lib/" \
+    && cp \
+        /usr/share/zoneinfo/UTC \
+        "${destination}/usr/share/zoneinfo/UTC"
 
 FROM scratch AS system-core
-COPY --from=runtime /bin /bin
-COPY --from=runtime /etc /etc
-COPY --from=runtime /home /home
-COPY --from=runtime /lib /lib
-COPY --from=runtime /media /media
-COPY --from=runtime /mnt /mnt
-COPY --from=runtime /root /root
-COPY --from=runtime /run /run
-COPY --from=runtime /sbin /sbin
-COPY --from=runtime /srv /srv
-COPY --from=runtime /tmp /tmp
-COPY --from=runtime /usr/sbin /usr/sbin
-COPY --from=runtime /usr/share /usr/share
-COPY --from=runtime /usr/src /usr/src
-COPY --from=runtime /var /var
+COPY --from=system-core-files /split/ /
 
 FROM runtime AS python-lib
 RUN rm -rf \
