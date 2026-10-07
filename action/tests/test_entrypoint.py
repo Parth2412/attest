@@ -977,6 +977,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-220")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1042,9 +1043,29 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'and "__pycache__" not in path.parts' in dockerfile
     assert 'and path.suffix in {".py", ".pyc"}' in dockerfile
     assert 'for cache in sorted(root.rglob("__pycache__"), reverse=True)' in dockerfile
+    assert 'for metadata_root in sorted(site_packages.glob("*.dist-info"))' in dockerfile
+    assert 'path.name == "METADATA"' in dockerfile
+    assert 'path.name == "licenses"' in dockerfile
+    assert 'path.name.startswith(("LICENSE", "COPYING", "NOTICE"))' in dockerfile
     assert "FROM scratch AS system-lib" in dockerfile
+    assert "FROM runtime AS system-git-files" in dockerfile
     assert "FROM scratch AS system-git" in dockerfile
+    assert "FROM runtime AS system-core-files" in dockerfile
     assert "FROM scratch AS system-core" in dockerfile
+    assert 'cp /usr/bin/git "${destination}/usr/bin/git"' in dockerfile
+    assert 'ln -s git "${destination}/usr/bin/git-receive-pack"' in dockerfile
+    assert 'ln -s git "${destination}/usr/bin/git-upload-pack"' in dockerfile
+    assert 'ln -s /bin/busybox "${destination}/bin/sh"' in dockerfile
+    assert 'ln -s ../usr/lib/os-release "${destination}/etc/os-release"' in dockerfile
+    assert 'ln -s certs/ca-certificates.crt "${destination}/etc/ssl/cert.pem"' in dockerfile
+    assert "COPY --from=system-git-files /split/ /" in dockerfile
+    assert "COPY --from=system-core-files /split/ /" in dockerfile
+    assert "COPY --from=runtime /usr/bin /usr/bin" not in dockerfile
+    assert "COPY --from=runtime /usr/libexec /usr/libexec" not in dockerfile
+    assert "COPY --from=runtime /bin /bin" not in dockerfile
+    assert "COPY --from=runtime /etc /etc" not in dockerfile
+    assert "COPY --from=runtime /sbin /sbin" not in dockerfile
+    assert "COPY --from=runtime /usr/sbin /usr/sbin" not in dockerfile
     assert "FROM runtime AS python-lib" in dockerfile
     assert "FROM scratch AS python-dynload" in dockerfile
     assert "FROM scratch AS python-rest" in dockerfile
