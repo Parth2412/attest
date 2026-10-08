@@ -485,6 +485,48 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-220")
+def test_runtime_native_extensions_reuse_the_pinned_system_libgcc() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import pathlib; "
+        "from pydantic_core import SchemaValidator; "
+        "from rfc3161_client import HashAlgorithm, TimestampRequestBuilder; "
+        "from rpds import HashTrieMap; "
+        "from sigstore.models import ClientTrustConfig; "
+        "root = pathlib.Path('/opt/venv/lib/python3.12/site-packages'); "
+        "system = pathlib.Path('/usr/lib/libgcc_s.so.1'); "
+        "directories = tuple(root / name for name in "
+        "('pydantic_core.libs', 'rfc3161_client.libs', 'rpds_py.libs')); "
+        "paths = tuple(next(directory.glob('libgcc_s-*.so.1')) "
+        "for directory in directories); "
+        "assert system.is_file() and not system.is_symlink(); "
+        "assert all(len(tuple(directory.glob('libgcc_s-*.so.1'))) == 1 "
+        "for directory in directories); "
+        "assert tuple(sorted(root.rglob('libgcc_s*.so*'))) == "
+        "tuple(sorted(paths)); "
+        "assert all(path.is_symlink() and path.readlink() == system for path in paths); "
+        "assert SchemaValidator({'type': 'int'}).validate_python('7') == 7; "
+        "assert TimestampRequestBuilder(data=b'attest', "
+        "hash_algorithm=HashAlgorithm.SHA256).build() is not None; "
+        "assert HashTrieMap({'attest': 1})['attest'] == 1; "
+        "assert ClientTrustConfig.production(offline=True).trusted_root is not None; "
+        "maps = pathlib.Path('/proc/self/maps').read_text(encoding='utf-8'); "
+        "assert str(system) in maps; "
+        "assert all(str(path) not in maps for path in paths)",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
 def test_precompiled_runtime_verifies_the_historical_bundle_offline() -> None:
