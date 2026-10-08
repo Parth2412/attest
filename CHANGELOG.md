@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added the ADR-057 bounded acquisition correction: ambient OIDC and mandatory online trust now
+  start concurrently, each transient network boundary receives at most one retry before success,
+  and no retry can duplicate the signer context or Rekor submission.
 - Implemented the ADR-055/ADR-056 signing correction with mandatory concurrent online trust
   refresh, refreshed-root exact-payload verification, and bounded stale-bootstrap recovery; prepared
   only `attest-sign 0.1.1` and exact-pinned `attest-cli 0.1.4` for protected Trusted Publishing,

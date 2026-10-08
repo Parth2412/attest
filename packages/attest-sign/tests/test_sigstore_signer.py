@@ -285,7 +285,7 @@ def test_one_context_signs_with_ambient_identity_and_validates_certificate(
 
     result = module._sign_once(statement, SigningEnvironment.STAGING, stages.append)
 
-    assert [stage.value for stage in stages] == ["identity", "configuration", "fulcio", "rekor"]
+    assert [stage.value for stage in stages] == ["configuration", "identity", "fulcio", "rekor"]
     assert len(context.signer_calls) == 1
     assert isinstance(context.signer_calls[0][0], _FakeToken)
     assert context.signer_calls[0][1] == {}
@@ -308,15 +308,59 @@ def test_missing_ambient_identity_is_noninteractive_and_actionable(
 ) -> None:
     """REQ-F06-040: missing ambient OIDC fails without opening an interactive flow."""
     monkeypatch.setattr(module, "_load_trust_config", lambda environment: object())
-    monkeypatch.setattr(module, "detect_credential", lambda: None)
+    detection_calls = 0
+
+    def missing_credential() -> None:
+        nonlocal detection_calls
+        detection_calls += 1
+
+    monkeypatch.setattr(module, "detect_credential", missing_credential)
 
     with pytest.raises(SignError) as captured:
         module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
 
     assert captured.value.code == "ERR-SIGN-301"
+    assert detection_calls == 1
     assert "id-token: write" in captured.value.remediation
     assert captured.value.__cause__ is None
     assert not hasattr(module, "Issuer")
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_malformed_ambient_identity_is_not_retried(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: malformed credentials are configuration failures, not transients."""
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    secret = "private malformed-token diagnostic"
+    detection_calls = 0
+    token_calls = 0
+
+    def detect() -> str:
+        nonlocal detection_calls
+        detection_calls += 1
+        return "malformed-ambient-token"
+
+    def reject_token(credential: str) -> Never:
+        nonlocal token_calls
+        assert credential == "malformed-ambient-token"
+        token_calls += 1
+        raise ValueError(secret)
+
+    monkeypatch.setattr(module, "detect_credential", detect)
+    monkeypatch.setattr(module, "IdentityToken", reject_token)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-301"
+    assert captured.value.__cause__ is None
+    assert secret not in str(captured.value)
+    assert detection_calls == 1
+    assert token_calls == 1
+    assert context.upstream.calls == 0
 
 
 @pytest.mark.ac("AC-F06-060")
@@ -724,6 +768,229 @@ def test_online_trust_refresh_overlaps_signing_and_gates_success(
     assert success.issuer == _FakeToken.federated_issuer
 
 
+@pytest.mark.ac("AC-F06-160")
+def test_identity_and_online_trust_acquisition_start_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: OIDC and mandatory refresh begin before either completes."""
+    identity_started = threading.Event()
+    online_started = threading.Event()
+    release_identity = threading.Event()
+    release_online = threading.Event()
+    signing_completed = threading.Event()
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+
+    def detect() -> str:
+        identity_started.set()
+        assert online_started.wait(5)
+        assert release_identity.wait(5)
+        return "secret-ambient-token"
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            return _FakeTrustConfig("staging-bootstrap")
+        online_started.set()
+        assert identity_started.wait(5)
+        assert release_online.wait(5)
+        return _FakeTrustConfig("staging-online")
+
+    class RecordingSigner(_FakeUpstreamSigner):
+        def sign_dsse(self, supplied: object) -> _FakeBundle:
+            result = super().sign_dsse(supplied)
+            signing_completed.set()
+            return result
+
+    context.upstream = RecordingSigner()
+    monkeypatch.setattr(module, "detect_credential", detect)
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(
+            module._sign_once,
+            statement,
+            SigningEnvironment.STAGING,
+            lambda stage: None,
+        )
+        assert identity_started.wait(5)
+        assert online_started.wait(5)
+        assert not result.done()
+        release_identity.set()
+        assert signing_completed.wait(5)
+        assert not result.done()
+        release_online.set()
+        result.result(timeout=5)
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_ambient_identity_acquisition_retries_once_before_fulcio(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: one transient OIDC failure receives one bounded retry."""
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    secret = "private transient OIDC failure"
+    detection_calls = 0
+
+    def detect() -> str:
+        nonlocal detection_calls
+        detection_calls += 1
+        if detection_calls == 1:
+            raise RuntimeError(secret)
+        return "secret-ambient-token"
+
+    monkeypatch.setattr(module, "detect_credential", detect)
+
+    module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert detection_calls == 2
+    assert context.upstream.calls == 1
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_ambient_identity_acquisition_stops_after_two_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: exhausted OIDC acquisition fails before Fulcio or Rekor."""
+    secret = "ghs_oidc_failure_must_not_escape"
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    detection_calls = 0
+    stages: list[module._WorkerStage] = []
+
+    def detect() -> Never:
+        nonlocal detection_calls
+        detection_calls += 1
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(module, "detect_credential", detect)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, stages.append)
+
+    assert captured.value.code == "ERR-SIGN-301"
+    assert captured.value.__cause__ is None
+    assert secret not in str(captured.value)
+    assert detection_calls == 2
+    assert module._WorkerStage.FULCIO not in stages
+    assert module._WorkerStage.REKOR not in stages
+    assert context.upstream.calls == 0
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_online_trust_acquisition_retries_without_resigning(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: one refresh retry retains one signer and Rekor path."""
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    secret = "private transient trust failure"
+    online_calls = 0
+    offline_calls = 0
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        nonlocal offline_calls, online_calls
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            offline_calls += 1
+            return _FakeTrustConfig("staging-bootstrap")
+        online_calls += 1
+        if online_calls == 1:
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("staging-online")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert online_calls == 2
+    assert offline_calls == 1
+    assert len(context.signer_calls) == 1
+    assert context.upstream.calls == 1
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_online_trust_acquisition_stops_after_two_failures_without_resigning(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: exhausted refresh fails closed after one Rekor submission."""
+    secret = "ghs_trust_failure_must_not_escape"
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    online_calls = 0
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        nonlocal online_calls
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            return _FakeTrustConfig("staging-bootstrap")
+        online_calls += 1
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-306"
+    assert captured.value.__cause__ is None
+    assert secret not in str(captured.value)
+    assert online_calls == 2
+    assert len(context.signer_calls) == 1
+    assert context.upstream.calls == 1
+
+
+@pytest.mark.ac("AC-F06-160")
+def test_offline_bootstrap_is_never_retried(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-160: retry authority applies only to online acquisition."""
+    context = _FakeContext(_FakeUpstreamSigner())
+    _install_successful_boundary(monkeypatch, context)
+    secret = "private offline failure"
+    offline_calls = 0
+
+    def load_trust_config(
+        environment: SigningEnvironment,
+        *,
+        offline: bool,
+    ) -> _FakeTrustConfig:
+        nonlocal offline_calls
+        assert environment is SigningEnvironment.STAGING
+        if offline:
+            offline_calls += 1
+            raise RuntimeError(secret)
+        return _FakeTrustConfig("staging-online")
+
+    monkeypatch.setattr(module, "_load_trust_config", load_trust_config)
+
+    with pytest.raises(SignError) as captured:
+        module._sign_once(statement, SigningEnvironment.STAGING, lambda stage: None)
+
+    assert captured.value.code == "ERR-SIGN-306"
+    assert offline_calls == 1
+    assert context.upstream.calls == 0
+
+
 @pytest.mark.ac("AC-F06-140")
 @pytest.mark.parametrize(
     ("failure", "expected_code"),
@@ -845,8 +1112,8 @@ def test_stale_bootstrap_waits_for_online_refresh_before_requesting_retry(
 
     assert captured.value.__cause__ is None
     assert stages == [
-        module._WorkerStage.IDENTITY,
         module._WorkerStage.CONFIGURATION,
+        module._WorkerStage.IDENTITY,
         module._WorkerStage.FULCIO,
     ]
     assert context.upstream.calls == 0
