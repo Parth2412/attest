@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.1` |
+| Version | `1.4.3` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-05 |
+| Last updated | 2026-10-08 |
 
 ---
 
@@ -161,7 +161,10 @@ reviewed full commit SHAs, pins its base image and uv version, and installs excl
 committed lock (`ADR-027`, `ADR-046`, `ADR-047`, `ADR-048`). The ADR-054 image-only correction
 builds cryptography only from its hash-locked sdist and locked Cargo metadata with an exact
 build-only toolchain, removes that toolchain from runtime, and runs against exact matching Alpine
-OpenSSL packages on both supported architectures.
+OpenSSL packages on both supported architectures. `ADR-057` replaces only the three enumerated
+wheel-private libgcc files with links to the exact pinned system ABI library; the build fails on
+path-set drift, and both architectures execute the affected native modules before candidate
+acceptance.
 
 ---
 
@@ -258,7 +261,10 @@ issuer, exact DSSE payload type, and byte-identical canonical Statement. Refresh
 verification failure remain distinct sanitized fatal errors. Only a public Sigstore
 `VerificationError` while entering the signer after Fulcio and before Rekor may wait for the
 successful refresh and start one fresh child that reloads the cache; the global two-attempt ceiling
-forbids a third child and every post-Rekor retry (`REQ-F06-140`, `ADR-055`, `ADR-056`).
+forbids a third child and every post-Rekor retry. Ambient identity and mandatory online trust begin
+concurrently; the identity retry completes before Fulcio, the online-trust retry remains inside its
+single future, and neither can create another signer context or Rekor submission
+(`REQ-F06-140`, `REQ-F06-160`, `ADR-055`, `ADR-056`, `ADR-057`).
 
 ---
 

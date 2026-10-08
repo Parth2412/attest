@@ -60,7 +60,7 @@ jobs:
         env:
           ACTION_CONCLUSION: ${{ steps.action.outcome }}
           ACTION_SHA: ${{ github.sha }}
-          IMAGE_DIGEST: sha256:850942c64d29ecabb9560e128d38b148a0084012bd014804bdda992e5425dce7
+          IMAGE_DIGEST: sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d
           SAMPLE: ${{ matrix.sample }}
         shell: bash
         run: |
@@ -197,7 +197,7 @@ jobs:
             --run-attempt "${GITHUB_RUN_ATTEMPT}" \
             --head-sha "${GITHUB_SHA}" \
             --expected-action-sha "${GITHUB_SHA}" \
-            --expected-image-digest "sha256:850942c64d29ecabb9560e128d38b148a0084012bd014804bdda992e5425dce7" \
+            --expected-image-digest "sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d" \
             --expected-samples 20 \
             --threshold-seconds 15 \
             --require-run-attempt 1
@@ -217,7 +217,7 @@ jobs:
               performance-evidence/summary.json
             jq -r '"- Gate passed: \(.metric.passed)"' performance-evidence/summary.json
             echo "- Exact merged Action: \`${GITHUB_SHA}\`"
-            echo "- Image: \`sha256:850942c64d29ecabb9560e128d38b148a0084012bd014804bdda992e5425dce7\`"
+            echo "- Image: \`sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d\`"
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain complete performance evidence
         if: ${{ always() }}

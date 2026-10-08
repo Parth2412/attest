@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.25.0` |
+| Version | `1.26.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-05 |
+| Last updated | 2026-10-08 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3113,6 +3113,99 @@ the full local suite and a fresh live Sigstore staging proof pass with this impl
 
 Acceptance authorizes this bounded recovery. It does not authorize broader retries, relaxed trust
 verification, publication, or movement of `v1`.
+
+---
+
+## ADR-057 — Overlap bounded acquisition and deduplicate the Action runtime
+
+**Status:** Accepted · **Date:** 2026-10-08 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F06`, `BRD-F11`, `F-06`, `F-11` · **Amends:** `ADR-054`, `ADR-055`, `ADR-056`
+
+**Context.** The new ADR-054 candidate for merged Action commit
+`4050490f22fc1a00bbb58885400b93969be6e3c3` passed its complete two-platform build,
+runtime, scan, SBOM, provenance, and identity-attestation gates as manifest
+`sha256:850942c64d29ecabb9560e128d38b148a0084012bd014804bdda992e5425dce7`. Its first
+automatic performance run, `37672861574` attempt 1, correctly failed closed: 18 measurement jobs
+succeeded, sample 11 failed with `ERR-SIGN-301`, sample 12 failed with `ERR-SIGN-306`, and the
+aggregate job refused to calculate release evidence from an incomplete 20-job set. The 18
+successful Action-step samples had nearest-rank p95 17.684 seconds. Diagnostic decomposition of
+that incomplete set measured image-pull p95 7.028 seconds and post-pull runtime p95 13.556 seconds;
+these values are optimization evidence only, not release acceptance evidence.
+
+Inspection of the exact installed `sigstore==4.5.0` and `id==1.6.1` sources established that the
+GitHub ambient identity detector performs the OIDC request with a 30-second timeout and that
+online `ClientTrustConfig` initialization performs TUF refresh work. The worker acquired identity
+before starting the already-approved online refresh, leaving independent network latency
+serialized. Inspection of both candidate platform manifests also found three private wheel copies
+of `libgcc_s.so.1`; the pinned Alpine runtime already provides the ABI library at
+`/usr/lib/libgcc_s.so.1`. The three private copies consume approximately 1.61 MB unpacked. An
+ephemeral amd64 candidate-container probe replaced them with links to the pinned runtime library
+and successfully imported `rfc3161_client`, `pydantic_core`, and `rpds` and initialized offline
+production trust. Arm64 remains unproven until the normal candidate workflow tests it.
+
+**Decision.** Each isolated signing attempt must start ambient OIDC acquisition and mandatory
+online trust acquisition concurrently under the existing 120-second process deadline. An
+exception from ambient credential detection receives at most one immediate retry before Fulcio.
+A detector result of no credential and a credential that cannot construct Sigstore's
+`IdentityToken` remain immediate `ERR-SIGN-301` failures and are not retried. Online trust
+initialization receives at most one immediate retry within the same signing attempt. Exhaustion
+remains `ERR-SIGN-306`. The same-environment offline bootstrap is never retried.
+
+The worker must obtain a valid identity before beginning Fulcio. Online trust acquisition may
+continue beside the offline bootstrap, Fulcio, and Rekor path, but success still waits for the
+mandatory refreshed-root verification defined by `ADR-055`. The online retry re-executes only
+trust acquisition: it must not create another signing context, request another Fulcio certificate,
+or submit another Rekor entry. `ADR-056` remains unchanged: its only fresh-process recovery is for
+the precise pre-Rekor public `VerificationError`, after successful online refresh, and all child
+attempt causes still share the two-child ceiling. No exception text crosses the process boundary.
+
+The Action candidate must replace exactly the three wheel-private `libgcc_s.so.1` files with
+symbolic links to the exact pinned `/usr/lib/libgcc_s.so.1`. The build must fail if the expected
+set changes. Runtime tests must prove all three native modules import and execute on both amd64 and
+arm64, dynamic linkage resolves to the pinned system library, build tools remain absent, and all
+existing cryptographic, scan, SBOM, provenance, and identity-attestation gates remain green.
+
+These corrections change no public API, option, credential input, dependency version, error-code
+catalog, release version, or acceptance threshold. A new uniquely referenced candidate must be
+built and reviewed. The exact merged Action commit and new manifest digest must then complete all
+three fresh attempt-1 20-job runs and their combined 60-sample gate below 15 seconds nearest-rank
+p95 before any `attest-sign==0.1.1`, `attest-cli==0.1.4`, image `0.1.5`, source `v0.1.5`, or
+Action `v1.0.5` publication. Run `37672861574` must not be rerun or used as acceptance evidence.
+
+**Rationale.** OIDC and online trust refresh are independent network acquisitions, so overlapping
+them removes avoidable critical-path serialization without weakening identity or trust
+verification. A two-call ceiling handles one transient provider or TUF failure while the process
+deadline preserves a strict outer bound. Keeping retries before Fulcio or inside the trust future
+prevents them from multiplying cryptographic or transparency-log side effects. Reusing the exact
+pinned system ABI library removes redundant runtime bytes while retaining deterministic package
+and platform proof.
+
+**Rejected alternatives.** Rerunning attempt 1, accepting 18 successful samples, excluding image
+pull, or relaxing the threshold would violate `ADR-054`. Retrying a missing identity, malformed
+token, offline bootstrap, Fulcio, Rekor, or final bundle verification would hide configuration or
+security failures and could duplicate side effects. Serial online initialization would abandon
+the latency design in `ADR-055`. Deleting the private libraries without exact links and dual-
+platform execution proof would assume ABI compatibility. Recompressing `attest-runtime.zip` was
+rejected because the production-equivalent outer zstd layers became larger.
+
+**Consequences.** F-06 gains two worker threads and bounded helper-level retries, all contained by
+the existing process deadline and sanitized public error boundary. Its tests must prove both
+acquisitions start before either completes, exact call ceilings, no retry for missing or malformed
+identity or offline bootstrap, unchanged final verification, and one signer/Rekor path. F-11 gains
+an exact filesystem/linkage contract and must build a new candidate; amd64 exploratory success is
+not sufficient. Publication remains blocked until the full local, candidate, live staging,
+three-run performance, release, dogfood, onboarding, fork-denial, public-verification, and
+independent-review gates complete.
+
+### ADR-057 implementation plan
+
+| Session | Requirement | Production work | Files |
+|---|---|---|---|
+| F-06 | `REQ-F06-160` | Start OIDC and online trust acquisition concurrently; bound each transient acquisition to two calls before Fulcio or inside the same trust future; preserve one signer/Rekor path and all refreshed-root verification | `packages/attest-sign/src/attest_sign/sigstore_signer.py`, signer tests, `BRD-F06`, cross-cutting controls, traceability |
+| F-11 | `REQ-F11-210`, `REQ-F11-220` | Replace exactly three wheel-private libgcc copies with links to the pinned runtime library; prove both architectures; build a unique candidate and repeat every supply-chain and performance gate | `action/Dockerfile`, container/candidate/release tests, `BRD-F11`, release evidence |
+
+Acceptance authorizes these two bounded sessions. It does not authorize a rerun of failed
+attempt 1, a verification bypass, a threshold change, publication, or movement of `v1`.
 
 ---
 

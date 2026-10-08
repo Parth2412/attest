@@ -1006,6 +1006,18 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "--only-group action-build" in dockerfile
     assert "uv pip uninstall --python /opt/venv/bin/python maturin setuptools" in dockerfile
     assert "OPENSSL_STATIC=0" in dockerfile
+    for private_libgcc_directory in (
+        "pydantic_core.libs",
+        "rfc3161_client.libs",
+        "rpds_py.libs",
+    ):
+        assert f'site_packages / "{private_libgcc_directory}"' in dockerfile
+    assert 'system_libgcc = pathlib.Path("/usr/lib/libgcc_s.so.1")' in dockerfile
+    assert 'directory.glob("libgcc_s-*.so.1")' in dockerfile
+    assert 'site_packages.rglob("libgcc_s*.so*")' in dockerfile
+    assert 'raise RuntimeError("unexpected private libgcc set")' in dockerfile
+    assert "private_libgcc.unlink()" in dockerfile
+    assert "private_libgcc.symlink_to(system_libgcc)" in dockerfile
     assert 'pathlib.Path("/opt/attest/attest-console-script.sha256")' in dockerfile
     assert "hashlib.sha256(console_script.read_bytes()).hexdigest()" in dockerfile
     for runtime_package in (
