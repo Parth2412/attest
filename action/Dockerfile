@@ -198,6 +198,29 @@ import shutil
 import sys
 import zipfile
 
+site_packages = pathlib.Path("/opt/venv/lib/python3.12/site-packages")
+system_libgcc = pathlib.Path("/usr/lib/libgcc_s.so.1")
+private_libgcc_directories = (
+    site_packages / "pydantic_core.libs",
+    site_packages / "rfc3161_client.libs",
+    site_packages / "rpds_py.libs",
+)
+private_libgcc_paths = []
+for directory in private_libgcc_directories:
+    matches = tuple(directory.glob("libgcc_s-*.so.1"))
+    if len(matches) != 1 or not matches[0].is_file() or matches[0].is_symlink():
+        raise RuntimeError("unexpected private libgcc set")
+    private_libgcc_paths.append(matches[0])
+if tuple(sorted(site_packages.rglob("libgcc_s*.so*"))) != tuple(
+    sorted(private_libgcc_paths)
+):
+    raise RuntimeError("unexpected private libgcc set")
+if not system_libgcc.is_file() or system_libgcc.is_symlink():
+    raise RuntimeError("invalid system libgcc")
+for private_libgcc in private_libgcc_paths:
+    private_libgcc.unlink()
+    private_libgcc.symlink_to(system_libgcc)
+
 console_script = pathlib.Path("/opt/venv/bin/attest")
 pathlib.Path("/opt/attest/attest-console-script.sha256").write_text(
     f"{hashlib.sha256(console_script.read_bytes()).hexdigest()}\n",
@@ -241,7 +264,6 @@ for source in sources:
     source.unlink()
 
 standard_library = pathlib.Path("/usr/local/lib/python3.12")
-site_packages = pathlib.Path("/opt/venv/lib/python3.12/site-packages")
 
 runtime_archive_roots = (
     "OpenSSL",

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.3` |
+| Version | `1.4.4` |
 | Status | **NORMATIVE** for test obligations |
 | Last updated | 2026-10-08 |
 
@@ -242,7 +242,7 @@ A release **MUST NOT** ship unless:
 - [ ] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
 - [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
 - [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
-- [ ] The `0.1.5-candidate` image uses the ADR-054 locked cryptography sdist, exact build-only toolchain, exact runtime OpenSSL packages, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass real-container cryptographic tests, scans, SBOM/provenance checks, and identity-bound attestation
+- [ ] The `0.1.5-candidate` image uses the ADR-054 locked cryptography sdist, exact build-only toolchain, exact runtime OpenSSL packages, ADR-057's exact three-path system-libgcc reuse, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass real-container cryptographic/native-module tests, scans, SBOM/provenance checks, and identity-bound attestation
 - [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
 - [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution

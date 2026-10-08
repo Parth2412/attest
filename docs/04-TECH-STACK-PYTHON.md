@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.3` |
+| Version | `1.7.4` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
 | Last updated | 2026-10-08 |
 
@@ -353,8 +353,11 @@ only `attest-sign==0.1.1` and `attest-cli==0.1.4`, with the latter exact-pinning
 stale pre-Rekor trust bootstrap. `ADR-057` starts ambient OIDC and mandatory online trust
 acquisition concurrently, permits one pre-Fulcio OIDC retry and one retry inside the online-trust
 future, and preserves one signer context and Rekor submission per attempt. Each package uses its
-separate protected Trusted Publisher,
-public files must byte-match the single build, and Python 3.12/3.13 clean installs must pass; core,
+separate protected Trusted Publisher. The same ADR requires the Action build to replace exactly
+the three approved wheel-private libgcc copies with platform-specific links to pinned system
+`/usr/lib/libgcc_s.so.1`, fail on path-set drift, and execute all affected native modules on both
+architectures. Public files must byte-match the single build, and Python 3.12/3.13 clean installs
+must pass; core,
 collect, store, policy, and export are not rebuilt or uploaded.
 
 ---
