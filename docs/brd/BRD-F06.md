@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-05` |
-| Status | Done · refreshed-trust recovery completed by `ADR-056` |
+| Status | Done · concurrent bounded acquisition completed by `ADR-057` |
 
 ---
 
@@ -84,6 +84,7 @@ detection.
 | `REQ-F06-130` | No secret, token, or key material **MUST** appear in logs, diagnostics, or error messages. |
 | `REQ-F06-140` | Every signing attempt **MUST** initiate environment-specific Sigstore trust initialization in online mode and **MUST NOT** report success until it completes. The attempt **MAY** sign concurrently from a separate same-environment offline trust snapshot, but before success it **MUST** use Sigstore's public verifier with the online trusted root and exact ambient identity/issuer policy, and **MUST** prove that the verified DSSE payload type and bytes equal the exact canonical Statement supplied for signing. There is no offline-only success path. Online trust failure raises `ERR-SIGN-306`; refreshed verification or payload mismatch raises `ERR-SIGN-305` (`ADR-055`). |
 | `REQ-F06-150` | If the offline bootstrap reaches Fulcio but Sigstore rejects the issued certificate or SCT with its public `VerificationError` before Rekor begins, the worker **MUST** wait for the already-running online trust refresh. It **MUST NOT** retry if that refresh fails. After a successful refresh, the parent **MAY** start exactly one fresh isolated attempt, which must repeat `REQ-F06-140` using the refreshed cache. This recovery shares the two-attempt maximum in `REQ-F06-120`; it **MUST NOT** retry another failure class, any failure after Rekor begins, or a second certificate/SCT rejection (`ADR-056`). |
+| `REQ-F06-160` | Each isolated signing attempt **MUST** begin ambient OIDC acquisition and the mandatory online trust refresh concurrently. An exception from ambient credential detection **MUST** receive exactly one retry before Fulcio; a missing credential or malformed token **MUST NOT** be retried. Failed online trust initialization **MUST** receive exactly one retry inside the same attempt, but the offline bootstrap **MUST NOT** be retried and the trust retry **MUST NOT** create another signer context or Rekor submission. Both acquisitions remain inside the existing hard deadline; exhausted identity and online-trust acquisition raise sanitized `ERR-SIGN-301` and `ERR-SIGN-306`, respectively (`ADR-057`). |
 
 ## 6. Acceptance criteria
 
@@ -104,6 +105,7 @@ detection.
 | `AC-F06-130` | A full-suite scan of captured output contains no token-like strings. |
 | `AC-F06-140` | Deterministic barriers prove the online-mode initialization overlaps signing while success waits for it; the resulting Bundle reaches Sigstore-native DSSE verification with the online trusted root and exact identity/issuer, exact payload type and bytes are required, and online-initialization or refreshed-verification failures emit only their stable sanitized codes. |
 | `AC-F06-150` | Deterministic barriers prove a pre-Rekor Sigstore certificate/SCT rejection waits for successful online refresh before emitting a text-free retry signal; a fresh child is started at most once, the shared attempt total never exceeds two, refresh failure is `ERR-SIGN-306`, a second stale rejection is `ERR-SIGN-302`, and unrelated or post-Rekor failures are never retried. |
+| `AC-F06-160` | Deterministic barriers prove OIDC and online trust acquisition both start before either completes; transient acquisition succeeds only within two calls; missing or malformed identity and offline bootstrap are not retried; exhausted failures expose only their stable codes; and an online-trust retry retains one signer context and at most one Rekor submission. |
 
 ## 7. Error codes
 

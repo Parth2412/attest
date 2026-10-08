@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.1` |
+| Version | `1.4.2` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-05 |
+| Last updated | 2026-10-08 |
 
 ---
 
@@ -258,7 +258,10 @@ issuer, exact DSSE payload type, and byte-identical canonical Statement. Refresh
 verification failure remain distinct sanitized fatal errors. Only a public Sigstore
 `VerificationError` while entering the signer after Fulcio and before Rekor may wait for the
 successful refresh and start one fresh child that reloads the cache; the global two-attempt ceiling
-forbids a third child and every post-Rekor retry (`REQ-F06-140`, `ADR-055`, `ADR-056`).
+forbids a third child and every post-Rekor retry. Ambient identity and mandatory online trust begin
+concurrently; the identity retry completes before Fulcio, the online-trust retry remains inside its
+single future, and neither can create another signer context or Rekor submission
+(`REQ-F06-140`, `REQ-F06-160`, `ADR-055`, `ADR-056`, `ADR-057`).
 
 ---
 

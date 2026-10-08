@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.2` |
+| Version | `1.4.3` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-05 |
+| Last updated | 2026-10-08 |
 
 ---
 
@@ -244,7 +244,7 @@ A release **MUST NOT** ship unless:
 - [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
 - [ ] The `0.1.5-candidate` image uses the ADR-054 locked cryptography sdist, exact build-only toolchain, exact runtime OpenSSL packages, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass real-container cryptographic tests, scans, SBOM/provenance checks, and identity-bound attestation
 - [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
-- [ ] The signer contracts prove concurrent same-environment bootstrap and mandatory online trust refresh, refreshed-root identity-bound verification of the exact DSSE payload, refresh-failure sanitization, and the ADR-056 one-retry pre-Rekor ceiling without any offline-only success
+- [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
 - [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
@@ -253,7 +253,7 @@ A release **MUST NOT** ship unless:
 - [ ] Backwards compatibility confirmed: attestations from every prior version still verify
 - [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
 - [ ] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
-- [ ] F-11 retains the historical 20-job release gate and, for ADR-054–ADR-056, all three 20-job Action-step measurements plus the combined 60-sample result; every required nearest-rank p95 includes image pull and is below 15 seconds
+- [ ] F-11 retains the historical 20-job release gate and, for ADR-054–ADR-057, all three 20-job Action-step measurements plus the combined 60-sample result; every required nearest-rank p95 includes image pull and is below 15 seconds
 
 ---
 

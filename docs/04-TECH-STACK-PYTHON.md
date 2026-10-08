@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.2` |
+| Version | `1.7.3` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-05 |
+| Last updated | 2026-10-08 |
 
 ---
 
@@ -350,7 +350,10 @@ nearest-rank p95 values are below 15 seconds. `ADR-055` amends the package bound
 online trust refresh and refreshed-root verification change signer bytes, so the release publishes
 only `attest-sign==0.1.1` and `attest-cli==0.1.4`, with the latter exact-pinning the former.
 `ADR-056` retains those versions while allowing one refresh-gated fresh-process recovery from a
-stale pre-Rekor trust bootstrap. Each package uses its separate protected Trusted Publisher,
+stale pre-Rekor trust bootstrap. `ADR-057` starts ambient OIDC and mandatory online trust
+acquisition concurrently, permits one pre-Fulcio OIDC retry and one retry inside the online-trust
+future, and preserves one signer context and Rekor submission per attempt. Each package uses its
+separate protected Trusted Publisher,
 public files must byte-match the single build, and Python 3.12/3.13 clean installs must pass; core,
 collect, store, policy, and export are not rebuilt or uploaded.
 

@@ -1,4 +1,4 @@
-"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037/055/056."""
+"""Fail-bounded keyless Sigstore signing governed by BRD-F06 and ADR-037/055/056/057."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ from attest_sign.errors import SignError, SignErrorCode, sign_error
 from attest_sign.protocols import Bundle, SigningEnvironment
 
 _DEFAULT_ATTEMPT_TIMEOUT = timedelta(seconds=120)
+_MAX_ACQUISITION_ATTEMPTS = 2
 _MAX_PRE_REKOR_ATTEMPTS = 2
 _PROCESS_SHUTDOWN_GRACE_SECONDS = 1.0
 _PROCESS_POLL_SECONDS = 0.05
@@ -130,6 +131,36 @@ def _load_trust_config(
     raise sign_error("ERR-SIGN-306")
 
 
+def _acquire_identity_token() -> IdentityToken:
+    """Acquire one ambient identity with one bounded transient retry."""
+    for attempt in range(_MAX_ACQUISITION_ATTEMPTS):
+        try:
+            credential = detect_credential()
+        except Exception:
+            if attempt + 1 < _MAX_ACQUISITION_ATTEMPTS:
+                continue
+            raise sign_error("ERR-SIGN-301") from None
+        if credential is None:
+            raise sign_error("ERR-SIGN-301")
+        try:
+            return IdentityToken(credential)
+        except Exception:
+            raise sign_error("ERR-SIGN-301") from None
+    raise sign_error("ERR-SIGN-301")
+
+
+def _acquire_online_trust_config(environment: SigningEnvironment) -> ClientTrustConfig:
+    """Acquire current trust with one bounded retry inside the same signing attempt."""
+    for attempt in range(_MAX_ACQUISITION_ATTEMPTS):
+        try:
+            return _load_trust_config(environment, offline=False)
+        except Exception:
+            if attempt + 1 < _MAX_ACQUISITION_ATTEMPTS:
+                continue
+            raise sign_error("ERR-SIGN-306") from None
+    raise sign_error("ERR-SIGN-306")
+
+
 def _sign_once(
     statement: Statement,
     environment: SigningEnvironment,
@@ -142,28 +173,31 @@ def _sign_once(
     except Exception:
         raise sign_error("ERR-SIGN-305") from None
 
-    emit_stage(_WorkerStage.IDENTITY)
-    try:
-        credential = detect_credential()
-    except Exception:
-        raise sign_error("ERR-SIGN-301") from None
-    if credential is None:
-        raise sign_error("ERR-SIGN-301")
-    try:
-        identity_token = IdentityToken(credential)
-    except Exception:
-        raise sign_error("ERR-SIGN-301") from None
-
     emit_stage(_WorkerStage.CONFIGURATION)
-    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="attest-sigstore-trust") as executor:
+    with ThreadPoolExecutor(
+        max_workers=2,
+        thread_name_prefix="attest-sigstore-acquire",
+    ) as executor:
         try:
             online_config_future = executor.submit(
-                _load_trust_config,
+                _acquire_online_trust_config,
                 environment,
-                offline=False,
             )
         except Exception:
             raise sign_error("ERR-SIGN-306") from None
+
+        emit_stage(_WorkerStage.IDENTITY)
+        try:
+            identity_token_future = executor.submit(_acquire_identity_token)
+        except Exception:
+            raise sign_error("ERR-SIGN-301") from None
+
+        try:
+            identity_token = identity_token_future.result()
+        except SignError:
+            raise
+        except Exception:
+            raise sign_error("ERR-SIGN-301") from None
 
         try:
             bootstrap_config = _load_trust_config(environment, offline=True)
