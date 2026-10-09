@@ -3287,6 +3287,80 @@ offline-only path, a failed-run rerun, a threshold change, publication, or movem
 
 ---
 
+## ADR-059 — Build size-optimized native Action dependencies from locked source
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-054`, `ADR-057`, `ADR-058`
+
+**Context.** The exact merged Action commit
+`0ebda1ee28d8e7ecb02d1731dfec7390b2e2aaa6` and candidate manifest
+`sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77`
+passed the post-`ADR-058` candidate gates. Its automatic performance run `37899003696`, attempt
+1, retained 20 successful Action samples but correctly failed at p50 11 seconds and nearest-rank
+p95 17 seconds. The sorted samples were 8, 9, 9, 9, 9, 9, 10, 10, 11, 11, 11, 12, 13, 14, 15,
+15, 15, 16, 17, and 18 seconds. Retained per-job logs measured image-pull/extraction p95 near
+7.87 seconds and post-pull p95 near 9.60 seconds; both tails therefore remained actionable.
+
+The exact image occupied 63,606,413 unpacked bytes. Its four zstd-compressed layers totalled
+23,147,962 bytes: 8,567,868, 8,109,946, 6,438,134, and 32,014 bytes. Inspection of the locked
+native wheels found avoidable prebuilt binary size in `cryptography==50.0.1`,
+`pydantic-core==2.46.5`, and `rfc3161-client==1.0.8`. A production-equivalent source-build
+prototype occupied 54,729,756 unpacked bytes and 20,122,695 compressed bytes, with primary layers
+of 6,676,380, 6,976,179, and 6,438,122 bytes. Twelve alternating warm post-pull launches showed
+no startup regression, and the existing real-container behavior passed.
+
+**Decision.** Build those exact three lockfile versions from their hash-locked source
+distributions. Reuse the exact removable `maturin==1.15.0`, Rust/C build packages, and
+`openssl-dev=3.5.9-r0` already authorized by `ADR-054`; set
+`RUSTFLAGS=-C opt-level=z -C strip=symbols -C codegen-units=1 -C panic=abort`,
+`OPENSSL_NO_VENDOR=1`, and retain `OPENSSL_STATIC=0`. The resulting cryptography and RFC 3161
+extensions must link the pinned system `libcrypto.so.3` and `libssl.so.3`; the RFC 3161 and
+Pydantic extensions must consume system `libgcc_s.so.1` directly. Only the locked `rpds-py`
+wheel may retain one private `libgcc_s-*.so.1` name, and that file must be replaced by a symbolic
+link to `/usr/lib/libgcc_s.so.1`. The build fails if the complete private-libgcc set differs.
+
+Move the reduced Pydantic native package from the first primary pull layer to the second so the
+three concurrent zstd layers remain balanced. Do not enable link-time optimization: the pinned
+cryptography build reports `embed-bitcode=no`, which is incompatible with LTO. No dependency
+version, public interface, trust rule, signer behavior, release version, package set, performance
+threshold, or promotion rule changes.
+
+Run `37899003696` is immutable negative evidence and must not be rerun or counted. A new unique
+candidate must pass every existing amd64/arm64 real-container, scan, SBOM, provenance, and
+identity-attestation gate. Only the exact merged Action and new candidate may then begin a fresh
+sequence of three consecutive attempt-1 20-job measurements and the combined 60-sample gate.
+
+**Rationale.** The source builds remove approximately 14% of unpacked image bytes and 13% of
+production-equivalent compressed transfer bytes without changing Python packages or security
+semantics. Direct linkage to exact pinned Alpine libraries also makes the native dependency
+boundary explicit. Rebalancing prevents one reduced package from leaving the first download
+layer materially larger than its peers.
+
+**Rejected alternatives.** Accepting or rerunning the failed measurement, excluding image pull,
+or relaxing the threshold violates the approved gate. Dropping native dependencies or changing
+their versions expands the product boundary. Vendored OpenSSL duplicates security-critical bytes
+and bypasses the exact runtime package decision. LTO is incompatible with the approved
+cryptography build. Deleting private libraries without closed-set and dual-platform execution
+proof assumes ABI compatibility.
+
+**Consequences.** Candidate builds take longer because three Rust extensions compile on each
+architecture. Tests must prove the exact source-build switches and compiler environment, absence
+of unapproved private library directories, the single `rpds-py` system-libgcc link, direct system
+OpenSSL/libgcc mappings, native operations, offline trust initialization, and the new layer
+assignment. Publication remains blocked until the complete candidate, performance, release,
+dogfood, public-proof, fork-denial, and independently reviewed `v1` promotion gates pass.
+
+### ADR-059 implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-240` | Source-build the three exact locked Rust extensions with the approved size and system-library settings; close the private-libgcc set; rebalance layers; prove both architectures; preserve failed run `37899003696`; restart every candidate and performance gate | `action/Dockerfile`, container/candidate/release tests, `BRD-F11`, cross-cutting controls, release evidence |
+
+Acceptance authorizes only this bounded native-build correction. It does not authorize a failed-
+run rerun, dependency or threshold change, publication, or movement of `v1`.
+
+---
+
 ## Template for new ADRs
 
 ```markdown

@@ -11,8 +11,11 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
   `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
   `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
-- Locked `cryptography==50.0.1` is built from its hash-locked source distribution with removable
-  `maturin==1.15.0`, `setuptools==84.0.0`, and exact Alpine build packages. Build tools are absent
+- Locked `cryptography==50.0.1`, `pydantic-core==2.46.5`, and
+  `rfc3161-client==1.0.8` are built from their hash-locked source distributions with removable
+  `maturin==1.15.0`, `setuptools==84.0.0`, exact Alpine build packages, and the approved size
+  flags. Native modules use pinned dynamic system OpenSSL/libgcc; only `rpds-py` retains a private
+  libgcc name, replaced fail closed by a link to the pinned system file. Build tools are absent
   from the runtime image.
 - The three approved wheel-private libgcc files are fail-closed links to the exact pinned system
   `/usr/lib/libgcc_s.so.1`; both architectures prove the links, loader mappings, native module

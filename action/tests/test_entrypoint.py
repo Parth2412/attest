@@ -1039,6 +1039,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-230")
+@pytest.mark.ac("AC-F11-240")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1062,17 +1063,19 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "rust=1.91.1-r2",
     ):
         assert build_package in dockerfile
-    assert "--no-binary-package cryptography" in dockerfile
-    assert "--no-build-isolation-package cryptography" in dockerfile
+    for native_package in ("cryptography", "pydantic-core", "rfc3161-client"):
+        assert f"--no-binary-package {native_package}" in dockerfile
+        assert f"--no-build-isolation-package {native_package}" in dockerfile
     assert "--only-group action-build" in dockerfile
     assert "uv pip uninstall --python /opt/venv/bin/python maturin setuptools" in dockerfile
+    assert (
+        'RUSTFLAGS="-C opt-level=z -C strip=symbols -C codegen-units=1 -C panic=abort"'
+    ) in dockerfile
+    assert "OPENSSL_NO_VENDOR=1" in dockerfile
     assert "OPENSSL_STATIC=0" in dockerfile
-    for private_libgcc_directory in (
-        "pydantic_core.libs",
-        "rfc3161_client.libs",
-        "rpds_py.libs",
-    ):
-        assert f'site_packages / "{private_libgcc_directory}"' in dockerfile
+    assert 'private_libgcc_directories = (site_packages / "rpds_py.libs",)' in dockerfile
+    assert "pydantic_core.libs" not in dockerfile
+    assert "rfc3161_client.libs" not in dockerfile
     assert 'system_libgcc = pathlib.Path("/usr/lib/libgcc_s.so.1")' in dockerfile
     assert 'directory.glob("libgcc_s-*.so.1")' in dockerfile
     assert 'site_packages.rglob("libgcc_s*.so*")' in dockerfile
@@ -1156,12 +1159,12 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     pull_groups = (
         """FROM scratch AS pull-a
 COPY --from=system-lib / /
-COPY --from=venv-pydantic /split/ /
 COPY --from=python-lib /usr/local/lib /usr/local/lib
 """,
         """FROM scratch AS pull-b
 COPY --from=venv-crypto /split/ /
 COPY --from=venv-rfc3161 /split/ /
+COPY --from=venv-pydantic /split/ /
 COPY --from=python-rest / /
 COPY --from=system-git / /
 """,
