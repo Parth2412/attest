@@ -356,8 +356,13 @@ future, and preserves one signer context and Rekor submission per attempt. Each 
 separate protected Trusted Publisher. The same ADR requires the Action build to replace exactly
 the three approved wheel-private libgcc copies with platform-specific links to pinned system
 `/usr/lib/libgcc_s.so.1`, fail on path-set drift, and execute all affected native modules on both
-architectures. Public files must byte-match the single build, and Python 3.12/3.13 clean installs
-must pass; core,
+architectures. `ADR-058` adds a build-verified, hash-locked non-timestamp TUF cache seed while
+retaining live root and timestamp refresh and refreshed-root final verification on every Action
+invocation. `ADR-059` supersedes the three-link runtime layout: exact locked cryptography,
+pydantic-core, and rfc3161-client now build from source with the approved size flags and direct
+pinned system OpenSSL/libgcc linkage; only the `rpds-py` compatibility name remains as a
+fail-closed symlink to system libgcc. Public files must byte-match the single build, and Python
+3.12/3.13 clean installs must pass; core,
 collect, store, policy, and export are not rebuilt or uploaded.
 
 ---

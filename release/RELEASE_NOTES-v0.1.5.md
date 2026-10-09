@@ -7,16 +7,16 @@ Verification rules, outputs, and failure semantics remain fail closed.
 ## Release contents
 
 - GitHub Action `v1.0.5` pins the reviewed multi-platform image manifest
-  `sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77`.
+  `sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
   `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
   `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
-- Locked `cryptography==50.0.1` is built from its hash-locked source distribution with removable
-  `maturin==1.15.0`, `setuptools==84.0.0`, and exact Alpine build packages. Build tools are absent
+- Locked `cryptography==50.0.1`, `pydantic-core==2.46.5`, and
+  `rfc3161-client==1.0.8` are built from their hash-locked source distributions with removable
+  `maturin==1.15.0`, `setuptools==84.0.0`, exact Alpine build packages, and the approved size
+  flags. Native modules use pinned dynamic system OpenSSL/libgcc; only `rpds-py` retains a private
+  libgcc name, replaced fail closed by a link to the pinned system file. Build tools are absent
   from the runtime image.
-- The three approved wheel-private libgcc files are fail-closed links to the exact pinned system
-  `/usr/lib/libgcc_s.so.1`; both architectures prove the links, loader mappings, native module
-  execution, and offline Sigstore trust initialization.
 - Ambient identity and mandatory online trust acquisition begin concurrently with one bounded
   transient retry each, while the signer context and Rekor submission remain single-path.
 - The image build verifies the closed production and staging TUF seed from Sigstore's embedded
@@ -28,7 +28,9 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - Both `linux/amd64` and `linux/arm64` execute the complete 17-test real-container contract suite,
   including offline historical signature verification, before release.
 - The retained candidate includes clean per-platform scans, SBOM, maximum provenance,
-  source/context/manifest digests, and a GitHub-hosted identity-bound attestation.
+  source/context/manifest digests, and a GitHub-hosted identity-bound attestation. Attempt-1 run
+  `37904158120` binds source `6ec6074185cfd25e7f66c8eac2e0666dfa194a6f` and context
+  `sha256:c2c6240d341ae0fa066f6121a8d0d1c5b56aff598dd8f5a37598b01970f42fdc`.
 - The exact merged Action and candidate digest must pass three consecutive fresh attempt-1 hosted
   measurements of 20 jobs each. Every individual p95 and the combined 60-sample p95 must remain
   below 15 seconds.
