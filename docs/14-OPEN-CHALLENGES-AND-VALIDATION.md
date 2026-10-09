@@ -346,7 +346,9 @@ before the new candidate repeats every existing gate. Exact post-`ADR-058` run `
 attempt 1, retained 20 successful samples with p50 11 s and p95 17 s; retained logs measured
 image-pull/extraction p95 near 7.87 s and post-pull p95 near 9.60 s. `ADR-059` preserves that run,
 source-builds the three exact locked Rust extensions with smaller direct system-library linkage,
-and rebalances the compressed layers before a new candidate restarts every existing gate.
+and rebalances the compressed layers. Candidate run `37904158120`, attempt 1, then passed every
+two-platform, scan, SBOM, provenance, identity-attestation, and 17-test real-container gate as
+manifest `sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,

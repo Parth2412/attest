@@ -462,7 +462,7 @@ write authority.
 - [x] The retained 20-run measurement meets p95 below 15 seconds
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
 - [ ] Cross-cutting obligations satisfied for the bounded correction
-- [ ] The new `0.1.5-candidate` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-059`
+- [x] Candidate run `37904158120` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-059`
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
 - [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
@@ -475,4 +475,7 @@ the required merge states; protected promotion run `36872903768` moved `v1` to i
 after the `ADR-057` candidate. Run `37899003696` measured p50 11 s and p95 17 s after the
 `ADR-058` candidate. Accepted `ADR-054`–`ADR-059` track the bounded
 repeatability correction without altering the retained `v1.0.4` release gate or any immutable
-public record.
+public record. Candidate run `37904158120`, attempt 1, passed all supply-chain gates for exact
+source `6ec6074185cfd25e7f66c8eac2e0666dfa194a6f`, context
+`sha256:c2c6240d341ae0fa066f6121a8d0d1c5b56aff598dd8f5a37598b01970f42fdc`, and manifest
+`sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.

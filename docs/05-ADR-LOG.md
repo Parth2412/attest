@@ -3350,6 +3350,15 @@ OpenSSL/libgcc mappings, native operations, offline trust initialization, and th
 assignment. Publication remains blocked until the complete candidate, performance, release,
 dogfood, public-proof, fork-denial, and independently reviewed `v1` promotion gates pass.
 
+**Implementation evidence.** Candidate run `37904158120`, attempt 1, passed for exact `dev`
+commit `6ec6074185cfd25e7f66c8eac2e0666dfa194a6f`, context
+`sha256:c2c6240d341ae0fa066f6121a8d0d1c5b56aff598dd8f5a37598b01970f42fdc`, and manifest
+`sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.
+Both architectures passed all 17 real-container contracts and clean vulnerability/secret gates.
+The amd64 primary zstd layers were 6,676,410, 6,976,218, and 6,438,220 bytes; arm64's were
+6,964,921, 7,009,017, and 6,440,554 bytes. The retained GitHub attestation binds the manifest to
+the exact source, workflow, `dev` ref, hosted runner, and attempt-1 invocation.
+
 ### ADR-059 implementation plan
 
 | Requirement | Production work | Files |
