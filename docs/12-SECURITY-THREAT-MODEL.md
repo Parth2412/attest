@@ -170,6 +170,12 @@ complete chain is verified during the image build from Sigstore's pinned embedde
 roots. Runtime seeding excludes timestamp metadata, re-hashes every copied byte, and preserves a
 live next-root probe, live timestamp download, authenticated stale-cache replacement, and the
 mandatory refreshed-root final verification on every invocation.
+`ADR-059` source-builds exact locked cryptography, pydantic-core, and rfc3161-client with the
+approved removable toolchain and size flags. Vendored/static OpenSSL is disabled so the native
+extensions load the exact pinned system OpenSSL; pydantic-core and rfc3161-client load pinned
+system libgcc directly, and only the closed `rpds-py` compatibility symlink remains. Both
+architectures must prove native operations, loader mappings, and offline trust initialization
+before candidate acceptance.
 
 ---
 

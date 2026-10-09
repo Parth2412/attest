@@ -5,9 +5,9 @@
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.4`,
   immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-10 and the initial F-11
-  release are complete; the `ADR-054` F-11 reliability correction is In progress and F-12 is
-  Planned.
-- **Last Updated**: 2026-10-02
+  release are complete; the bounded `ADR-054`–`ADR-059` F-11 reliability correction is In
+  progress and F-12 is Planned.
+- **Last Updated**: 2026-10-09
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -29,8 +29,9 @@
 ## Current Project Status
 
 - **Development Stage**: **Public pre-alpha.** BOOT-001, F-01 through F-10, and the initial F-11
-  release are complete. F-11 is In progress only for the bounded `ADR-054` reliability correction;
-  F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and `ROADMAP-001`.
+  release are complete. F-11 is In progress only for the bounded `ADR-054`–`ADR-059` reliability
+  correction; F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and
+  `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
   across Linux and macOS. The separate fail-closed Action performance monitor is currently red as
   recorded below; every required gate remains enforced rather than bypassed.
@@ -43,15 +44,16 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The v1.0.4 reconciliation gate passes 1,226 tests with two
-  intentional environment-dependent skips and 14 explicitly deselected live tests.
+  entrypoint and startup contracts. The current reconciliation gate passes 1,259 tests with two
+  intentional environment-dependent skips and 17 explicitly deselected live/container tests.
 - **Known Issues**:
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
-  - Exact release performance passed at p95 14 s, but fail-closed monitoring runs `36872334911`
-    and `36905961561` measured p95 16 s and 17 s against the same image digest. Accepted `ADR-054`
-    governs the locked `0.1.5`/`v1.0.5` correction and three-run release soak.
+  - Exact release performance passed at p95 14 s. Fail-closed runs `36872334911`, `36905961561`,
+    `37796984054`, and `37899003696` retained later p95 regressions. Accepted
+    `ADR-054`–`ADR-059` govern the locked `0.1.5`/`v1.0.5` correction and fresh three-run release
+    soak without altering the accepted release evidence.
 - **Next Milestone**: Stabilise repeated Action cold-start measurements, enable and validate
   production security automation, complete the remaining external M2 gates, close `CH-04` with
   practising-auditor evidence, then implement F-12 and its clean-container export verification.
