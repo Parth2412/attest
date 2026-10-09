@@ -487,7 +487,8 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
-def test_runtime_native_extensions_reuse_the_pinned_system_libgcc() -> None:
+@pytest.mark.ac("AC-F11-240")
+def test_runtime_native_extensions_use_pinned_system_libraries() -> None:
     result = _docker(
         "run",
         "--rm",
@@ -502,25 +503,31 @@ def test_runtime_native_extensions_reuse_the_pinned_system_libgcc() -> None:
         "from rpds import HashTrieMap; "
         "from sigstore.models import ClientTrustConfig; "
         "root = pathlib.Path('/opt/venv/lib/python3.12/site-packages'); "
-        "system = pathlib.Path('/usr/lib/libgcc_s.so.1'); "
-        "directories = tuple(root / name for name in "
-        "('pydantic_core.libs', 'rfc3161_client.libs', 'rpds_py.libs')); "
-        "paths = tuple(next(directory.glob('libgcc_s-*.so.1')) "
-        "for directory in directories); "
-        "assert system.is_file() and not system.is_symlink(); "
-        "assert all(len(tuple(directory.glob('libgcc_s-*.so.1'))) == 1 "
-        "for directory in directories); "
-        "assert tuple(sorted(root.rglob('libgcc_s*.so*'))) == "
-        "tuple(sorted(paths)); "
-        "assert all(path.is_symlink() and path.readlink() == system for path in paths); "
+        "system_libgcc = pathlib.Path('/usr/lib/libgcc_s.so.1'); "
+        "system_crypto = pathlib.Path('/usr/lib/libcrypto.so.3'); "
+        "system_ssl = pathlib.Path('/usr/lib/libssl.so.3'); "
+        "private_directory = root / 'rpds_py.libs'; "
+        "private_paths = tuple(private_directory.glob('libgcc_s-*.so.1')); "
+        "assert system_libgcc.is_file() and not system_libgcc.is_symlink(); "
+        "assert system_crypto.is_file() and not system_crypto.is_symlink(); "
+        "assert system_ssl.is_file() and not system_ssl.is_symlink(); "
+        "assert len(private_paths) == 1; "
+        "private_libgcc = private_paths[0]; "
+        "assert private_libgcc.is_symlink(); "
+        "assert private_libgcc.readlink() == system_libgcc; "
+        "assert not (root / 'pydantic_core.libs').exists(); "
+        "assert not (root / 'rfc3161_client.libs').exists(); "
+        "assert tuple(root.rglob('libgcc_s*.so*')) == (private_libgcc,); "
         "assert SchemaValidator({'type': 'int'}).validate_python('7') == 7; "
         "assert TimestampRequestBuilder(data=b'attest', "
         "hash_algorithm=HashAlgorithm.SHA256).build() is not None; "
         "assert HashTrieMap({'attest': 1})['attest'] == 1; "
         "assert ClientTrustConfig.production(offline=True).trusted_root is not None; "
         "maps = pathlib.Path('/proc/self/maps').read_text(encoding='utf-8'); "
-        "assert str(system) in maps; "
-        "assert all(str(path) not in maps for path in paths)",
+        "assert str(system_libgcc) in maps; "
+        "assert str(system_crypto) in maps; "
+        "assert str(system_ssl) in maps; "
+        "assert str(private_libgcc) not in maps",
     )
 
     assert result.returncode == 0, result.stderr

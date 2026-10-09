@@ -18,6 +18,8 @@ ENV UV_LINK_MODE=copy \
     UV_NO_CACHE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_PYTHON_DOWNLOADS=never \
+    RUSTFLAGS="-C opt-level=z -C strip=symbols -C codegen-units=1 -C panic=abort" \
+    OPENSSL_NO_VENDOR=1 \
     OPENSSL_STATIC=0
 
 RUN apk add --no-cache \
@@ -32,7 +34,11 @@ RUN apk add --no-cache \
     && uv sync --frozen --only-group action-build \
     && uv sync --frozen --no-dev --package attest-cli --no-editable --inexact \
         --no-binary-package cryptography \
+        --no-binary-package pydantic-core \
+        --no-binary-package rfc3161-client \
         --no-build-isolation-package cryptography \
+        --no-build-isolation-package pydantic-core \
+        --no-build-isolation-package rfc3161-client \
     && uv pip uninstall --python /opt/venv/bin/python maturin setuptools \
     && /opt/venv/bin/python action/verify_trust_seed.py action/trust \
     && find /opt/venv -type f -name '*.so' -exec strip --strip-unneeded {} + \
@@ -204,11 +210,7 @@ import zipfile
 
 site_packages = pathlib.Path("/opt/venv/lib/python3.12/site-packages")
 system_libgcc = pathlib.Path("/usr/lib/libgcc_s.so.1")
-private_libgcc_directories = (
-    site_packages / "pydantic_core.libs",
-    site_packages / "rfc3161_client.libs",
-    site_packages / "rpds_py.libs",
-)
+private_libgcc_directories = (site_packages / "rpds_py.libs",)
 private_libgcc_paths = []
 for directory in private_libgcc_directories:
     matches = tuple(directory.glob("libgcc_s-*.so.1"))
@@ -485,7 +487,6 @@ RUN destination=/split/opt/venv/lib/python3.12/site-packages \
     && mkdir -p "${destination}" \
     && cp -a \
         /opt/venv/lib/python3.12/site-packages/rfc3161_client \
-        /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs \
         "${destination}/"
 
 FROM runtime AS venv-pydantic
@@ -493,7 +494,6 @@ RUN destination=/split/opt/venv/lib/python3.12/site-packages \
     && mkdir -p "${destination}" \
     && cp -a \
         /opt/venv/lib/python3.12/site-packages/pydantic_core \
-        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
         "${destination}/"
 
 FROM runtime AS venv-rest
@@ -501,19 +501,17 @@ RUN rm -rf \
         /opt/venv/lib/python3.12/site-packages/_cffi_backend.*.so \
         /opt/venv/lib/python3.12/site-packages/cryptography \
         /opt/venv/lib/python3.12/site-packages/pydantic_core \
-        /opt/venv/lib/python3.12/site-packages/pydantic_core.libs \
-        /opt/venv/lib/python3.12/site-packages/rfc3161_client \
-        /opt/venv/lib/python3.12/site-packages/rfc3161_client.libs
+        /opt/venv/lib/python3.12/site-packages/rfc3161_client
 
 # Balance the runtime across Docker's three concurrent layer downloads.
 FROM scratch AS pull-a
 COPY --from=system-lib / /
-COPY --from=venv-pydantic /split/ /
 COPY --from=python-lib /usr/local/lib /usr/local/lib
 
 FROM scratch AS pull-b
 COPY --from=venv-crypto /split/ /
 COPY --from=venv-rfc3161 /split/ /
+COPY --from=venv-pydantic /split/ /
 COPY --from=python-rest / /
 COPY --from=system-git / /
 

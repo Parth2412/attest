@@ -4,8 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- Reused the exact pinned Action-runtime libgcc through three fail-closed wheel-private links and
-  added both-platform native-module execution contracts for the next reviewed candidate.
+- Added ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client,
+  reducing the Action image by about 14% while retaining pinned dynamic system OpenSSL/libgcc,
+  one fail-closed `rpds-py` compatibility link, and both-platform native execution contracts.
 - Added the ADR-057 bounded acquisition correction: ambient OIDC and mandatory online trust now
   start concurrently, each transient network boundary receives at most one retry before success,
   and no retry can duplicate the signer context or Rekor submission.
