@@ -14,10 +14,18 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - Locked `cryptography==50.0.1` is built from its hash-locked source distribution with removable
   `maturin==1.15.0`, `setuptools==84.0.0`, and exact Alpine build packages. Build tools are absent
   from the runtime image.
+- The three approved wheel-private libgcc files are fail-closed links to the exact pinned system
+  `/usr/lib/libgcc_s.so.1`; both architectures prove the links, loader mappings, native module
+  execution, and offline Sigstore trust initialization.
+- Ambient identity and mandatory online trust acquisition begin concurrently with one bounded
+  transient retry each, while the signer context and Rekor submission remain single-path.
+- The image build verifies the closed production and staging TUF seed from Sigstore's embedded
+  roots. Runtime homes receive only the nine hash-checked non-timestamp cache files and retain
+  mandatory live root and timestamp refresh.
 - The isolated wrapper may invoke the bundled CLI in-process only when the installed console
   script matches its build-generated SHA-256 marker. Any missing, malformed, symlinked, or changed
   script uses the existing sanitized subprocess boundary.
-- Both `linux/amd64` and `linux/arm64` execute the complete 14-test real-container contract suite,
+- Both `linux/amd64` and `linux/arm64` execute the complete 17-test real-container contract suite,
   including offline historical signature verification, before release.
 - The retained candidate includes clean per-platform scans, SBOM, maximum provenance,
   source/context/manifest digests, and a GitHub-hosted identity-bound attestation.
