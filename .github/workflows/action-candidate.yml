@@ -8,6 +8,8 @@ on:
       - ".github/workflows/action-candidate.yml"
       - "action/Dockerfile"
       - "action/entrypoint.py"
+      - "action/trust/**"
+      - "action/verify_trust_seed.py"
       - "packages/attest-core/**"
       - "packages/attest-collect/**"
       - "packages/attest-sign/**"

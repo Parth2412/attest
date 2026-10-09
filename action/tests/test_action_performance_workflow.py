@@ -469,8 +469,9 @@ def _run_combiner(
 
 
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-230")
 def test_combiner_enforces_three_runs_and_the_combined_sixty_sample_p95(tmp_path: Path) -> None:
-    """REQ-F11-210: three passing 20-job runs also produce an independent 60-sample gate."""
+    """REQ-F11-210/230: the unchanged three-run and 60-sample gates remain mandatory."""
     result, output = _run_combiner(tmp_path)
     assert result.returncode == 0, result.stderr
     combined = json.loads(output.read_text(encoding="utf-8"))

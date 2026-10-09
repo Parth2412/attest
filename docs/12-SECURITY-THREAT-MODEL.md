@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.3` |
+| Version | `1.4.4` |
 | Status | **NORMATIVE** for threats and controls |
 | Last updated | 2026-10-08 |
 
@@ -165,6 +165,11 @@ OpenSSL packages on both supported architectures. `ADR-057` replaces only the th
 wheel-private libgcc files with links to the exact pinned system ABI library; the build fails on
 path-set drift, and both architectures execute the affected native modules before candidate
 acceptance.
+`ADR-058` adds only TUF metadata and targets whose exact decoded bytes are hash-locked and whose
+complete chain is verified during the image build from Sigstore's pinned embedded environment
+roots. Runtime seeding excludes timestamp metadata, re-hashes every copied byte, and preserves a
+live next-root probe, live timestamp download, authenticated stale-cache replacement, and the
+mandatory refreshed-root final verification on every invocation.
 
 ---
 

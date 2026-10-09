@@ -4,6 +4,9 @@
 !action/
 !action/Dockerfile
 !action/entrypoint.py
+!action/verify_trust_seed.py
+!action/trust/
+!action/trust/**
 !packages/
 !packages/attest-core/
 !packages/attest-core/LICENSE

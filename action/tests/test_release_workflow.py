@@ -337,6 +337,7 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
 
 @pytest.mark.ac("AC-F11-150")
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-230")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     """REQ-F11-210: the reviewed context, scans, labels, and identity are rechecked."""
     preflight = _workflow()["jobs"]["preflight"]

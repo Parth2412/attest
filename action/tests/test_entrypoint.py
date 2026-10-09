@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -21,6 +22,13 @@ _OID = "a" * 40
 _DIGEST = "d" * 64
 _TOKEN = "github-token-must-not-leak"
 _OIDC_TOKEN = "oidc-request-token-must-not-leak"
+_TRUST_SEED_ROOT = Path(__file__).parents[1] / "trust"
+
+
+@pytest.fixture(autouse=True)
+def _use_checked_in_trust_seed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run the production seeding boundary against the checked-in test asset."""
+    monkeypatch.setattr(entrypoint, "_TRUST_SEED_ROOT", _TRUST_SEED_ROOT)
 
 
 def _git(repository: Path, *arguments: str) -> str:
@@ -281,6 +289,58 @@ def _invoke(
 
 def _error_code(rendered: str) -> str:
     return str(json.loads(rendered)["error"]["code"])
+
+
+@pytest.mark.ac("AC-F11-230")
+def test_prepare_home_seeds_only_the_verified_non_timestamp_tuf_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F11-230: every isolated HOME receives only the closed runtime seed."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    home = tmp_path / "home"
+    monkeypatch.setattr(entrypoint, "_TRUST_SEED_ROOT", _TRUST_SEED_ROOT)
+
+    entrypoint._prepare_home(home, repository)
+
+    seeded = {
+        path.relative_to(home).as_posix()
+        for path in home.rglob("*")
+        if path.is_file() and path.name != ".gitconfig"
+    }
+    assert seeded == {
+        ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/"
+        "signing_config.v0.2.json",
+        ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/trusted_root.json",
+        ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/"
+        "signing_config.v0.2.json",
+        ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/trusted_root.json",
+        ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/"
+        "root_history/15.root.json",
+        ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/snapshot.json",
+        ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/targets.json",
+        ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/snapshot.json",
+        ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/targets.json",
+    }
+    assert not any(path.name == "timestamp.json" for path in home.rglob("*"))
+
+
+@pytest.mark.ac("AC-F11-230")
+def test_prepare_home_fails_closed_for_a_tampered_trust_seed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F11-230: an image-local seed mismatch cannot reach the CLI."""
+    trust = tmp_path / "trust"
+    shutil.copytree(_TRUST_SEED_ROOT, trust)
+    (trust / "production/snapshot.json.b64").write_bytes(b"{}\n")
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    monkeypatch.setattr(entrypoint, "_TRUST_SEED_ROOT", trust)
+
+    with pytest.raises(entrypoint.ActionError) as raised:
+        entrypoint._prepare_home(tmp_path / "home", repository)
+
+    assert raised.value.code == "ERR-INTERNAL-001"
 
 
 @pytest.mark.ac("AC-F11-100")
@@ -978,6 +1038,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-230")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1018,6 +1079,10 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'raise RuntimeError("unexpected private libgcc set")' in dockerfile
     assert "private_libgcc.unlink()" in dockerfile
     assert "private_libgcc.symlink_to(system_libgcc)" in dockerfile
+    assert "COPY action/trust action/trust" in dockerfile
+    assert "COPY action/verify_trust_seed.py action/verify_trust_seed.py" in dockerfile
+    assert "/opt/venv/bin/python action/verify_trust_seed.py action/trust" in dockerfile
+    assert "COPY --from=build /build/action/trust /opt/attest/trust" in dockerfile
     assert 'pathlib.Path("/opt/attest/attest-console-script.sha256")' in dockerfile
     assert "hashlib.sha256(console_script.read_bytes()).hexdigest()" in dockerfile
     for runtime_package in (
