@@ -31,7 +31,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d"
+    "sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77"
 )
 
 
@@ -66,6 +66,19 @@ def _fixture_repository(root: Path) -> None:
         ),
         "action/Dockerfile": "FROM scratch\nCOPY packages/attest-core /package\n",
         "action/entrypoint.py": "raise SystemExit(0)\n",
+        "action/verify_trust_seed.py": "raise SystemExit(0)\n",
+        "action/trust/manifest.json": "{}\n",
+        "action/trust/production/signing_config.v0.2.json.b64": "e30K\n",
+        "action/trust/production/snapshot.json.b64": "e30K\n",
+        "action/trust/production/targets.json.b64": "e30K\n",
+        "action/trust/production/timestamp.json.b64": "e30K\n",
+        "action/trust/production/trusted_root.json.b64": "e30K\n",
+        "action/trust/staging/15.root.json.b64": "e30K\n",
+        "action/trust/staging/signing_config.v0.2.json.b64": "e30K\n",
+        "action/trust/staging/snapshot.json.b64": "e30K\n",
+        "action/trust/staging/targets.json.b64": "e30K\n",
+        "action/trust/staging/timestamp.json.b64": "e30K\n",
+        "action/trust/staging/trusted_root.json.b64": "e30K\n",
         "action/action.yml": "runs:\n  image: docker://example.invalid/mutable:latest\n",
         "packages/attest-core/LICENSE": "licence\n",
         "packages/attest-core/README.md": "readme\n",
@@ -127,6 +140,19 @@ def test_action_context_is_closed_deterministic_and_excludes_manifest(tmp_path: 
     assert [entry["path"] for entry in first_manifest["files"]] == [
         "action/Dockerfile",
         "action/entrypoint.py",
+        "action/trust/manifest.json",
+        "action/trust/production/signing_config.v0.2.json.b64",
+        "action/trust/production/snapshot.json.b64",
+        "action/trust/production/targets.json.b64",
+        "action/trust/production/timestamp.json.b64",
+        "action/trust/production/trusted_root.json.b64",
+        "action/trust/staging/15.root.json.b64",
+        "action/trust/staging/signing_config.v0.2.json.b64",
+        "action/trust/staging/snapshot.json.b64",
+        "action/trust/staging/targets.json.b64",
+        "action/trust/staging/timestamp.json.b64",
+        "action/trust/staging/trusted_root.json.b64",
+        "action/verify_trust_seed.py",
         "packages/attest-core/LICENSE",
         "packages/attest-core/README.md",
         "packages/attest-core/pyproject.toml",
@@ -184,6 +210,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-230")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -229,6 +256,8 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         {"platform": "linux/arm64", "slug": "linux-arm64"},
     ]
     assert "scripts/check_action_scan.py" in triggers["push"]["paths"]
+    assert "action/trust/**" in triggers["push"]["paths"]
+    assert "action/verify_trust_seed.py" in triggers["push"]["paths"]
     for manifest in (
         "release/patches/0.1.5-unchanged-libraries.toml",
         "release/patches/0.1.1-store.toml",
@@ -484,6 +513,8 @@ def test_root_dockerignore_excludes_every_non_runtime_tree() -> None:
     """REQ-F11-150: ad-hoc root builds retain the candidate context boundary."""
     dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
     assert "!action/action.yml" not in dockerignore
+    assert "!action/verify_trust_seed.py" in dockerignore
+    assert "!action/trust/**" in dockerignore
     assert "!packages/attest-export" not in dockerignore
     assert "!packages/attest-core/tests" not in dockerignore
     assert "!packages/attest-core/mutants" not in dockerignore

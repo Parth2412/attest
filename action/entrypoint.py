@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import io
 import json
@@ -24,6 +26,7 @@ type JsonObject = dict[str, JsonValue]
 _ATTEST_EXECUTABLE: Final[Path] = Path("/opt/venv/bin/attest")
 _ATTEST_CONSOLE_SCRIPT_DIGEST: Final[Path] = Path("/opt/attest/attest-console-script.sha256")
 _GIT_EXECUTABLE: Final[Path] = Path("/usr/bin/git")
+_TRUST_SEED_ROOT: Final[Path] = Path("/opt/attest/trust")
 _EVENT_LIMIT: Final[int] = 1024 * 1024
 _POLICY_LIMIT: Final[int] = 1024 * 1024
 _BUNDLE_LIMIT: Final[int] = 64 * 1024 * 1024
@@ -63,6 +66,74 @@ _CLI_ENVIRONMENTS: Final[frozenset[str]] = frozenset(
         "GITHUB_SHA",
         "GITHUB_WORKFLOW_REF",
     }
+)
+_TRUST_SEED_FILES: Final[tuple[tuple[PurePosixPath, PurePosixPath, str], ...]] = (
+    (
+        PurePosixPath("production/signing_config.v0.2.json.b64"),
+        PurePosixPath(
+            ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/"
+            "signing_config.v0.2.json"
+        ),
+        "9711a6d5375706957a4859af31c5866a4474f81f0544f9f4b76c9c4f4c8a539c",
+    ),
+    (
+        PurePosixPath("production/snapshot.json.b64"),
+        PurePosixPath(
+            ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/snapshot.json"
+        ),
+        "6d61405faa993ba3d07556b79d1e319627cdc06ff879a7b5700967dc25d1d224",
+    ),
+    (
+        PurePosixPath("production/targets.json.b64"),
+        PurePosixPath(
+            ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/targets.json"
+        ),
+        "6a697f7f8908c8ab26c11786ecb490b54acec97fa8c802e399f065f8a0cc1acd",
+    ),
+    (
+        PurePosixPath("production/trusted_root.json.b64"),
+        PurePosixPath(
+            ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/trusted_root.json"
+        ),
+        "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66",
+    ),
+    (
+        PurePosixPath("staging/15.root.json.b64"),
+        PurePosixPath(
+            ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/"
+            "root_history/15.root.json"
+        ),
+        "3cfd686011642e1fe151d5e413524bc1fe47ac69e87d44a33a811d04fe1795b9",
+    ),
+    (
+        PurePosixPath("staging/signing_config.v0.2.json.b64"),
+        PurePosixPath(
+            ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/"
+            "signing_config.v0.2.json"
+        ),
+        "7cd0090164c5c85e46d78ac44a28cca2e423967aa184c4d43c2108683ca26f62",
+    ),
+    (
+        PurePosixPath("staging/snapshot.json.b64"),
+        PurePosixPath(
+            ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/snapshot.json"
+        ),
+        "bedd2a80db1f2e0d417d98f4ce17f130290d438926aed4ce757aaca5fb4b5328",
+    ),
+    (
+        PurePosixPath("staging/targets.json.b64"),
+        PurePosixPath(
+            ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/targets.json"
+        ),
+        "f7b603d51b3aef6f33d515a3ce1e1c05b3fb696e1aac3eb9978751af9ed1513f",
+    ),
+    (
+        PurePosixPath("staging/trusted_root.json.b64"),
+        PurePosixPath(
+            ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/trusted_root.json"
+        ),
+        "44deb991d4bbf2150751ccee235d9810bce4434383c26d8898c1bcadbace6ed8",
+    ),
 )
 
 
@@ -702,8 +773,36 @@ def _require_oidc(environ: Mapping[str, str]) -> None:
         _raise("ERR-SIGN-301")
 
 
+def _seed_trust_cache(home: Path) -> None:
+    try:
+        for source_relative, destination_relative, expected_digest in _TRUST_SEED_FILES:
+            encoded = _read_absolute_regular(
+                _TRUST_SEED_ROOT.joinpath(*source_relative.parts),
+                maximum_size=64 * 1024,
+            )
+            if not encoded.endswith(b"\n") or b"\n" in encoded[:-1] or b"\r" in encoded:
+                _value_error()
+            content = base64.b64decode(encoded[:-1], validate=True)
+            if hashlib.sha256(content).hexdigest() != expected_digest:
+                _value_error()
+            destination = home.joinpath(*destination_relative.parts)
+            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            descriptor = os.open(
+                destination,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                0o600,
+            )
+            try:
+                _write_all(descriptor, content)
+            finally:
+                os.close(descriptor)
+    except (binascii.Error, OSError, RuntimeError, TypeError, UnicodeError, ValueError):
+        _raise("ERR-INTERNAL-001")
+
+
 def _prepare_home(home: Path, repository: Path) -> None:
     home.mkdir(mode=0o700)
+    _seed_trust_cache(home)
     config = home / ".gitconfig"
     result = subprocess.run(  # noqa: S603  # nosec B603
         [

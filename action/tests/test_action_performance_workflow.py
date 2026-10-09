@@ -21,7 +21,7 @@ PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.y
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d"
+IMAGE_DIGEST: Final[str] = "sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_IDENTITY: Final[str] = (
@@ -469,8 +469,9 @@ def _run_combiner(
 
 
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-230")
 def test_combiner_enforces_three_runs_and_the_combined_sixty_sample_p95(tmp_path: Path) -> None:
-    """REQ-F11-210: three passing 20-job runs also produce an independent 60-sample gate."""
+    """REQ-F11-210/230: the unchanged three-run and 60-sample gates remain mandatory."""
     result, output = _run_combiner(tmp_path)
     assert result.returncode == 0, result.stderr
     combined = json.loads(output.read_text(encoding="utf-8"))

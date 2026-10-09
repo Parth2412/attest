@@ -1,0 +1,61 @@
+{
+  "capturedAt": "2026-10-08T20:42:03Z",
+  "encoding": "base64",
+  "environments": {
+    "production": {
+      "rootUpdates": [],
+      "runtimeFiles": {
+        "production/signing_config.v0.2.json.b64": ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/signing_config.v0.2.json",
+        "production/snapshot.json.b64": ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/snapshot.json",
+        "production/targets.json.b64": ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/targets.json",
+        "production/trusted_root.json.b64": ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/trusted_root.json"
+      },
+      "snapshot": "production/snapshot.json.b64",
+      "targets": "production/targets.json.b64",
+      "timestamp": "production/timestamp.json.b64",
+      "url": "https://tuf-repo-cdn.sigstore.dev",
+      "versions": {
+        "root": 15,
+        "snapshot": 166,
+        "targets": 14,
+        "timestamp": 803
+      }
+    },
+    "staging": {
+      "rootUpdates": [
+        "staging/15.root.json.b64"
+      ],
+      "runtimeFiles": {
+        "staging/15.root.json.b64": ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/root_history/15.root.json",
+        "staging/signing_config.v0.2.json.b64": ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/signing_config.v0.2.json",
+        "staging/snapshot.json.b64": ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/snapshot.json",
+        "staging/targets.json.b64": ".local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/targets.json",
+        "staging/trusted_root.json.b64": ".cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstage.dev/trusted_root.json"
+      },
+      "snapshot": "staging/snapshot.json.b64",
+      "targets": "staging/targets.json.b64",
+      "timestamp": "staging/timestamp.json.b64",
+      "url": "https://tuf-repo-cdn.sigstage.dev",
+      "versions": {
+        "root": 15,
+        "snapshot": 25,
+        "targets": 28,
+        "timestamp": 743
+      }
+    }
+  },
+  "files": {
+    "production/signing_config.v0.2.json.b64": "9711a6d5375706957a4859af31c5866a4474f81f0544f9f4b76c9c4f4c8a539c",
+    "production/snapshot.json.b64": "6d61405faa993ba3d07556b79d1e319627cdc06ff879a7b5700967dc25d1d224",
+    "production/targets.json.b64": "6a697f7f8908c8ab26c11786ecb490b54acec97fa8c802e399f065f8a0cc1acd",
+    "production/timestamp.json.b64": "8b6d6bd7231d36c370393e471db113a93080cb8bccf77837dd1966f0fc771bb1",
+    "production/trusted_root.json.b64": "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66",
+    "staging/15.root.json.b64": "3cfd686011642e1fe151d5e413524bc1fe47ac69e87d44a33a811d04fe1795b9",
+    "staging/signing_config.v0.2.json.b64": "7cd0090164c5c85e46d78ac44a28cca2e423967aa184c4d43c2108683ca26f62",
+    "staging/snapshot.json.b64": "bedd2a80db1f2e0d417d98f4ce17f130290d438926aed4ce757aaca5fb4b5328",
+    "staging/targets.json.b64": "f7b603d51b3aef6f33d515a3ce1e1c05b3fb696e1aac3eb9978751af9ed1513f",
+    "staging/timestamp.json.b64": "d6a376dc33dc03611cbee3f1e0b7a8e299c6c3d1a2603588ad9fa232f1018dcf",
+    "staging/trusted_root.json.b64": "44deb991d4bbf2150751ccee235d9810bce4434383c26d8898c1bcadbace6ed8"
+  },
+  "schemaVersion": 1
+}

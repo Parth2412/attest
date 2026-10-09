@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.26.0` |
+| Version | `1.27.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-10-08 |
 
@@ -3206,6 +3206,84 @@ independent-review gates complete.
 
 Acceptance authorizes these two bounded sessions. It does not authorize a rerun of failed
 attempt 1, a verification bypass, a threshold change, publication, or movement of `v1`.
+
+---
+
+## ADR-058 — Preseed verified TUF cache without suppressing live refresh
+
+**Status:** Accepted · **Date:** 2026-10-08 · **Affects:** `QA-001`, `SEC-001`, `BRD-F11`,
+`F-11` · **Amends:** `ADR-054`, `ADR-055`, `ADR-057`
+
+**Context.** The exact merged Action commit
+`a3f3c7f94222c00e21a39af6ab364758f1b4f76e` and candidate manifest
+`sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d`
+passed every candidate and promotion gate. Its automatic performance run `37796984054`, attempt
+1, then correctly failed closed with 20 successful samples but nearest-rank p95 16 seconds against
+the strict below-15-second threshold. The sorted samples were 9, 9, 10, 11, 11, 11, 12, 12, 12,
+12, 13, 13, 13, 13, 13, 15, 15, 15, 16, and 18 seconds. Diagnostic decomposition measured image-
+pull p95 approximately 6.677 seconds and post-pull p95 approximately 11.650 seconds. The pull tail
+was materially unchanged from the accepted `v1.0.4` evidence; the mandatory online trust path was
+the remaining actionable tail.
+
+Direct probes against the exact installed `sigstore==4.5.0` and `tuf==7.0.1` established that a
+fresh staging trust initialization fetched root 15, probed root 16, fetched timestamp 743,
+snapshot 25, targets 28, and both selected targets. A cache containing verified root 15,
+snapshot 25, targets 28, and the selected target bytes—but no timestamp—still probed root 16 and
+fetched timestamp 743 live, while securely reusing the matching cached remainder. Production
+behaved equivalently with its embedded root 15, snapshot 166, targets 14, and timestamp 803.
+
+**Decision.** Check in lossless base64 representations of the exact captured production and
+staging TUF metadata and selected target bytes with a closed SHA-256 manifest. The image build
+must decode and verify every byte from Sigstore 4.5.0's environment-specific embedded root using
+TUF 7.0.1's ordered root, timestamp, snapshot, and targets workflow at the fixed recorded capture
+instant. It must verify both selected target lengths and hashes, reject any additional, missing,
+indirected, malformed, or hash-mismatched file, and fail the build on any contract drift.
+
+The captured timestamps are validation-only inputs and must never enter a runtime cache. Each
+Action invocation creates a fresh isolated `HOME` and copies only the exact hash-locked runtime
+set: staging root-history version 15; both environments' snapshots and targets; and both
+environments' `trusted_root.json` and `signing_config.v0.2.json` targets. Production needs no root
+copy because Sigstore 4.5.0 embeds production root 15. The source-to-cache mapping is closed in
+both the build verifier and wrapper, and every decoded runtime byte is re-hashed before creation.
+
+Every invocation must continue to perform Sigstore's live next-root probe and live timestamp
+download. A live timestamp referring to newer snapshot, targets, or target bytes must trigger the
+normal authenticated download path; the seed must not create an offline-only success path or
+alter `ADR-055`'s mandatory refreshed-root identity-bound final verification. Run `37796984054`
+is immutable negative evidence and must not be rerun or counted. A new unique candidate must pass
+all existing two-platform, scan, SBOM, provenance, identity-attestation, and container gates, then
+the exact merged Action and candidate must pass three consecutive fresh attempt-1 20-job runs and
+their combined 60-sample p95 below 15 seconds before publication.
+
+**Rationale.** TUF's security boundary is the signed metadata chain rooted in the pinned embedded
+root, not repeated transfer of unchanged authenticated bytes. Omitting timestamp forces current
+freshness and rollback protection on every invocation, while cached snapshot, targets, and target
+bytes remain reusable only when the live authenticated metadata continues to name their exact
+versions, lengths, and hashes. This removes avoidable network round trips without weakening the
+mandatory online trust or final verification boundaries.
+
+**Rejected alternatives.** Caching timestamp would suppress the explicit live-freshness
+invariant. Skipping live root or timestamp refresh, treating refresh as optional, extending
+metadata expiry, accepting the failed p95, excluding image pull, increasing the threshold, or
+rerunning attempt 1 would weaken an approved security or acceptance boundary. Process-model and
+interpreter changes were rejected because measured startup cost was too small and their security
+surface was larger than the demonstrated TUF-cache optimization.
+
+**Consequences.** The reviewed image context gains a closed trust-seed manifest, eleven encoded
+source files, and a build-only verifier. The wrapper performs nine small hash-checked writes into
+its already-isolated temporary `HOME`. Tests must prove embedded-root chain validation, closed
+file and path sets, tamper failure, runtime timestamp exclusion, exact context inclusion, and both-
+platform image presence. The release version, package set, acceptance threshold, signer logic,
+and promotion sequence remain unchanged.
+
+### ADR-058 implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-230` | Verify the captured TUF chain at build time; seed only exact non-timestamp cache bytes into each isolated Action home; retain mandatory live root/timestamp refresh and every existing candidate/performance gate | `action/trust/`, `action/verify_trust_seed.py`, `action/entrypoint.py`, `action/Dockerfile`, context/workflow/tests, `BRD-F11`, cross-cutting controls |
+
+Acceptance authorizes this bounded cache seed. It does not authorize timestamp caching, an
+offline-only path, a failed-run rerun, a threshold change, publication, or movement of `v1`.
 
 ---
 

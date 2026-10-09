@@ -527,6 +527,40 @@ def test_runtime_native_extensions_reuse_the_pinned_system_libgcc() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-230")
+def test_runtime_contains_validated_sources_and_seeds_no_timestamp() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import importlib.util, pathlib, sys, tempfile; "
+        "root = pathlib.Path('/opt/attest/trust'); "
+        "files = {path.relative_to(root).as_posix() for path in root.rglob('*') "
+        "if path.is_file()}; "
+        "assert 'manifest.json' in files; "
+        "assert len(files) == 12; "
+        "assert {'production/timestamp.json.b64', 'staging/timestamp.json.b64'} <= files; "
+        "spec = importlib.util.spec_from_file_location("
+        "'attest_action_entrypoint', '/opt/attest/entrypoint.py'); "
+        "module = importlib.util.module_from_spec(spec); "
+        "sys.modules[spec.name] = module; "
+        "spec.loader.exec_module(module); "
+        "home = pathlib.Path(tempfile.mkdtemp()) / 'home'; "
+        "module._prepare_home(home, pathlib.Path('/tmp')); "
+        "seeded = {path.relative_to(home).as_posix() for path in home.rglob('*') "
+        "if path.is_file() and path.name != '.gitconfig'}; "
+        "assert len(seeded) == 9; "
+        "assert not any(path.endswith('/timestamp.json') for path in seeded)",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
 def test_precompiled_runtime_verifies_the_historical_bundle_offline() -> None:

@@ -7,7 +7,7 @@ Verification rules, outputs, and failure semantics remain fail closed.
 ## Release contents
 
 - GitHub Action `v1.0.5` pins the reviewed multi-platform image manifest
-  `sha256:b1046837b75ba271943b561d03392fa7b250d7825caa262f8852fbf56a62179d`.
+  `sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77`.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
   `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
   `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
@@ -19,10 +19,13 @@ Verification rules, outputs, and failure semantics remain fail closed.
   execution, and offline Sigstore trust initialization.
 - Ambient identity and mandatory online trust acquisition begin concurrently with one bounded
   transient retry each, while the signer context and Rekor submission remain single-path.
+- The image build verifies the closed production and staging TUF seed from Sigstore's embedded
+  roots. Runtime homes receive only the nine hash-checked non-timestamp cache files and retain
+  mandatory live root and timestamp refresh.
 - The isolated wrapper may invoke the bundled CLI in-process only when the installed console
   script matches its build-generated SHA-256 marker. Any missing, malformed, symlinked, or changed
   script uses the existing sanitized subprocess boundary.
-- Both `linux/amd64` and `linux/arm64` execute the complete 16-test real-container contract suite,
+- Both `linux/amd64` and `linux/arm64` execute the complete 17-test real-container contract suite,
   including offline historical signature verification, before release.
 - The retained candidate includes clean per-platform scans, SBOM, maximum provenance,
   source/context/manifest digests, and a GitHub-hosted identity-bound attestation.

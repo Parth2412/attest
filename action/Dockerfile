@@ -11,6 +11,8 @@ COPY packages/attest-sign packages/attest-sign
 COPY packages/attest-store packages/attest-store
 COPY packages/attest-policy packages/attest-policy
 COPY packages/attest-cli packages/attest-cli
+COPY action/trust action/trust
+COPY action/verify_trust_seed.py action/verify_trust_seed.py
 
 ENV UV_LINK_MODE=copy \
     UV_NO_CACHE=1 \
@@ -32,6 +34,7 @@ RUN apk add --no-cache \
         --no-binary-package cryptography \
         --no-build-isolation-package cryptography \
     && uv pip uninstall --python /opt/venv/bin/python maturin setuptools \
+    && /opt/venv/bin/python action/verify_trust_seed.py action/trust \
     && find /opt/venv -type f -name '*.so' -exec strip --strip-unneeded {} + \
     && rm -rf \
         /opt/venv/lib/python3.12/site-packages/certifi/tests \
@@ -187,6 +190,7 @@ RUN apk add --no-cache \
 
 COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py
+COPY --from=build /build/action/trust /opt/attest/trust
 
 RUN <<'PYTHON'
 #!/opt/venv/bin/python
