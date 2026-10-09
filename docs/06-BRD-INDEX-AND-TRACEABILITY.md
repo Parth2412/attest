@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.4` |
+| Version | `2.6.5` |
 | Status | Baselined |
 | Last updated | 2026-10-08 |
 
@@ -389,6 +389,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F11-200` | `AC-F11-200` | `action/tests/test_release_candidate.py`, `test_release_workflow.py`, `test_release_recovery_workflow.py` | ✓ |
 | `REQ-F11-210` | `AC-F11-210` | `action/tests/test_entrypoint.py`, `test_container.py`, `test_release_candidate.py`, `test_action_performance_workflow.py`, `test_release_workflow.py` | ✓ |
 | `REQ-F11-220` | `AC-F11-220` | `packages/attest-cli/tests/test_release_packaging.py`, `action/tests/test_release_candidate.py`, `test_release_workflow.py` | ✓ |
+| `REQ-F11-230` | `AC-F11-230` | `action/tests/test_trust_seed.py`, `test_entrypoint.py`, `test_container.py`, `test_release_candidate.py`, `test_action_performance_workflow.py`, `test_release_workflow.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

@@ -25,6 +25,19 @@ FIXED_FILES: Final[tuple[PurePosixPath, ...]] = (
     PurePosixPath("uv.lock"),
     PurePosixPath("action/Dockerfile"),
     PurePosixPath("action/entrypoint.py"),
+    PurePosixPath("action/verify_trust_seed.py"),
+    PurePosixPath("action/trust/manifest.json"),
+    PurePosixPath("action/trust/production/signing_config.v0.2.json.b64"),
+    PurePosixPath("action/trust/production/snapshot.json.b64"),
+    PurePosixPath("action/trust/production/targets.json.b64"),
+    PurePosixPath("action/trust/production/timestamp.json.b64"),
+    PurePosixPath("action/trust/production/trusted_root.json.b64"),
+    PurePosixPath("action/trust/staging/15.root.json.b64"),
+    PurePosixPath("action/trust/staging/signing_config.v0.2.json.b64"),
+    PurePosixPath("action/trust/staging/snapshot.json.b64"),
+    PurePosixPath("action/trust/staging/targets.json.b64"),
+    PurePosixPath("action/trust/staging/timestamp.json.b64"),
+    PurePosixPath("action/trust/staging/trusted_root.json.b64"),
 )
 PACKAGE_FILES: Final[tuple[str, ...]] = ("LICENSE", "README.md", "pyproject.toml")
 PACKAGE_NAME: Final[re.Pattern[str]] = re.compile(r"attest-[a-z]+\Z")
