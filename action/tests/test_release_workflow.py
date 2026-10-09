@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.5.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7"
+IMAGE_DIGEST: Final[str] = "sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:e95c29f1cbfd9573e7ad3c7a2ba2333302cedcc0ee0879042e39ea16aa2a42f1"
+    "sha256:789e08f6779e30d47ba3b4282913f4643bf6ef0d57366dce63459814903cd07c"
 )
-CANDIDATE_SHA: Final[str] = "e83a068f213f54c9253e2b77d2e5499643c2c672"
+CANDIDATE_SHA: Final[str] = "0ebda1ee28d8e7ecb02d1731dfec7390b2e2aaa6"
 PRIOR_RELEASE_SHA: Final[str] = "4e73dcaf888f15967da66826d48cca5ac6684fcb"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -131,7 +131,7 @@ def test_release_is_closed_to_the_two_approved_python_patches() -> None:
         "PUBLIC_CLI_VERSION": "0.1.4",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 37018503454,
+        "REVIEWED_CANDIDATE_RUN_ID": 37895519233,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,

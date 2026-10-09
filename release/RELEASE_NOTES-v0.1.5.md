@@ -7,7 +7,7 @@ Verification rules, outputs, and failure semantics remain fail closed.
 ## Release contents
 
 - GitHub Action `v1.0.5` pins the reviewed multi-platform image manifest
-  `sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7`.
+  `sha256:461a489b7f0f892132f35012270b14b6199b5f5e6a3e850014a600c8b7c54a77`.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
   `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
   `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
