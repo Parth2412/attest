@@ -504,3 +504,7 @@ public record. Candidate run `37904158120`, attempt 1, passed all supply-chain g
 source `6ec6074185cfd25e7f66c8eac2e0666dfa194a6f`, context
 `sha256:c2c6240d341ae0fa066f6121a8d0d1c5b56aff598dd8f5a37598b01970f42fdc`, and manifest
 `sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.
+Candidate run `38038325243`, attempt 1, passed all `ADR-060` supply-chain gates for exact source
+`57ab2e08c297a2bf2131d2ea942d9e439d9c8faf`, context
+`sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`, and manifest
+`sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.

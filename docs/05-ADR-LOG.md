@@ -3377,7 +3377,7 @@ run rerun, dependency or threshold change, publication, or movement of `v1`.
 
 **Context.** The exact merged Action commit
 `d17e1600fff4856a704bf1568b723669a9a66575` and candidate manifest
-`sha256:ac199137b8e07ee6e015b71f6d8282080426612035623779c0ea9ae2e387536a`
+`sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`
 passed the post-`ADR-059` candidate, CI, and end-to-end gates. Its automatic performance run
 `37946041636`, attempt 1, retained 20 successful samples but correctly failed at p50 12 seconds
 and nearest-rank p95 16 seconds. The sorted samples were 8, 8, 9, 10, 10, 10, 11, 12, 12, 12,
@@ -3435,6 +3435,16 @@ It applies approximately 7.31 MB fewer filesystem bytes and keeps one standard P
 mechanism for the pure-Python runtime. Publication remains blocked until the new candidate,
 three-run performance sequence, exact release, dogfood, public proof, fork denial, and independent
 `v1` review all pass.
+
+**Implementation evidence.** Candidate run `38038325243`, attempt 1, passed for exact `dev`
+commit `57ab2e08c297a2bf2131d2ea942d9e439d9c8faf`, context
+`sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`, and manifest
+`sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.
+Both architectures passed all 17 real-container contracts and clean vulnerability/secret gates.
+The amd64 primary zstd layers were 6,676,413, 6,976,258, and 7,457,100 bytes; arm64's were
+6,964,940, 7,008,995, and 7,459,779 bytes. The retained SBOM, maximum provenance, and GitHub
+attestation bind the manifest to the exact source, workflow, `dev` ref, hosted runner, and
+attempt-1 invocation.
 
 ### ADR-060 implementation plan
 
