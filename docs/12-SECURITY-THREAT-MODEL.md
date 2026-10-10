@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.4` |
+| Version | `1.4.5` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-08 |
+| Last updated | 2026-10-10 |
 
 ---
 
@@ -176,6 +176,11 @@ extensions load the exact pinned system OpenSSL; pydantic-core and rfc3161-clien
 system libgcc directly, and only the closed `rpds-py` compatibility symlink remains. Both
 architectures must prove native operations, loader mappings, and offline trust initialization
 before candidate acceptance.
+`ADR-060` compresses only the closed, build-generated pure-Python bytecode archive with standard
+DEFLATE level 9. Its sorted members, fixed timestamps and modes, checked-hash bytecode, closed root
+set, and in-place import path remain mandatory; no repository-controlled member is added and no
+runtime extraction path is introduced. Both architectures must prove the complete archive and
+native runtime behavior before candidate acceptance.
 
 ---
 

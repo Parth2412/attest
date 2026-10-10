@@ -68,6 +68,7 @@ def _step(job: dict[str, Any], name: str) -> dict[str, Any]:
 
 
 @pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-250")
 def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     """REQ-F11-100: the immutable Action is measured in 20 hosted jobs on main."""
     workflow = _workflow()
@@ -470,8 +471,9 @@ def _run_combiner(
 
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-230")
+@pytest.mark.ac("AC-F11-250")
 def test_combiner_enforces_three_runs_and_the_combined_sixty_sample_p95(tmp_path: Path) -> None:
-    """REQ-F11-210/230: the unchanged three-run and 60-sample gates remain mandatory."""
+    """REQ-F11-210/230/250: the unchanged three-run and 60-sample gates remain mandatory."""
     result, output = _run_combiner(tmp_path)
     assert result.returncode == 0, result.stderr
     combined = json.loads(output.read_text(encoding="utf-8"))

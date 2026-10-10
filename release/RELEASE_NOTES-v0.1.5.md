@@ -22,6 +22,9 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - The image build verifies the closed production and staging TUF seed from Sigstore's embedded
   roots. Runtime homes receive only the nine hash-checked non-timestamp cache files and retain
   mandatory live root and timestamp refresh.
+- The closed pure-Python runtime bytecode archive uses deterministic DEFLATE level 9 with sorted
+  members, fixed timestamps and modes, and in-place imports; it introduces no runtime extraction
+  path and leaves the already-deflated standard-library archive unchanged.
 - The isolated wrapper may invoke the bundled CLI in-process only when the installed console
   script matches its build-generated SHA-256 marker. Any missing, malformed, symlinked, or changed
   script uses the existing sanitized subprocess boundary.

@@ -356,6 +356,7 @@ def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> No
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-250")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -433,7 +434,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "<= runtime_roots; "
         "assert {'id', 'securesystemslib'}.isdisjoint(runtime_roots); "
         "assert all('__pycache__' not in entry.filename for entry in runtime_entries); "
-        "assert all(entry.compress_type == zipfile.ZIP_STORED "
+        "assert all(entry.compress_type == zipfile.ZIP_DEFLATED "
         "for entry in runtime_entries); "
         "assert all(entry.date_time == (1980, 1, 1, 0, 0, 0) "
         "for entry in runtime_entries); "
