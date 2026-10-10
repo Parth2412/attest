@@ -5,9 +5,9 @@
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.4`,
   immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-10 and the initial F-11
-  release are complete; the bounded `ADR-054`–`ADR-059` F-11 reliability correction is In
+  release are complete; the bounded `ADR-054`–`ADR-060` F-11 reliability correction is In
   progress and F-12 is Planned.
-- **Last Updated**: 2026-10-09
+- **Last Updated**: 2026-10-10
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -29,7 +29,7 @@
 ## Current Project Status
 
 - **Development Stage**: **Public pre-alpha.** BOOT-001, F-01 through F-10, and the initial F-11
-  release are complete. F-11 is In progress only for the bounded `ADR-054`–`ADR-059` reliability
+  release are complete. F-11 is In progress only for the bounded `ADR-054`–`ADR-060` reliability
   correction; F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and
   `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
@@ -51,8 +51,8 @@
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
   - Exact release performance passed at p95 14 s. Fail-closed runs `36872334911`, `36905961561`,
-    `37796984054`, and `37899003696` retained later p95 regressions. Accepted
-    `ADR-054`–`ADR-059` govern the locked `0.1.5`/`v1.0.5` correction and fresh three-run release
+    `37796984054`, `37899003696`, and `37946041636` retained later p95 regressions. Accepted
+    `ADR-054`–`ADR-060` govern the locked `0.1.5`/`v1.0.5` correction and fresh three-run release
     soak without altering the accepted release evidence.
 - **Next Milestone**: Stabilise repeated Action cold-start measurements, enable and validate
   production security automation, complete the remaining external M2 gates, close `CH-04` with

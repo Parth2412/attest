@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.4` |
+| Version | `1.7.5` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-08 |
+| Last updated | 2026-10-10 |
 
 ---
 
@@ -361,8 +361,10 @@ retaining live root and timestamp refresh and refreshed-root final verification 
 invocation. `ADR-059` supersedes the three-link runtime layout: exact locked cryptography,
 pydantic-core, and rfc3161-client now build from source with the approved size flags and direct
 pinned system OpenSSL/libgcc linkage; only the `rpds-py` compatibility name remains as a
-fail-closed symlink to system libgcc. Public files must byte-match the single build, and Python
-3.12/3.13 clean installs must pass; core,
+fail-closed symlink to system libgcc. `ADR-060` encodes the closed deterministic pure-Python
+runtime archive with standard-library DEFLATE level 9 while retaining sorted members, fixed
+metadata, checked-hash bytecode, and in-place imports. Public files must byte-match the single
+build, and Python 3.12/3.13 clean installs must pass; core,
 collect, store, policy, and export are not rebuilt or uploaded.
 
 ---
@@ -373,7 +375,7 @@ collect, store, policy, and export are not rebuilt or uploaded.
 |---|---|---|
 | `pygit2` wheel availability across platforms | Install failures | Dual `GitBackend` implementations (`ADR-007`) |
 | `sigstore-python` API changes between minor versions | Breakage | Pin exactly; wrap behind an internal `Signer` protocol so the blast radius is one module |
-| Container cold start | Slower CI | Slim base, balanced zstd layers, one locked dynamic OpenSSL, and retained hosted-runner soak evidence |
+| Container cold start | Slower CI | Slim base, balanced zstd layers, one locked dynamic OpenSSL, deterministic DEFLATE level-9 pure-Python archive, and retained hosted-runner soak evidence |
 | Python startup for a CLI | Perceived sluggishness | Defer heavy imports; for the Action only, use the digest-guarded in-process CLI under isolated Python |
 | Transitive dependency surface in a security tool | Supply-chain criticism | Keep the dependency tree small and auditable; `pip-audit` in CI; publish an SBOM for each release |
 

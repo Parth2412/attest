@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.2` |
+| Version | `1.1.3` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-10-08 |
+| Last updated | 2026-10-10 |
 
 ---
 
@@ -346,7 +346,11 @@ before the new candidate repeats every existing gate. Exact post-`ADR-058` run `
 attempt 1, retained 20 successful samples with p50 11 s and p95 17 s; retained logs measured
 image-pull/extraction p95 near 7.87 s and post-pull p95 near 9.60 s. `ADR-059` preserves that run,
 source-builds the three exact locked Rust extensions with smaller direct system-library linkage,
-and rebalances the compressed layers before a new candidate restarts every existing gate.
+and rebalances the compressed layers before a new candidate restarts every existing gate. Exact
+post-`ADR-059` run `37946041636`, attempt 1, retained 20 successful samples with p50 12 s and p95
+16 s; image pull/extraction measured p95 7.397 s and the post-pull path measured p95 10.952 s.
+`ADR-060` preserves that run, changes only the deterministic pure-Python runtime archive from
+stored to DEFLATE level 9, and requires another unique candidate to restart every existing gate.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
@@ -369,7 +373,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, and `37899003696` retained later p95 regressions; accepted `ADR-054`, `ADR-057`, `ADR-058`, and `ADR-059` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059` |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, and `37946041636` retained later p95 regressions; accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, and `ADR-060` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060` |
 
 ---
 

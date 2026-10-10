@@ -321,7 +321,8 @@ runtime_archive = site_packages / "attest-runtime.zip"
 with zipfile.ZipFile(
     runtime_archive,
     mode="w",
-    compression=zipfile.ZIP_STORED,
+    compression=zipfile.ZIP_DEFLATED,
+    compresslevel=9,
 ) as archive:
     for name in runtime_archive_roots:
         root = site_packages / name
@@ -336,10 +337,10 @@ with zipfile.ZipFile(
                 path.relative_to(site_packages).as_posix(),
                 date_time=(1980, 1, 1, 0, 0, 0),
             )
-            metadata.compress_type = zipfile.ZIP_STORED
+            metadata.compress_type = zipfile.ZIP_DEFLATED
             metadata.create_system = 3
             metadata.external_attr = 0o100644 << 16
-            archive.writestr(metadata, path.read_bytes())
+            archive.writestr(metadata, path.read_bytes(), compresslevel=9)
 for name in runtime_archive_roots:
     shutil.rmtree(site_packages / name)
 (site_packages / "attest-runtime-archive.pth").write_text(

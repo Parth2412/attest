@@ -284,6 +284,7 @@ def test_release_verifies_publishers_and_public_bytes_before_promotion() -> None
 
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-250")
 def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
     """REQ-F11-210: publication requires three exact 20-job results and all 60 samples."""
     preflight = _workflow()["jobs"]["preflight"]
@@ -339,6 +340,7 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
+@pytest.mark.ac("AC-F11-250")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     """REQ-F11-210: the reviewed context, scans, labels, and identity are rechecked."""
     preflight = _workflow()["jobs"]["preflight"]
