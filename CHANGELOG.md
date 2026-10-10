@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, reducing the Action's
+  applied filesystem footprint while retaining the closed bytecode set, fixed metadata, in-place
+  imports, and every existing candidate and performance gate.
 - Added ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client,
   reducing the Action image by about 14% while retaining pinned dynamic system OpenSSL/libgcc,
   one fail-closed `rpds-py` compatibility link, and both-platform native execution contracts.

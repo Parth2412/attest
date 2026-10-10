@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.27.0` |
+| Version | `1.28.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-08 |
+| Last updated | 2026-10-10 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3367,6 +3367,93 @@ the exact source, workflow, `dev` ref, hosted runner, and attempt-1 invocation.
 
 Acceptance authorizes only this bounded native-build correction. It does not authorize a failed-
 run rerun, dependency or threshold change, publication, or movement of `v1`.
+
+---
+
+## ADR-060 — Deflate the deterministic Action runtime archive
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`
+
+**Context.** The exact merged Action commit
+`d17e1600fff4856a704bf1568b723669a9a66575` and candidate manifest
+`sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`
+passed the post-`ADR-059` candidate, CI, and end-to-end gates. Its automatic performance run
+`37946041636`, attempt 1, retained 20 successful samples but correctly failed at p50 12 seconds
+and nearest-rank p95 16 seconds. The sorted samples were 8, 8, 9, 10, 10, 10, 11, 12, 12, 12,
+13, 13, 13, 13, 13, 14, 15, 15, 16, and 16 seconds. Exact log timestamps measured image
+pull/extraction p50 3.588 seconds and p95 7.397 seconds, plus post-pull p50 8.053 seconds and p95
+10.952 seconds. The two 16-second tail samples spent 8.218 and 7.009 seconds respectively in
+image pull/extraction, so that path remains material alongside the signer path.
+
+The runtime currently places 1,066 deterministic pure-Python bytecode members in an uncompressed
+`attest-runtime.zip`; the standard-library archive is already DEFLATE level 9. An otherwise
+identical production-equivalent prototype changed only the runtime archive to deterministic
+DEFLATE level 9. Its archive shrank from 11,195,594 to 3,885,835 bytes and its local unpacked image
+from 54,730,225 to 47,419,997 bytes, a 7,310,228-byte or 13.36% reduction. The exact zstd level-22
+OCI transfer grew from 20,122,712 to 21,141,876 bytes, a 1,019,164-byte or 5.06% cost. In 20
+alternating local extractions, the affected zstd layer's median apply time fell from 71.9 to 48.9
+milliseconds and p95 from 79.3 to 58.7 milliseconds; this is a local directional proxy, not
+hosted-runner acceptance evidence. Twelve alternating warm real-container executions had medians
+of 1.705 seconds stored and 1.765 seconds deflated. All 74 entrypoint tests and all 17
+real-container tests passed the prototype.
+
+**Decision.** Encode exactly `attest-runtime.zip` with Python's
+`zipfile.ZIP_DEFLATED` at `compresslevel=9`. Preserve its closed root set, sorted member order,
+checked-hash bytecode, fixed 1980 timestamps, Unix regular-file mode, and existing `.pth` import
+path. Retain the already-deflated standard-library archive unchanged. Tests must prove the exact
+compression method and level, deterministic metadata, complete imports, native execution, and the
+existing security and trust contracts on both architectures.
+
+Do not change a dependency version, source-build rule, trust seed, signer behavior, public
+interface, package or release version, performance sample, threshold, or promotion rule. Run
+`37946041636` is immutable negative evidence and must not be rerun or counted. A new unique
+candidate must pass every existing amd64/arm64 real-container, scan, SBOM, provenance, and
+identity-attestation gate. Only the exact merged Action and that candidate may begin a fresh
+sequence of three consecutive attempt-1 20-job measurements and the combined 60-sample gate.
+
+**Rationale.** The failed hosted evidence shows that image pull/extraction still consumes roughly
+half of each tail sample. Internal DEFLATE removes 7.31 MB from the filesystem material applied by
+the runtime layer while preserving the same files and interpreter behavior. Level 9 dominates the
+other tested DEFLATE levels: levels 1, 3, 6, and 9 produced runtime archives of 4,325,730,
+4,155,578, 3,917,719, and 3,885,835 bytes and total zstd OCI layers of 21,969,050, 21,642,273,
+21,192,496, and 21,141,876 bytes respectively. The unchanged hosted gate, rather than the local
+proxy, remains the authority on whether the combined transfer, layer application, and startup cost
+meets the requirement.
+
+**Rejected alternatives.** Retaining `ZIP_STORED` preserves a smaller outer zstd transfer but also
+preserves the exact runtime that failed the merged gate. DEFLATE levels 1, 3, and 6 increase both
+the inner archive and production-equivalent outer transfer relative to level 9. BZIP2, LZMA, a new
+archive format, or runtime extraction would add compatibility or startup work outside the bounded
+change. Removing packages, changing dependency versions, excluding image pull, accepting the
+failed run, reducing the sample count, or relaxing the threshold changes the approved product or
+gate and is forbidden.
+
+**Consequences.** The image transfers approximately 1.02 MB more zstd data and performs bounded
+DEFLATE decoding during imports; the measured warm median cost is approximately 60 milliseconds.
+It applies approximately 7.31 MB fewer filesystem bytes and keeps one standard Python archive
+mechanism for the pure-Python runtime. Publication remains blocked until the new candidate,
+three-run performance sequence, exact release, dogfood, public proof, fork denial, and independent
+`v1` review all pass.
+
+**Implementation evidence.** Candidate run `38038325243`, attempt 1, passed for exact `dev`
+commit `57ab2e08c297a2bf2131d2ea942d9e439d9c8faf`, context
+`sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`, and manifest
+`sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.
+Both architectures passed all 17 real-container contracts and clean vulnerability/secret gates.
+The amd64 primary zstd layers were 6,676,413, 6,976,258, and 7,457,100 bytes; arm64's were
+6,964,940, 7,008,995, and 7,459,779 bytes. The retained SBOM, maximum provenance, and GitHub
+attestation bind the manifest to the exact source, workflow, `dev` ref, hosted runner, and
+attempt-1 invocation.
+
+### ADR-060 implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-250` | Encode the deterministic pure-Python runtime archive with DEFLATE level 9; prove its closed deterministic contents and both-platform behavior; preserve failed run `37946041636`; restart every candidate and performance gate | `action/Dockerfile`, entrypoint/container/candidate/release tests, `BRD-F11`, cross-cutting controls, release evidence |
+
+Acceptance authorizes only this bounded archive-encoding correction. It does not authorize a
+failed-run rerun, dependency or threshold change, publication, or movement of `v1`.
 
 ---
 
