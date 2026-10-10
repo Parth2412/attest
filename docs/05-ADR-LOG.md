@@ -3457,6 +3457,128 @@ failed-run rerun, dependency or threshold change, publication, or movement of `v
 
 ---
 
+## ADR-061 — Remove Action-only startup overhead and restore reviewed dispatches
+
+**Status:** Proposed · **Date:** 2026-10-11 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F06`, `BRD-F11`, `F-06`, `F-11` · **Amends:** `ADR-037`, `ADR-046`, `ADR-054`,
+`ADR-057`, `ADR-060`
+
+**Context.** The exact merged Action commit
+`9a161ae337ccafb3301d3c6c4287ac12225938b9` and candidate manifest
+`sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`
+passed the post-`ADR-060` candidate and CI gates. Automatic performance run `38056326479`,
+attempt 1, retained 20 successful samples but correctly failed the strict below-15-second gate at
+p50 11 seconds and nearest-rank p95 15 seconds. The sorted API durations were 8, 9, 10, 10, 10,
+10, 11, 11, 11, 11, 11, 11, 12, 13, 13, 13, 14, 15, 15, and 17 seconds. Exact log timestamps
+measured total p50 11.364 seconds and p95 15.019 seconds, image pull/extraction p50 3.269 seconds
+and p95 7.444 seconds, and post-pull p50 7.575 seconds and p95 9.751 seconds. The run is immutable
+negative evidence; it has not started the required three-run sequence.
+
+Two production-equivalent probes found bounded remaining headroom. First, compiling the same
+closed bytecode set with CPython 3.12's `PYTHONNODEBUGRANGES=1` removed only fine-grained
+traceback end-line and column tables. It retained optimisation level zero, assertions, docstrings,
+line numbers, checked-hash invalidation, archive membership, timestamps, modes, compression, and
+runtime behavior. The prototype reduced `attest-runtime.zip` from 3,885,835 to 3,429,873 bytes,
+`python312.zip` from 2,736,205 to 2,371,282 bytes, the unpacked image from 47,419,997 to
+46,525,109 bytes, and exact zstd level-22 OCI layers from 21,141,876 to 20,176,647 bytes. All 17
+real-container contracts passed. Twenty alternating warm version invocations measured medians of
+1.138 seconds for the accepted image and 1.111 seconds for the prototype; this local result is
+directional only.
+
+Second, `ADR-037` requires a terminable isolated child process for every signing attempt but does
+not require CPython's `spawn` start method. In the controlled single-threaded Linux Action runtime,
+two successful staging OIDC diagnostics retained the same pipe, deadline, stage-aware retry,
+termination, and secret-safe worker boundary while using `fork`. Runs `38059066368` and
+`38077142801` measured process-boundary overhead of 0.036 and 0.046 seconds. The comparable
+accepted `spawn` diagnostic measured approximately 0.568 seconds, so the Action-only boundary
+removes about 0.52 seconds without removing process isolation. Public CLI and library execution
+outside the controlled Action runtime remain on `spawn`.
+
+The investigation also found a correctness defect independent of latency. The frozen performance
+workflow requires one automatic push run followed by two reviewed `workflow_dispatch` runs, but
+the Action adapter accepts only `push` and `pull_request`; therefore neither reviewed run can
+succeed. Diagnostic run `38077558463` captured the actual GitHub branch-dispatch contract: the
+event contains `inputs`, `ref`, `repository`, `sender`, and `workflow`; its full branch `ref`
+matches `GITHUB_REF`; `GITHUB_SHA` is the selected branch tip; and `GITHUB_WORKFLOW_REF` binds the
+repository, workflow path, and selected full ref.
+
+**Decision.** Build both deterministic Python archives with fine-grained debug ranges disabled at
+compile time. The build must retain optimisation level zero and prove that assertions, docstrings,
+line numbers, checked-hash invalidation, closed membership, sorted order, fixed timestamps, modes,
+DEFLATE level 9, and in-place imports are unchanged. The final runtime does not need a new Python
+flag: only the already-compiled code objects omit end-line and column tables. Both architectures
+must execute every existing container, native, trust, and security contract.
+
+The sanitized Action adapter may select the Linux `fork` multiprocessing context only by adding a
+private internal marker to the environment it constructs after validating inputs, OIDC authority,
+event context, repository history, and the digest-matched in-process CLI boundary. A caller's
+environment cannot supply or override that marker. The controlled path must prove it is running on
+Linux, on the main thread, and without another live Python thread before forking. Any failed
+precondition uses the existing `spawn` context. The public CLI, direct `attest-sign` API, and every
+non-Action invocation remain on `spawn`. Both paths retain a distinct child process, one-way pipe,
+positive hard deadline, parent termination, fresh-process retry, Rekor non-retry boundary, stable
+error codes, and secret-free messages.
+
+Amend the Action event contract to accept an exact branch `workflow_dispatch` in addition to the
+existing branch `push` and branch `pull_request`. The adapter must validate the observed payload
+shape, repository, full branch ref, branch name/type, selected head SHA, workflow path, and exact
+`GITHUB_WORKFLOW_REF` binding. Tags, missing or extra payload fields, path traversal, repository or
+ref mismatch, an incomplete checkout, a root commit without a parent, and every other event remain
+fail-closed. After the normal OIDC-before-repository-read boundary, complete history must prove the
+checked-out head and derive its first parent as the comparison base. The resulting base, head, and
+target branch use the same explicit CLI arguments as a branch push. Tests must prove a dispatch of
+the exact `main` commit produces the same ChangeSet coordinates as its automatic push run.
+
+Do not change a dependency version, trust seed, signer network operation, public input, output,
+error code, package or release version, sample count, timing boundary, threshold, or promotion
+rule. Run `38056326479` must not be rerun or counted. A new unique candidate must pass every
+amd64/arm64 real-container, scan, SBOM, provenance, and identity-attestation gate. Only the exact
+merged Action and that candidate may begin a new automatic-plus-two-reviewed-dispatch sequence of
+three consecutive attempt-1 20-job measurements and the combined 60-sample gate.
+
+**Rationale.** Fine-grained debug ranges are non-executable traceback metadata, and their removal
+saves 965,229 compressed transfer bytes while preserving assertions, docstrings, source line
+numbers, and all stable user diagnostics. Action-only `fork` reuses the already-imported locked
+runtime in a separate terminable process and removes a live-measured half-second of redundant
+interpreter/import startup. Constraining it to the sanitized, single-threaded Linux adapter avoids
+changing the general-purpose library's safer cross-platform default. Strict branch-dispatch
+validation repairs the approved three-run procedure without synthesizing a push event or changing
+the measured commit. The unchanged hosted gate remains the only acceptance authority.
+
+**Rejected alternatives.** Cargo profile LTO built successfully but reduced exact zstd layers by
+only 90,992 bytes; global LTO flags also failed on procedural-macro crates. Flattening the image
+increased transfer by about 154 KB and improved local median pull by only about 19 milliseconds.
+Lower zstd levels increased transfer by multiple megabytes for tens of milliseconds of local
+decode time. Python `-O`/`-OO` changes executable semantics by removing assertions and, for
+`-OO`, docstrings; it was rejected even though an `-OO` prototype passed the container suite.
+Making `fork` the library default would expose threaded callers to unsafe post-fork state.
+Replacing Sigstore's public `sign_dsse`, parallelizing its private TSA/Rekor internals, suppressing
+live TUF refresh, omitting TSA or Rekor, weakening self-verification, or reusing signing side
+effects would violate approved security contracts. Rerunning the failed attempt, synthesizing a
+push payload, excluding image pull, reducing samples, or accepting p95 equal to 15 seconds would
+falsify the performance evidence.
+
+**Consequences.** Archived tracebacks retain source filenames and line numbers but omit precise
+end-line and column spans. The Action runtime gains a narrowly guarded Linux process-start path and
+tests for its no-thread precondition; general callers remain unchanged. The public event surface
+adds only validated branch dispatches, enabling the already-approved reviewed performance runs
+while rejecting tag and arbitrary dispatch contexts. Publication remains blocked until the new
+candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
+independent `v1` review all pass.
+
+### ADR-061 implementation plan
+
+| Session | Requirement | Production work | Files |
+|---|---|---|---|
+| F-06 | `REQ-F06-170` | Select `fork` only from the sanitized single-threaded Linux Action boundary; retain `spawn` everywhere else and preserve every deadline, retry, termination, and secret-safety contract | `action/entrypoint.py`, `packages/attest-sign/src/attest_sign/sigstore_signer.py`, signer/entrypoint/container tests, `BRD-F06`, cross-cutting controls |
+| F-11 | `REQ-F11-260` | Compile deterministic archives without fine-grained debug ranges; validate exact branch dispatch coordinates and first-parent comparison; preserve failed run `38056326479`; build a unique candidate and restart every candidate and performance gate | `action/Dockerfile`, `action/entrypoint.py`, archive/event/container/candidate/performance/release tests, `BRD-F11`, cross-cutting controls, release evidence |
+
+Acceptance authorizes only these bounded runtime and dispatch corrections. It does not authorize a
+failed-run rerun, a global `fork` default, a dependency or threshold change, publication, or
+movement of `v1`.
+
+---
+
 ## Template for new ADRs
 
 ```markdown
