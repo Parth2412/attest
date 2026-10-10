@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-059` correction underway |
+| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-060` correction underway |
 
 ---
 
@@ -345,6 +345,25 @@ load exact system libraries, and initialize offline Sigstore trust before the ca
 accepted. A new unique candidate and exact merged Action restart every existing supply-chain and
 three-run performance gate.
 
+### 4.1.10 Deterministic runtime-archive compression amendment
+
+The exact post-`ADR-059` run `37946041636`, attempt 1, retained 20 successful samples but failed
+closed at p50 12 seconds and nearest-rank p95 16 seconds. Its measured p95 tails were 7.397 seconds
+for image pull/extraction and 10.952 seconds after pull. It remains immutable negative evidence.
+`ADR-060` reduces the runtime layer's applied filesystem bytes without changing a dependency,
+trust rule, signer behavior, public interface, version, sample, or threshold.
+
+The build encodes exactly the closed 1,066-member pure-Python `attest-runtime.zip` with Python's
+standard `ZIP_DEFLATED` method at compression level 9. It retains sorted membership, checked-hash
+bytecode, fixed 1980 timestamps, Unix regular-file modes, the closed root set, and the existing
+in-place `.pth` import path. The already-deflated standard-library archive remains unchanged, and
+no runtime extraction path is introduced.
+
+Both target architectures must prove the exact compression method, deterministic metadata,
+complete archived imports, native execution, and existing trust and security contracts. A new
+unique candidate and exact merged Action restart every existing supply-chain and three-run
+performance gate.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -395,6 +414,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-220` | As the `ADR-055` amendment to `REQ-F11-210`, the correction **MUST** publish exactly `attest-sign==0.1.1` and `attest-cli==0.1.4` with the CLI exact-pinning that signer, through their separate protected Trusted Publisher environments; it **MUST** verify exact public bytes and clean installs on Python 3.12 and 3.13, retain validated OIDC evidence for a fresh or exact-resume path, and **MUST NOT** rebuild or upload any other Python distribution. The new unique image candidate and exact merged Action **MUST** repeat every supply-chain and three-run performance gate before any bounded release record is published. |
 | `REQ-F11-230` | The Action image **MUST** contain only the closed `ADR-058` trust-seed inputs, verify their exact bytes and complete TUF chain from Sigstore's pinned embedded environment roots during the build, and seed each fresh isolated runtime `HOME` with only the exact approved root-history, snapshot, targets, and selected-target files after rechecking their hashes. Captured timestamp metadata **MUST NOT** enter runtime cache; every invocation **MUST** retain the live next-root probe, live timestamp download, authenticated stale-cache replacement, and refreshed-root final verification. The failed run `37796984054` **MUST NOT** be rerun or counted, and every existing candidate, three-run, combined-60-sample, release, and promotion gate remains unchanged. |
 | `REQ-F11-240` | The Action image **MUST** build exact locked `cryptography==50.0.1`, `pydantic-core==2.46.5`, and `rfc3161-client==1.0.8` from their hash-locked source distributions with `ADR-059`'s exact removable toolchain, Rust flags, non-vendored dynamic pinned OpenSSL, and pinned system libgcc. Only the exact `rpds_py.libs` compatibility symlink to `/usr/lib/libgcc_s.so.1` may remain in the closed private-libgcc set; both architectures **MUST** prove direct system-library mapping and native execution. The failed run `37899003696` **MUST NOT** be rerun or counted, and a new unique candidate and exact merged Action **MUST** restart every existing candidate, three-run, combined-60-sample, release, and promotion gate. |
+| `REQ-F11-250` | The Action image **MUST** encode exactly its closed pure-Python `attest-runtime.zip` with standard `ZIP_DEFLATED` at compression level 9 while preserving sorted membership, checked-hash bytecode, fixed timestamps, regular-file modes, the closed root set, and in-place imports without runtime extraction. Both architectures **MUST** prove the exact archive and existing runtime contracts. The failed run `37946041636` **MUST NOT** be rerun or counted, and a new unique candidate and exact merged Action **MUST** restart every existing candidate, three-run, combined-60-sample, release, and promotion gate. |
 
 ## 6. Acceptance criteria
 
@@ -424,6 +444,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-220` | Package and workflow contracts prove the exact signer/CLI versions and dependency, unchanged-distribution exclusion, separate protected OIDC publishers, no `skip-existing`, exact public-byte comparison, Python 3.12/3.13 clean installs, and validated prior-run recovery evidence; the new candidate, three-run performance proof, immutable `0.1.5`/`v0.1.5`/`v1.0.5` records, dogfood, public proof, fork denial, and independent `v1` promotion then complete without mutating an earlier artifact. |
 | `AC-F11-230` | Build and unit tests verify both captured TUF chains from the pinned embedded roots at the recorded instant, exact source hashes and target length/hashes, closed source/runtime path sets, tamper failure, and timestamp exclusion; both platform images contain the validated inputs, every isolated Action home receives exactly nine re-hashed non-timestamp files, and the new candidate plus exact merged Action repeat every existing supply-chain and performance gate before publication. |
 | `AC-F11-240` | Dockerfile and both-platform real-container tests prove all three exact native packages build from locked source with the approved compiler/OpenSSL settings, only the `rpds-py` private libgcc name remains and resolves to pinned system libgcc, every affected module maps approved system libraries and executes successfully with offline trust initialization, the primary compressed layers remain balanced, and the new candidate and exact merged Action restart and pass every supply-chain and performance gate before publication. |
+| `AC-F11-250` | Dockerfile and both-platform real-container tests prove the runtime archive uses DEFLATE level 9, contains exactly the closed deterministic bytecode members and metadata, imports every representative archived package in place, introduces no extraction path, and preserves native, trust, and security behavior; retained candidate evidence records exact archive/image/layer sizes, and the new candidate plus exact merged Action restart and pass every supply-chain and performance gate before publication. |
 
 ## 7. Evidence retention
 
@@ -431,7 +452,7 @@ F-11 retains the candidate and release run URLs and IDs; repository, fork, pull-
 tag, release, image, package, SBOM, provenance, and Bundle identifiers; status-check App identity and
 branch-protection response; exact generated files; success, blocked, fork-failure, malicious-fixture,
 and missing-permission logs; outputs; the historical 20-job release measurement; and all three
-ADR-054–ADR-059 20-job measurements plus the combined 60-sample result. Evidence is indexed from the
+ADR-054–ADR-060 20-job measurements plus the combined 60-sample result. Evidence is indexed from the
 immutable GitHub Release and contains no credential. For the `ADR-055` amendment it also retains
 the exact signer/CLI build hashes, PyPI public-byte verification, clean-install results, protected
 Trusted Publisher context, and any validated prior publication run used for exact recovery.
@@ -443,6 +464,9 @@ and evidence that live root and timestamp refresh remain mandatory.
 For `ADR-059` it additionally retains exact source-build inputs and flags, native binary and layer
 sizes, both-platform loader mappings and native execution, failed run `37899003696`, and the fresh
 candidate and performance sequence.
+For `ADR-060` it additionally retains exact runtime-archive method, level, membership, metadata,
+archive/image/layer sizes, both-platform import and native-runtime execution, failed run
+`37946041636`, and the fresh candidate and performance sequence.
 
 ## 8. Out of scope
 
@@ -462,7 +486,7 @@ write authority.
 - [x] The retained 20-run measurement meets p95 below 15 seconds
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
 - [ ] Cross-cutting obligations satisfied for the bounded correction
-- [ ] The new `0.1.5-candidate` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-059`
+- [ ] The new `0.1.5-candidate` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
 - [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
@@ -473,6 +497,7 @@ the required merge states; protected promotion run `36872903768` moved `v1` to i
 `v1.0.4` after review. Post-release monitoring remains fail-closed: run `36872334911` measured p95
 16 s and run `36905961561` measured p95 17 s. Run `37796984054` measured p50 12 s and p95 16 s
 after the `ADR-057` candidate. Run `37899003696` measured p50 11 s and p95 17 s after the
-`ADR-058` candidate. Accepted `ADR-054`–`ADR-059` track the bounded
+`ADR-058` candidate. Run `37946041636` measured p50 12 s and p95 16 s after the `ADR-059`
+candidate. Accepted `ADR-054`–`ADR-060` track the bounded
 repeatability correction without altering the retained `v1.0.4` release gate or any immutable
 public record.

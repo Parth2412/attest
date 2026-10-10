@@ -1040,6 +1040,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
+@pytest.mark.ac("AC-F11-250")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1115,9 +1116,10 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert 'runtime_archive = site_packages / "attest-runtime.zip"' in dockerfile
     assert 'site_packages / "attest-runtime-archive.pth"' in dockerfile
     assert 'raise RuntimeError(f"unsafe runtime archive root: {name}")' in dockerfile
-    assert "compression=zipfile.ZIP_STORED" in dockerfile
-    assert "compression=zipfile.ZIP_DEFLATED" in dockerfile
-    assert "compresslevel=9" in dockerfile
+    assert dockerfile.count("compression=zipfile.ZIP_DEFLATED") == 2
+    assert dockerfile.count("metadata.compress_type = zipfile.ZIP_DEFLATED") == 2
+    assert dockerfile.count("compresslevel=9") == 4
+    assert "zipfile.ZIP_STORED" not in dockerfile
     assert "date_time=(1980, 1, 1, 0, 0, 0)" in dockerfile
     assert "metadata.external_attr = 0o100644 << 16" in dockerfile
     assert 'and "__pycache__" not in path.parts' in dockerfile

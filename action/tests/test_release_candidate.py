@@ -212,6 +212,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
+@pytest.mark.ac("AC-F11-250")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
