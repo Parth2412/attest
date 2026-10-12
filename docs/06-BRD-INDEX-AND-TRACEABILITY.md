@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.7` |
+| Version | `2.6.8` |
 | Status | Baselined |
 | Last updated | 2026-10-12 |
 
@@ -186,7 +186,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-03` | Done |
 | `F-04` | Done |
 | `F-05` | Done |
-| `F-06` | In progress |
+| `F-06` | Done |
 | `F-07` | Done |
 | `F-08` | Done |
 | `F-09` | Done |
@@ -296,7 +296,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F06-140` | `AC-F06-140` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
 | `REQ-F06-150` | `AC-F06-150` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
 | `REQ-F06-160` | `AC-F06-160` | `packages/attest-sign/tests/test_sigstore_signer.py` | ✓ |
-| `REQ-F06-170` | `AC-F06-170` | `packages/attest-sign/tests/test_sigstore_signer.py`, `action/tests/test_entrypoint.py`, `test_container.py` | Planned |
+| `REQ-F06-170` | `AC-F06-170` | `packages/attest-sign/tests/test_sigstore_signer.py`, `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
 | `REQ-F07-010` | `AC-F07-010` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py`, `test_protocols.py` | ✓ |
 | `REQ-F07-020` | `AC-F07-020` | `packages/attest-store/tests/test_gitref.py`, `test_filesystem.py`, `test_oci.py` | ✓ |
 | `REQ-F07-030` | `AC-F07-030` | `packages/attest-store/tests/test_gitref.py`, `packages/attest-cli/tests/test_commands_sign_push.py` | ✓ |

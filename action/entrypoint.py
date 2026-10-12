@@ -15,7 +15,7 @@ import subprocess  # nosec B404
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import AbstractContextManager, nullcontext, redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, Never, TextIO
@@ -25,6 +25,7 @@ type JsonObject = dict[str, JsonValue]
 
 _ATTEST_EXECUTABLE: Final[Path] = Path("/opt/venv/bin/attest")
 _ATTEST_CONSOLE_SCRIPT_DIGEST: Final[Path] = Path("/opt/attest/attest-console-script.sha256")
+_ACTION_FORK_MARKER: Final[str] = "_ATTEST_ACTION_FORK_CAPABILITY"
 _GIT_EXECUTABLE: Final[Path] = Path("/usr/bin/git")
 _TRUST_SEED_ROOT: Final[Path] = Path("/opt/attest/trust")
 _EVENT_LIMIT: Final[int] = 1024 * 1024
@@ -967,9 +968,15 @@ def _run_cli_in_process(
         os.environ.update(environment)
         os.chdir(repository)
         sys.stdin = io.StringIO("")
-        with redirect_stdout(stdout), redirect_stderr(stderr):
-            from attest_cli.app import app
+        from attest_cli.app import app
 
+        capability = environment.get(_ACTION_FORK_MARKER)
+        authorization: AbstractContextManager[None] = nullcontext()
+        if isinstance(capability, str):
+            from attest_sign.sigstore_signer import _action_fork_authorization
+
+            authorization = _action_fork_authorization(capability)
+        with authorization, redirect_stdout(stdout), redirect_stderr(stderr):
             result = app(
                 args=list(arguments[1:]),
                 prog_name=arguments[0],
@@ -1013,6 +1020,8 @@ def _run_cli(
     environment: Mapping[str, str],
     repository: Path,
 ) -> CliProcessResult | subprocess.CompletedProcess[bytes]:
+    execution_environment = dict(environment)
+    execution_environment.pop(_ACTION_FORK_MARKER, None)
     if (
         arguments
         and Path(arguments[0]) == _ATTEST_EXECUTABLE
@@ -1023,9 +1032,11 @@ def _run_cli(
     ):
         if not sys.flags.isolated or not sys.flags.safe_path:
             _raise("ERR-INTERNAL-001")
+        if len(arguments) > 1 and arguments[1] == "run":
+            execution_environment[_ACTION_FORK_MARKER] = secrets.token_hex(32)
         return _run_cli_in_process(
             arguments,
-            environment=environment,
+            environment=execution_environment,
             repository=repository,
         )
     try:
@@ -1034,7 +1045,7 @@ def _run_cli(
             check=False,
             capture_output=True,
             cwd=repository,
-            env=dict(environment),
+            env=execution_environment,
             stdin=subprocess.DEVNULL,
         )
     except OSError:

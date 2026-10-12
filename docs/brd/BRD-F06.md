@@ -7,7 +7,7 @@
 | Milestone | M1 |
 | Package | `attest-sign` |
 | Depends on | `F-01`, `F-05` |
-| Status | **In Progress** · bounded Action-only process-start amendment accepted by `ADR-061` |
+| Status | **Done** · bounded Action-only process-start amendment completed under `ADR-061` |
 
 ---
 
@@ -127,11 +127,11 @@ Storage of the bundle (F-07), the independent verification pipeline (F-08), poli
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F06-*` implemented, all `AC-F06-*` green
+- [x] All `REQ-F06-*` implemented, all `AC-F06-*` green
 - [x] End-to-end signing against Sigstore **staging** in CI, then verified with Sigstore's native
       DSSE verifier; the full attest verification pipeline is completed by F-08/F-10
 - [x] `Signer` protocol isolates the library; swapping the implementation touches one module
 - [x] No direct `securesystemslib` import or hand-written PAE/envelope assembly exists
 - [x] Guard test prevents production-endpoint use in tests
 - [x] Coverage ≥ 90% (`attest-sign`: 95%)
-- [ ] Cross-cutting obligations satisfied for the bounded `ADR-061` amendment
+- [x] Cross-cutting obligations satisfied for the bounded `ADR-061` amendment

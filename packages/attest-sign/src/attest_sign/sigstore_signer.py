@@ -6,12 +6,17 @@ import json
 import logging
 import multiprocessing
 import os
+import sys
+import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from hmac import compare_digest
 from typing import Never, Protocol, TypeGuard, cast
 
 from sigstore.errors import VerificationError as SigstoreVerificationError
@@ -34,6 +39,11 @@ _MAX_PRE_REKOR_ATTEMPTS = 2
 _PROCESS_SHUTDOWN_GRACE_SECONDS = 1.0
 _PROCESS_POLL_SECONDS = 0.05
 _GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+_ACTION_FORK_MARKER = "_ATTEST_ACTION_FORK_CAPABILITY"
+_ACTION_FORK_AUTHORIZATION: ContextVar[str | None] = ContextVar(
+    "attest_action_fork_authorization",
+    default=None,
+)
 
 
 class _WorkerStage(StrEnum):
@@ -68,6 +78,47 @@ class _RetryMessage:
 type _WorkerMessage = _StageMessage | _SuccessMessage | _FailureMessage | _RetryMessage
 
 
+def _valid_action_fork_capability(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
+def _running_on_linux() -> bool:
+    return sys.platform == "linux"
+
+
+@contextmanager
+def _action_fork_authorization(capability: str) -> Iterator[None]:
+    """Scope one private Action adapter authority to its in-process invocation."""
+    if not _valid_action_fork_capability(capability):
+        yield
+        return
+    token = _ACTION_FORK_AUTHORIZATION.set(capability)
+    try:
+        yield
+    finally:
+        _ACTION_FORK_AUTHORIZATION.reset(token)
+
+
+def _select_process_start_method() -> str:
+    """Select fork only inside the authorized single-threaded Linux Action boundary."""
+    capability = os.environ.get(_ACTION_FORK_MARKER)
+    authorization = _ACTION_FORK_AUTHORIZATION.get()
+    if (
+        capability is None
+        or authorization is None
+        or not _valid_action_fork_capability(capability)
+        or not compare_digest(capability, authorization)
+        or not _running_on_linux()
+    ):
+        return "spawn"
+    current = threading.current_thread()
+    if current is not threading.main_thread():
+        return "spawn"
+    if any(thread is not current and thread.is_alive() for thread in threading.enumerate()):
+        return "spawn"
+    return "fork"
+
+
 class _SendConnection(Protocol):
     def send(self, value: object) -> None: ...
 
@@ -94,6 +145,20 @@ class _Process(Protocol):
     def join(self, timeout: float | None = None) -> None: ...
 
     def close(self) -> None: ...
+
+
+class _ProcessContext(Protocol):
+    def Pipe(  # noqa: N802
+        self, *, duplex: bool
+    ) -> tuple[_ReceiveConnection, _SendConnection]: ...
+
+    def Process(  # noqa: N802
+        self,
+        *,
+        target: Callable[..., object],
+        args: tuple[object, ...],
+        name: str,
+    ) -> _Process: ...
 
 
 class _AttemptTimeoutError(RuntimeError):
@@ -360,7 +425,10 @@ def _execute_attempt(
     environment: SigningEnvironment,
     timeout: timedelta,
 ) -> _SuccessMessage:
-    context = multiprocessing.get_context("spawn")
+    context = cast(
+        _ProcessContext,
+        multiprocessing.get_context(_select_process_start_method()),
+    )
     receive, send = context.Pipe(duplex=False)
     process = context.Process(
         target=_signing_worker,

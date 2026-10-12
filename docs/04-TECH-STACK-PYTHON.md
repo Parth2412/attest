@@ -145,6 +145,13 @@ deadline. The parent terminates an expired worker, retries at most once before R
 never retries after Rekor submission begins. Do not mutate Sigstore's private HTTP sessions or
 wrap an unbounded call in a worker thread (`ADR-037`).
 
+The public CLI, direct library API, non-Linux runtimes, non-main threads, and processes with any
+other live Python thread continue to use `spawn`. Only the digest-matched, sanitized Action
+in-process `run` adapter may mint a fresh private capability and authorize `fork` for that single
+invocation. A caller-supplied marker or any failed precondition falls back to `spawn`; both start
+methods retain the same isolated child, one-way pipe, deadline, retry ceiling, termination, and
+secret-safe error boundary (`REQ-F06-170`, `ADR-061`).
+
 Verification also requires its trust source explicitly (`ADR-038`). `ServiceTrustRoot` selects
 production or staging and requires an `offline` boolean; `offline=False` is the caller's explicit
 permission for a TUF refresh. The locked TUF client applies a 30-second socket timeout to every

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -1263,6 +1264,119 @@ def test_execute_attempt_owns_and_closes_its_process_resources(
         "args": (send, statement, SigningEnvironment.STAGING),
         "name": "attest-sigstore-sign",
     }
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_caller_environment_cannot_authorize_fork(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REQ-F06-170: an environment value alone retains the public spawn default."""
+    monkeypatch.setenv(module._ACTION_FORK_MARKER, "a" * 64)
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    assert module._select_process_start_method() == "spawn"
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_action_authorization_selects_fork_only_on_safe_linux_main_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-F06-170: matching private authority enables only the controlled boundary."""
+    capability = "b" * 64
+    current = threading.current_thread()
+    monkeypatch.setenv(module._ACTION_FORK_MARKER, capability)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(threading, "enumerate", lambda: [current])
+
+    with module._action_fork_authorization(capability):
+        selected = module._select_process_start_method()
+
+    assert selected == "fork"
+    assert module._select_process_start_method() == "spawn"
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_action_fork_falls_back_when_another_python_thread_is_live(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-F06-170: a live sibling thread makes spawn mandatory."""
+    capability = "c" * 64
+    ready = threading.Event()
+    release = threading.Event()
+
+    def hold_sibling() -> None:
+        ready.set()
+        release.wait()
+
+    sibling = threading.Thread(target=hold_sibling, daemon=True)
+    monkeypatch.setenv(module._ACTION_FORK_MARKER, capability)
+    monkeypatch.setattr(sys, "platform", "linux")
+    sibling.start()
+    assert ready.wait(timeout=1)
+    try:
+        with module._action_fork_authorization(capability):
+            assert module._select_process_start_method() == "spawn"
+    finally:
+        release.set()
+        sibling.join(timeout=1)
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_action_fork_falls_back_outside_linux_main_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-F06-170: platform and main-thread guards independently fail closed."""
+    capability = "d" * 64
+    monkeypatch.setenv(module._ACTION_FORK_MARKER, capability)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    with module._action_fork_authorization(capability):
+        assert module._select_process_start_method() == "spawn"
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    selected: list[str] = []
+
+    def select_from_worker() -> None:
+        with module._action_fork_authorization(capability):
+            selected.append(module._select_process_start_method())
+
+    worker = threading.Thread(target=select_from_worker)
+    worker.start()
+    worker.join(timeout=1)
+
+    assert selected == ["spawn"]
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_execute_attempt_uses_authorized_context_without_changing_supervision(
+    monkeypatch: pytest.MonkeyPatch,
+    statement: Statement,
+) -> None:
+    """REQ-F06-170: fork changes only process construction, not supervision."""
+    expected = _success()
+    process = _FakeProcess()
+    receive = _QueueConnection([])
+    send = _CaptureConnection()
+    context = _FakeMultiprocessingContext(process, receive, send)
+    requested: list[str] = []
+
+    def context_for(method: str) -> _FakeMultiprocessingContext:
+        requested.append(method)
+        return context
+
+    monkeypatch.setattr(multiprocessing, "get_context", context_for)
+    monkeypatch.setattr(module, "_select_process_start_method", lambda: "fork")
+    monkeypatch.setattr(module, "_supervise_process", lambda *arguments: expected)
+
+    actual = module._execute_attempt(
+        statement,
+        SigningEnvironment.STAGING,
+        timedelta(seconds=1),
+    )
+
+    assert actual is expected
+    assert requested == ["fork"]
+    assert process.started
+    assert process.closed
+    assert receive.closed
+    assert send.closed
 
 
 def test_execute_attempt_maps_process_start_failure(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import shutil
 import stat
 import subprocess
@@ -387,6 +388,76 @@ def test_in_process_cli_uses_only_the_sanitized_environment_and_restores_state(
     assert os.environ["ATTEST_PARENT_ONLY"] == "must-be-restored"
     assert Path.cwd() == original_directory
     assert not marker.exists()
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_digest_matched_run_mints_private_fork_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F06-170: only the digest-matched in-process run receives fresh authority."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    supplied = {entrypoint._ACTION_FORK_MARKER: "caller-value", "NO_COLOR": "1"}
+    observed: dict[str, str] = {}
+    expected = entrypoint.CliProcessResult(0, b"{}", b"")
+
+    def capture(
+        arguments: object,
+        *,
+        environment: Mapping[str, str],
+        repository: Path,
+    ) -> entrypoint.CliProcessResult:
+        del arguments, repository
+        observed.update(environment)
+        return expected
+
+    monkeypatch.setattr(entrypoint, "_matches_bundled_cli_digest", lambda *arguments: True)
+    monkeypatch.setattr(entrypoint, "_run_cli_in_process", capture)
+    monkeypatch.setattr(secrets, "token_hex", lambda length: "f" * (length * 2))
+    monkeypatch.setattr(
+        sys,
+        "flags",
+        type("Flags", (), {"isolated": 1, "safe_path": True})(),
+    )
+
+    actual = entrypoint._run_cli(
+        [os.fspath(entrypoint._ATTEST_EXECUTABLE), "run"],
+        environment=supplied,
+        repository=repository,
+    )
+
+    assert actual is expected
+    assert observed[entrypoint._ACTION_FORK_MARKER] == "f" * 64
+    assert supplied[entrypoint._ACTION_FORK_MARKER] == "caller-value"
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_in_process_cli_scopes_private_fork_authorization(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F06-170: Action authority exists only around one in-process invocation."""
+    from attest_sign import sigstore_signer
+
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    entered: list[str] = []
+
+    @contextmanager
+    def authorization(capability: str) -> Iterator[None]:
+        entered.append(capability)
+        yield
+        entered.append("closed")
+
+    monkeypatch.setattr(sigstore_signer, "_action_fork_authorization", authorization)
+
+    result = entrypoint._run_cli_in_process(
+        ["/opt/venv/bin/attest", "version", "--json", "--no-color"],
+        environment={entrypoint._ACTION_FORK_MARKER: "a" * 64, "NO_COLOR": "1"},
+        repository=repository,
+    )
+
+    assert result.returncode == 0
+    assert entered == ["a" * 64, "closed"]
 
 
 @pytest.mark.ac("AC-F11-100")
@@ -967,6 +1038,7 @@ def test_environment_is_sanitized_and_repository_executables_never_run(tmp_path:
         PATH=f"{repository}:{os.environ.get('PATH', '')}",
         PYTHONPATH=os.fspath(repository),
         PYTHONHOME=os.fspath(repository),
+        _ATTEST_ACTION_FORK_CAPABILITY="caller-value",
         BASH_ENV=os.fspath(repository / "attest.py"),
         ENV=os.fspath(repository / "attest.py"),
         GIT_CONFIG_SYSTEM=os.fspath(repository / "attest.py"),
@@ -983,6 +1055,7 @@ def test_environment_is_sanitized_and_repository_executables_never_run(tmp_path:
     for forbidden in (
         "PYTHONPATH",
         "PYTHONHOME",
+        "_ATTEST_ACTION_FORK_CAPABILITY",
         "BASH_ENV",
         "ENV",
         "GIT_CONFIG_SYSTEM",
