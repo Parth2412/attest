@@ -259,6 +259,11 @@ only an immutable reviewed image digest (`REQ-F10-160`, `REQ-F10-190`, `REQ-F11-
 `REQ-F11-160`, `ADR-045`, `ADR-046`). Its optional in-process CLI path retains isolated Python and
 is selected only when the immutable bundled console script matches its build-generated SHA-256
 marker; any replacement or marker failure returns to the sanitized subprocess path (`ADR-054`).
+That adapter strips every caller-supplied process-start marker and mints a fresh private capability
+only after the digest match. Process-local authorization permits `fork` for one invocation only on
+Linux's main thread when no other Python thread is alive; every failed precondition uses `spawn`.
+Both methods retain the isolated child, deadline, fresh-process retry and termination boundaries,
+and secret-safe errors (`REQ-F06-170`, `ADR-061`).
 
 ---
 

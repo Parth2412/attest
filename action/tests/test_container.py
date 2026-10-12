@@ -616,6 +616,43 @@ def test_container_checks_oidc_before_missing_repository_paths() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F06-170")
+def test_container_runs_only_the_guarded_fork_boundary() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import multiprocessing, os; "
+        "from attest_sign import sigstore_signer as signer; "
+        "capability = 'a' * 64; "
+        "os.environ[signer._ACTION_FORK_MARKER] = capability; "
+        "assert signer._select_process_start_method() == 'spawn'; "
+        "authorization = signer._action_fork_authorization(capability); "
+        "authorization.__enter__(); "
+        "method = signer._select_process_start_method(); "
+        "assert method == 'fork'; "
+        "context = multiprocessing.get_context(method); "
+        "receive, send = context.Pipe(duplex=False); "
+        "process = context.Process(target=send.send, args=('isolated',)); "
+        "process.start(); "
+        "send.close(); "
+        "assert receive.recv() == 'isolated'; "
+        "process.join(); "
+        "assert process.exitcode == 0; "
+        "process.close(); "
+        "receive.close(); "
+        "authorization.__exit__(None, None, None); "
+        "assert signer._select_process_start_method() == 'spawn'",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-040")
 @pytest.mark.ac("AC-F11-050")
 @pytest.mark.ac("AC-F11-060")
