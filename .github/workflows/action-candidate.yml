@@ -286,6 +286,29 @@ jobs:
           image="${IMAGE_NAME}@${IMAGE_DIGEST}"
           docker pull --platform "${PLATFORM}" "${image}"
           docker tag "${image}" "attest-action-runtime:test"
+      - name: Retain archive and image size evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/container-test-evidence"
+          image_bytes="$(docker image inspect "attest-action-runtime:test" --format '{{.Size}}')"
+          mapfile -t archive_bytes < <(
+            docker run --rm --entrypoint /bin/busybox "attest-action-runtime:test" \
+              sh -c \
+              '/bin/busybox stat -c %s /usr/local/lib/python312.zip; /bin/busybox stat -c %s /opt/venv/lib/python3.12/site-packages/attest-runtime.zip'
+          )
+          test "${#archive_bytes[@]}" -eq 2
+          jq -n \
+            --arg platform "${{ matrix.platform }}" \
+            --argjson imageBytes "${image_bytes}" \
+            --argjson standardLibraryArchiveBytes "${archive_bytes[0]}" \
+            --argjson runtimeArchiveBytes "${archive_bytes[1]}" \
+            '{
+              platform: $platform,
+              imageBytes: $imageBytes,
+              standardLibraryArchiveBytes: $standardLibraryArchiveBytes,
+              runtimeArchiveBytes: $runtimeArchiveBytes
+            }' > "${RUNNER_TEMP}/container-test-evidence/${{ matrix.slug }}-sizes.json"
       - name: Run the real-container contract suite
         env:
           ATTEST_ACTION_IMAGE: attest-action-runtime:test

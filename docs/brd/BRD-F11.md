@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-060` correction underway |
+| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-061` correction underway |
 
 ---
 
@@ -68,11 +68,14 @@ user-site Python imports and implicit current-directory imports are disabled.
 
 ### 3.3 Events and repository state
 
-Only branch `pull_request` and branch `push` events are supported. `pull_request_target`, tag
-pushes, branch creation/deletion, missing before/after objects, malformed or inconsistent payloads,
-and every other event fail closed with `ERR-CONFIG-007`. Pull-request context uses the F-04 exact
-resolver. Push context is derived only from the validated event repository, before/after commits,
-and local git objects; an all-zero before or after object is invalid.
+Only branch `pull_request`, branch `push`, and exact branch `workflow_dispatch` events are
+supported. `pull_request_target`, tags, branch creation/deletion, missing before/after objects,
+malformed or inconsistent payloads, and every other event fail closed with `ERR-CONFIG-007`.
+Pull-request context uses the F-04 exact resolver. Push context is derived only from the validated
+event repository, before/after commits, and local git objects; an all-zero before or after object
+is invalid. Dispatch context binds its exact five-field payload, repository, full branch ref,
+branch name/type, selected SHA, workflow path, and `GITHUB_WORKFLOW_REF`, then derives the selected
+commit's first parent from complete local history after OIDC succeeds.
 
 Every mode requires complete repository history for its subject. A shallow repository, missing
 object, or unavailable comparison fails with `ERR-CONFIG-008` and a message that names
@@ -123,7 +126,7 @@ decision, authorship mode, and review record without HTML execution.
 
 | Code | Condition | Exit | Remediation |
 |---|---|---:|---|
-| `ERR-CONFIG-007` | Unsupported, malformed, inconsistent, or forbidden Action input/event | 2 | Use only the exact §3.1 inputs on a branch `pull_request` or branch `push` event. |
+| `ERR-CONFIG-007` | Unsupported, malformed, inconsistent, or forbidden Action input/event | 2 | Use only the exact §3.1 inputs on a branch `pull_request`, branch `push`, or exact branch `workflow_dispatch` event. |
 | `ERR-CONFIG-008` | Shallow history, missing comparison object, or incomplete repository state | 2 | Configure checkout with `fetch-depth: 0` and ensure both comparison objects exist. |
 | `ERR-SIGN-301` | `run` has no ambient GitHub OIDC signing identity | 2 | Add `permissions: id-token: write`; do not add a token input. |
 
@@ -364,6 +367,26 @@ complete archived imports, native execution, and existing trust and security con
 unique candidate and exact merged Action restart every existing supply-chain and three-run
 performance gate.
 
+### 4.1.11 Action runtime-headroom and reviewed-dispatch amendment
+
+Automatic performance run `38056326479`, attempt 1, retained 20 successful samples but failed
+closed at p50 11 seconds and nearest-rank p95 15 seconds. Exact timestamps measured p95 image
+pull/extraction at 7.444 seconds and post-pull execution at 9.751 seconds. It remains immutable
+negative evidence and did not start the required three-run sequence.
+
+`ADR-061` removes only fine-grained traceback end-line and column tables from both deterministic
+Python archives while retaining optimisation level zero, assertions, docstrings, source line
+numbers, checked-hash bytecode, and every existing archive contract. It also authorizes only the
+guarded Action-internal Linux `fork` boundary in `REQ-F06-170`; general CLI and library callers
+remain on `spawn`.
+
+The event adapter accepts exact branch `workflow_dispatch` alongside branch push and pull request.
+It validates the closed dispatch payload, repository, full ref, branch coordinates, selected SHA,
+workflow path, and workflow-ref binding before deriving the selected commit's first parent after
+the OIDC-before-repository-read boundary. Tags, root commits, incomplete history, and inconsistent
+or additional event data fail closed. A new unique candidate and exact merged Action restart every
+existing supply-chain and three-run performance gate.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -396,7 +419,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-040` | The Action **MUST** expose the §3.5 outputs when each value is earned, including before a policy-violation exit. |
 | `REQ-F11-050` | The Action **MUST** post an injection-safe job summary rendering the decision, authorship mode, and review record. |
 | `REQ-F11-060` | The Action **MUST NOT** require a repository secret for the core loop; keyless signing uses the workflow identity and publication uses the automatic token passed only through the caller step environment. |
-| `REQ-F11-070` | The Action **MUST** support only branch `pull_request` and branch `push`, validate their exact immutable context, and reject `pull_request_target` and every unsupported event with `ERR-CONFIG-007`. |
+| `REQ-F11-070` | The Action **MUST** support only branch `pull_request`, branch `push`, and exact branch `workflow_dispatch`, validate their immutable context, and reject `pull_request_target`, tags, malformed or inconsistent dispatches, and every unsupported event with `ERR-CONFIG-007`. A dispatch **MUST** bind its closed payload, repository, full ref, branch name/type, selected head SHA, workflow path, and exact `GITHUB_WORKFLOW_REF`; after OIDC succeeds, complete history **MUST** prove the head and its first parent. |
 | `REQ-F11-080` | Action versioning **MUST** use immutable `v1.0.0` plus a reviewed `v1` moving-major tag independently of product version `0.1.0`. |
 | `REQ-F11-090` | The Action's own release **MUST** be attested with attest and publicly verified. |
 | `REQ-F11-100` | Action-step cold start **MUST** be below 15 seconds p95 under the exact 20-run measurement in `ADR-046`. |
@@ -415,6 +438,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-230` | The Action image **MUST** contain only the closed `ADR-058` trust-seed inputs, verify their exact bytes and complete TUF chain from Sigstore's pinned embedded environment roots during the build, and seed each fresh isolated runtime `HOME` with only the exact approved root-history, snapshot, targets, and selected-target files after rechecking their hashes. Captured timestamp metadata **MUST NOT** enter runtime cache; every invocation **MUST** retain the live next-root probe, live timestamp download, authenticated stale-cache replacement, and refreshed-root final verification. The failed run `37796984054` **MUST NOT** be rerun or counted, and every existing candidate, three-run, combined-60-sample, release, and promotion gate remains unchanged. |
 | `REQ-F11-240` | The Action image **MUST** build exact locked `cryptography==50.0.1`, `pydantic-core==2.46.5`, and `rfc3161-client==1.0.8` from their hash-locked source distributions with `ADR-059`'s exact removable toolchain, Rust flags, non-vendored dynamic pinned OpenSSL, and pinned system libgcc. Only the exact `rpds_py.libs` compatibility symlink to `/usr/lib/libgcc_s.so.1` may remain in the closed private-libgcc set; both architectures **MUST** prove direct system-library mapping and native execution. The failed run `37899003696` **MUST NOT** be rerun or counted, and a new unique candidate and exact merged Action **MUST** restart every existing candidate, three-run, combined-60-sample, release, and promotion gate. |
 | `REQ-F11-250` | The Action image **MUST** encode exactly its closed pure-Python `attest-runtime.zip` with standard `ZIP_DEFLATED` at compression level 9 while preserving sorted membership, checked-hash bytecode, fixed timestamps, regular-file modes, the closed root set, and in-place imports without runtime extraction. Both architectures **MUST** prove the exact archive and existing runtime contracts. The failed run `37946041636` **MUST NOT** be rerun or counted, and a new unique candidate and exact merged Action **MUST** restart every existing candidate, three-run, combined-60-sample, release, and promotion gate. |
+| `REQ-F11-260` | Both deterministic Python archives **MUST** be compiled at optimisation level zero without fine-grained traceback end-line and column tables while retaining assertions, docstrings, source line numbers, checked-hash invalidation, closed sorted membership, fixed timestamps, regular-file modes, DEFLATE level 9, and in-place imports. Both architectures **MUST** pass every existing runtime and supply-chain contract. Failed run `38056326479` **MUST NOT** be rerun or counted; only a new unique candidate and exact merged Action may start a fresh automatic-plus-two-reviewed-dispatch sequence of three consecutive attempt-1 20-job measurements and the combined 60-sample gate. |
 
 ## 6. Acceptance criteria
 
@@ -426,7 +450,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-040` | Outputs are populated as specified in success and violation runs and remain empty before their prerequisite stage. |
 | `AC-F11-050` | The real-run summary contains the decision and authorship/review facts, and adversarial text cannot create markup or workflow commands. |
 | `AC-F11-060` | An end-to-end `run` workflow with zero repository secrets completes successfully without credential output. |
-| `AC-F11-070` | Branch PR and push fixtures succeed; tag, create/delete, malformed, inconsistent, unsupported, and `pull_request_target` fixtures fail with `ERR-CONFIG-007`. |
+| `AC-F11-070` | Branch PR, push, and exact branch-dispatch fixtures succeed and a dispatch produces the same ChangeSet coordinates as the matching push; tag, root-commit, incomplete-history, extra/missing-field, path-traversal, repository/ref/SHA/workflow mismatch, create/delete, malformed, unsupported, and `pull_request_target` fixtures fail with `ERR-CONFIG-007` or `ERR-CONFIG-008` as specified. |
 | `AC-F11-080` | Product `v0.1.0`, Action `v1.0.0`, and moving `v1` resolve to the same released commit; immutable releases and a tag ruleset prevent update/deletion of immutable records, while only the reviewed release procedure may move `v1`. |
 | `AC-F11-090` | The release workflow produces attest evidence for the released source and artifacts, and its public identity-bound verification succeeds. |
 | `AC-F11-100` | Twenty retained hosted-runner measurements include image pull and meet the documented nearest-rank p95 target. |
@@ -445,6 +469,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-230` | Build and unit tests verify both captured TUF chains from the pinned embedded roots at the recorded instant, exact source hashes and target length/hashes, closed source/runtime path sets, tamper failure, and timestamp exclusion; both platform images contain the validated inputs, every isolated Action home receives exactly nine re-hashed non-timestamp files, and the new candidate plus exact merged Action repeat every existing supply-chain and performance gate before publication. |
 | `AC-F11-240` | Dockerfile and both-platform real-container tests prove all three exact native packages build from locked source with the approved compiler/OpenSSL settings, only the `rpds-py` private libgcc name remains and resolves to pinned system libgcc, every affected module maps approved system libraries and executes successfully with offline trust initialization, the primary compressed layers remain balanced, and the new candidate and exact merged Action restart and pass every supply-chain and performance gate before publication. |
 | `AC-F11-250` | Dockerfile and both-platform real-container tests prove the runtime archive uses DEFLATE level 9, contains exactly the closed deterministic bytecode members and metadata, imports every representative archived package in place, introduces no extraction path, and preserves native, trust, and security behavior; retained candidate evidence records exact archive/image/layer sizes, and the new candidate plus exact merged Action restart and pass every supply-chain and performance gate before publication. |
+| `AC-F11-260` | Build, archive, and both-platform real-container tests prove both archives omit only fine-grained debug ranges while retaining optimisation level zero, active assertions, docstrings, line numbers, deterministic metadata, exact members, imports, native execution, trust, and security behavior; retained evidence records exact archive/image/layer sizes, and the new candidate plus exact merged Action pass every supply-chain gate before a fresh compliant three-run sequence may begin. |
 
 ## 7. Evidence retention
 
@@ -452,7 +477,7 @@ F-11 retains the candidate and release run URLs and IDs; repository, fork, pull-
 tag, release, image, package, SBOM, provenance, and Bundle identifiers; status-check App identity and
 branch-protection response; exact generated files; success, blocked, fork-failure, malicious-fixture,
 and missing-permission logs; outputs; the historical 20-job release measurement; and all three
-ADR-054–ADR-060 20-job measurements plus the combined 60-sample result. Evidence is indexed from the
+ADR-054–ADR-061 20-job measurements plus the combined 60-sample result. Evidence is indexed from the
 immutable GitHub Release and contains no credential. For the `ADR-055` amendment it also retains
 the exact signer/CLI build hashes, PyPI public-byte verification, clean-install results, protected
 Trusted Publisher context, and any validated prior publication run used for exact recovery.
@@ -467,6 +492,10 @@ candidate and performance sequence.
 For `ADR-060` it additionally retains exact runtime-archive method, level, membership, metadata,
 archive/image/layer sizes, both-platform import and native-runtime execution, failed run
 `37946041636`, and the fresh candidate and performance sequence.
+For `ADR-061` it additionally retains archive debug-range and optimisation proofs, exact
+archive/image/layer sizes, guarded process-context selection and fallback proofs, closed dispatch
+payload and first-parent proofs, failed run `38056326479`, and the fresh candidate and performance
+sequence.
 
 ## 8. Out of scope
 
@@ -486,7 +515,8 @@ write authority.
 - [x] The retained 20-run measurement meets p95 below 15 seconds
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
 - [ ] Cross-cutting obligations satisfied for the bounded correction
-- [ ] The new `0.1.5-candidate` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
+- [x] Candidate run `38038325243` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
+- [ ] A new candidate satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
 - [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
@@ -498,6 +528,14 @@ the required merge states; protected promotion run `36872903768` moved `v1` to i
 16 s and run `36905961561` measured p95 17 s. Run `37796984054` measured p50 12 s and p95 16 s
 after the `ADR-057` candidate. Run `37899003696` measured p50 11 s and p95 17 s after the
 `ADR-058` candidate. Run `37946041636` measured p50 12 s and p95 16 s after the `ADR-059`
-candidate. Accepted `ADR-054`–`ADR-060` track the bounded
+candidate. Run `38056326479` measured p50 11 s and p95 15 s after the `ADR-060` candidate and did
+not start the required three-run sequence. Accepted `ADR-054`–`ADR-061` track the bounded
 repeatability correction without altering the retained `v1.0.4` release gate or any immutable
-public record.
+public record. Candidate run `37904158120`, attempt 1, passed all supply-chain gates for exact
+source `6ec6074185cfd25e7f66c8eac2e0666dfa194a6f`, context
+`sha256:c2c6240d341ae0fa066f6121a8d0d1c5b56aff598dd8f5a37598b01970f42fdc`, and manifest
+`sha256:ac199137b3a1dda9bf091bf5c7a7858c77ea6446f4f7f0d98463aa9594bf63a2`.
+Candidate run `38038325243`, attempt 1, passed all `ADR-060` supply-chain gates for exact source
+`57ab2e08c297a2bf2131d2ea942d9e439d9c8faf`, context
+`sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`, and manifest
+`sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.

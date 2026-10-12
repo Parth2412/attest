@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.5` |
+| Version | `1.4.6` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -259,6 +259,16 @@ only an immutable reviewed image digest (`REQ-F10-160`, `REQ-F10-190`, `REQ-F11-
 `REQ-F11-160`, `ADR-045`, `ADR-046`). Its optional in-process CLI path retains isolated Python and
 is selected only when the immutable bundled console script matches its build-generated SHA-256
 marker; any replacement or marker failure returns to the sanitized subprocess path (`ADR-054`).
+That adapter strips every caller-supplied process-start marker and mints a fresh private capability
+only after the digest match. Process-local authorization permits `fork` for one invocation only on
+Linux's main thread when no other Python thread is alive; every failed precondition uses `spawn`.
+Both methods retain the isolated child, deadline, fresh-process retry and termination boundaries,
+and secret-safe errors (`REQ-F06-170`, `ADR-061`).
+Branch `workflow_dispatch` is accepted only when its exact five-field payload, repository, full
+branch ref, branch name/type, selected SHA, workflow path, and `GITHUB_WORKFLOW_REF` binding agree.
+After OIDC succeeds, the checked-out commit and its first parent must exist in complete local
+history; tag, traversal, additional-field, root-commit, and mismatch cases fail closed
+(`REQ-F11-070`, `REQ-F11-260`, `ADR-061`).
 
 ---
 

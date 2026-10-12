@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.5` |
+| Version | `1.7.6` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -144,6 +144,13 @@ Signing therefore runs in an isolated child process with a default 120-second pa
 deadline. The parent terminates an expired worker, retries at most once before Rekor begins, and
 never retries after Rekor submission begins. Do not mutate Sigstore's private HTTP sessions or
 wrap an unbounded call in a worker thread (`ADR-037`).
+
+The public CLI, direct library API, non-Linux runtimes, non-main threads, and processes with any
+other live Python thread continue to use `spawn`. Only the digest-matched, sanitized Action
+in-process `run` adapter may mint a fresh private capability and authorize `fork` for that single
+invocation. A caller-supplied marker or any failed precondition falls back to `spawn`; both start
+methods retain the same isolated child, one-way pipe, deadline, retry ceiling, termination, and
+secret-safe error boundary (`REQ-F06-170`, `ADR-061`).
 
 Verification also requires its trust source explicitly (`ADR-038`). `ServiceTrustRoot` selects
 production or staging and requires an `offline` boolean; `offline=False` is the caller's explicit
@@ -363,9 +370,12 @@ pydantic-core, and rfc3161-client now build from source with the approved size f
 pinned system OpenSSL/libgcc linkage; only the `rpds-py` compatibility name remains as a
 fail-closed symlink to system libgcc. `ADR-060` encodes the closed deterministic pure-Python
 runtime archive with standard-library DEFLATE level 9 while retaining sorted members, fixed
-metadata, checked-hash bytecode, and in-place imports. Public files must byte-match the single
-build, and Python 3.12/3.13 clean installs must pass; core,
-collect, store, policy, and export are not rebuilt or uploaded.
+metadata, checked-hash bytecode, and in-place imports. `ADR-061` starts the archive-build
+interpreter with `PYTHONNODEBUGRANGES=1`, removing only code-object end-line and column tables from
+both deterministic archives while retaining optimisation level zero, assertions, docstrings,
+source line numbers, and every existing archive contract; the final runtime does not set that
+environment variable. Public files must byte-match the single build, and Python 3.12/3.13 clean
+installs must pass; core, collect, store, policy, and export are not rebuilt or uploaded.
 
 ---
 
