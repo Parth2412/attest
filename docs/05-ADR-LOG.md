@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.28.0` |
+| Version | `1.28.1` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3565,6 +3565,21 @@ adds only validated branch dispatches, enabling the already-approved reviewed pe
 while rejecting tag and arbitrary dispatch contexts. Publication remains blocked until the new
 candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
 independent `v1` review all pass.
+
+**Implementation evidence.** Pre-candidate automatic runs `38225190032` and `38249545348`, both
+attempt 1 against the superseded `ADR-060` manifest, retained 20 successful samples at p50 12
+seconds and p95 16 seconds. They remain immutable negative evidence and are excluded from the new
+sequence. Candidate run `38250635610`, attempt 1, then passed for exact `dev` commit
+`b1d5475da39b2e9522482894dc675c73ecb118a1`, context
+`sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`, and manifest
+`sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
+Both architectures passed all 20 real-container contracts and clean vulnerability/secret gates.
+The retained archive and image evidence measured amd64 at 46,530,206 image bytes with 2,371,282
+standard-library and 3,431,212 runtime-archive bytes, and arm64 at 47,710,252 image bytes with
+2,371,288 standard-library and 3,431,212 runtime-archive bytes. The amd64 primary zstd layers were
+6,676,412, 6,574,392, and 6,894,483 bytes; arm64's were 6,964,952, 6,603,503, and 6,907,468
+bytes. The retained SBOM, maximum provenance, and GitHub attestation bind the manifest to the exact
+source, workflow, `dev` ref, hosted runner, and attempt-1 invocation.
 
 ### ADR-061 implementation plan
 
