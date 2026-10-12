@@ -213,6 +213,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-260")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -296,6 +297,17 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert 'docker tag "${image}" "attest-action-runtime:test"' in image_test_commands
     assert "uv run pytest action/tests/test_container.py -m container" in image_test_commands
     assert "--junitxml" in image_test_commands
+    size_step = next(
+        step
+        for step in image_tests["steps"]
+        if step.get("name") == "Retain archive and image size evidence"
+    )
+    assert 'docker image inspect "attest-action-runtime:test"' in size_step["run"]
+    assert "/usr/local/lib/python312.zip" in size_step["run"]
+    assert "/opt/venv/lib/python3.12/site-packages/attest-runtime.zip" in size_step["run"]
+    assert (
+        "${RUNNER_TEMP}/container-test-evidence/${{ matrix.slug }}-sizes.json" in size_step["run"]
+    )
     scan_steps = jobs["scan"]["steps"]
     upload_index = next(
         index

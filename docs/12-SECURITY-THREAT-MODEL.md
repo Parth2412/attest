@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.5` |
+| Version | `1.4.6` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -264,6 +264,11 @@ only after the digest match. Process-local authorization permits `fork` for one 
 Linux's main thread when no other Python thread is alive; every failed precondition uses `spawn`.
 Both methods retain the isolated child, deadline, fresh-process retry and termination boundaries,
 and secret-safe errors (`REQ-F06-170`, `ADR-061`).
+Branch `workflow_dispatch` is accepted only when its exact five-field payload, repository, full
+branch ref, branch name/type, selected SHA, workflow path, and `GITHUB_WORKFLOW_REF` binding agree.
+After OIDC succeeds, the checked-out commit and its first parent must exist in complete local
+history; tag, traversal, additional-field, root-commit, and mismatch cases fail closed
+(`REQ-F11-070`, `REQ-F11-260`, `ADR-061`).
 
 ---
 

@@ -285,6 +285,7 @@ def test_release_verifies_publishers_and_public_bytes_before_promotion() -> None
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-260")
 def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
     """REQ-F11-210: publication requires three exact 20-job results and all 60 samples."""
     preflight = _workflow()["jobs"]["preflight"]

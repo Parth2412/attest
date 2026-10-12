@@ -68,11 +68,14 @@ user-site Python imports and implicit current-directory imports are disabled.
 
 ### 3.3 Events and repository state
 
-Only branch `pull_request` and branch `push` events are supported. `pull_request_target`, tag
-pushes, branch creation/deletion, missing before/after objects, malformed or inconsistent payloads,
-and every other event fail closed with `ERR-CONFIG-007`. Pull-request context uses the F-04 exact
-resolver. Push context is derived only from the validated event repository, before/after commits,
-and local git objects; an all-zero before or after object is invalid.
+Only branch `pull_request`, branch `push`, and exact branch `workflow_dispatch` events are
+supported. `pull_request_target`, tags, branch creation/deletion, missing before/after objects,
+malformed or inconsistent payloads, and every other event fail closed with `ERR-CONFIG-007`.
+Pull-request context uses the F-04 exact resolver. Push context is derived only from the validated
+event repository, before/after commits, and local git objects; an all-zero before or after object
+is invalid. Dispatch context binds its exact five-field payload, repository, full branch ref,
+branch name/type, selected SHA, workflow path, and `GITHUB_WORKFLOW_REF`, then derives the selected
+commit's first parent from complete local history after OIDC succeeds.
 
 Every mode requires complete repository history for its subject. A shallow repository, missing
 object, or unavailable comparison fails with `ERR-CONFIG-008` and a message that names
@@ -123,7 +126,7 @@ decision, authorship mode, and review record without HTML execution.
 
 | Code | Condition | Exit | Remediation |
 |---|---|---:|---|
-| `ERR-CONFIG-007` | Unsupported, malformed, inconsistent, or forbidden Action input/event | 2 | Use only the exact §3.1 inputs on a branch `pull_request` or branch `push` event. |
+| `ERR-CONFIG-007` | Unsupported, malformed, inconsistent, or forbidden Action input/event | 2 | Use only the exact §3.1 inputs on a branch `pull_request`, branch `push`, or exact branch `workflow_dispatch` event. |
 | `ERR-CONFIG-008` | Shallow history, missing comparison object, or incomplete repository state | 2 | Configure checkout with `fetch-depth: 0` and ensure both comparison objects exist. |
 | `ERR-SIGN-301` | `run` has no ambient GitHub OIDC signing identity | 2 | Add `permissions: id-token: write`; do not add a token input. |
 

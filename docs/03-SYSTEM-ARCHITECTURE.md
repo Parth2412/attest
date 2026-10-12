@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.9.0` |
+| Version | `1.9.1` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -223,8 +223,10 @@ The Action container is a locked release artifact. `action.yml` references a pub
 multi-platform GHCR image only by manifest digest. The container uses an exec-form entry point,
 disables user-site and current-directory Python imports, and never sources or executes repository
 content. `run` checks OIDC before any repository-controlled read; `verify` and `gate` do not acquire
-OIDC. Only validated branch `pull_request` and branch `push` events cross the boundary. Exact
-inputs, outputs, failure treatment, and two-phase release ownership are governed by `ADR-046` and
+OIDC. Only validated branch `pull_request`, branch `push`, and exact branch `workflow_dispatch`
+events cross the boundary. Dispatches bind the closed event payload and workflow identity, then
+prove the checked-out head and its first parent from complete local history. Exact inputs, outputs,
+failure treatment, and two-phase release ownership are governed by `ADR-046`, `ADR-061`, and
 `BRD-F11`.
 
 ---
