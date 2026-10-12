@@ -3459,7 +3459,7 @@ failed-run rerun, dependency or threshold change, publication, or movement of `v
 
 ## ADR-061 — Remove Action-only startup overhead and restore reviewed dispatches
 
-**Status:** Proposed · **Date:** 2026-10-11 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+**Status:** Accepted · **Date:** 2026-10-12 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
 `BRD-F06`, `BRD-F11`, `F-06`, `F-11` · **Amends:** `ADR-037`, `ADR-046`, `ADR-054`,
 `ADR-057`, `ADR-060`
 
