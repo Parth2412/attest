@@ -21,7 +21,7 @@ PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.y
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab"
+IMAGE_DIGEST: Final[str] = "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_IDENTITY: Final[str] = (
@@ -153,7 +153,8 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     assert "secrets." not in rendered
     assert "pull_request_target:" not in rendered
     assert "workflow_dispatch:" in rendered
-    assert "38056326479" not in rendered
+    for excluded_run in ("38056326479", "38225190032", "38249545348"):
+        assert excluded_run not in rendered
     assert "docker pull" not in rendered
 
 

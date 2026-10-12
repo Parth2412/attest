@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.4` |
+| Version | `1.1.5` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
 | Last updated | 2026-10-12 |
 
@@ -358,6 +358,11 @@ Automatic run `38056326479`, attempt 1, retained 20 successful samples at p50 11
 and remains immutable negative evidence. Accepted `ADR-061` removes only deterministic archive
 debug ranges, authorizes the guarded Action-only process boundary, and restores exact reviewed
 branch dispatches before a new unique candidate restarts every supply-chain and performance gate.
+Pre-candidate automatic runs `38225190032` and `38249545348`, both attempt 1 against the
+superseded manifest, retained p50 12 s and p95 16 s and remain excluded. Candidate run
+`38250635610`, attempt 1, then passed every two-platform, scan, SBOM, provenance,
+identity-attestation, and 20-test real-container gate as manifest
+`sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
@@ -380,7 +385,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, and `38056326479` retained later p95 regressions; accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, and `ADR-061` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061` |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, and `38249545348` retained later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, and `ADR-061` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061` |
 
 ---
 
