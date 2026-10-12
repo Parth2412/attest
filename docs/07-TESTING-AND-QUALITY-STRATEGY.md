@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.6` |
+| Version | `1.4.7` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -247,6 +247,7 @@ A release **MUST NOT** ship unless:
 - [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
 - [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [x] The Action-only signer process boundary permits `fork` solely through the digest-matched adapter's fresh scoped capability on Linux's sole main thread, rejects caller markers, and preserves identical isolation, deadline, retry, termination, and secret-safety behavior under `spawn` and `fork`
+- [x] Local build and real-container contracts prove both deterministic archives omit only fine-grained debug ranges and that exact branch dispatches derive the checked-out head's first parent while malformed, tag, root, incomplete, and inconsistent dispatches fail closed
 - [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
 - [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite

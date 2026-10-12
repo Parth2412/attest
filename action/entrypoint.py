@@ -35,6 +35,10 @@ _OID_PATTERN: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{40}")
 _DIGEST_PATTERN: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{64}")
 _ERROR_PATTERN: Final[re.Pattern[str]] = re.compile(r"ERR-[A-Z]+-[0-9]{3}")
 _REPOSITORY_PATTERN: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+")
+_WORKFLOW_FILENAME_PATTERN: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9._-]+\.(?:yml|yaml)")
+_DISPATCH_FIELDS: Final[frozenset[str]] = frozenset(
+    {"inputs", "ref", "repository", "sender", "workflow"}
+)
 _AUTHORSHIP_MODES: Final[frozenset[str]] = frozenset(
     {"human-authored", "ai-assisted", "ai-authored", "unknown"}
 )
@@ -155,7 +159,7 @@ class EventContext:
 
     name: str
     event_path: Path
-    base_revision: str
+    base_revision: str | None
     head_revision: str
     target_branch: str
     checkout_revision: str
@@ -206,7 +210,8 @@ _ERRORS: Final[dict[str, ActionError]] = {
     "ERR-CONFIG-007": ActionError(
         "ERR-CONFIG-007",
         "The Action input or GitHub event is unsupported, malformed, inconsistent, or forbidden",
-        "Use only the documented inputs on a branch pull_request or branch push event",
+        "Use only documented inputs on a branch pull_request, branch push, or exact "
+        "branch workflow_dispatch event",
         2,
     ),
     "ERR-CONFIG-008": ActionError(
@@ -570,6 +575,33 @@ def _require_branch(value: JsonValue) -> str:
     return rendered
 
 
+def _require_workflow_path(value: JsonValue) -> str:
+    rendered = _require_string(value)
+    path = PurePosixPath(rendered)
+    if (
+        path.is_absolute()
+        or path.parts[:2] != (".github", "workflows")
+        or len(path.parts) != 3
+        or any(part in {".", ".."} for part in path.parts)
+        or _WORKFLOW_FILENAME_PATTERN.fullmatch(path.name) is None
+    ):
+        _invalid()
+    return rendered
+
+
+def _require_dispatch_inputs(value: JsonValue) -> None:
+    if value is None:
+        return
+    inputs = _require_object(value)
+    if any(
+        not key
+        or not isinstance(item, str)
+        or any(not character.isprintable() for character in key + item)
+        for key, item in inputs.items()
+    ):
+        _invalid()
+
+
 def _event_payload(environ: Mapping[str, str]) -> tuple[Path, JsonObject]:
     event_path = Path(_nonempty_environment(environ, "GITHUB_EVENT_PATH"))
     try:
@@ -647,6 +679,40 @@ def _resolve_pull_request_event(
     )
 
 
+def _resolve_workflow_dispatch_event(
+    environ: Mapping[str, str], event_path: Path, payload: JsonObject
+) -> EventContext:
+    if set(payload) != _DISPATCH_FIELDS:
+        _invalid()
+    _require_dispatch_inputs(payload.get("inputs"))
+    _require_object(payload.get("sender"))
+    repository = _require_repository(_require_object(payload.get("repository")).get("full_name"))
+    reference = _require_string(payload.get("ref"))
+    prefix = "refs/heads/"
+    if not reference.startswith(prefix):
+        _invalid()
+    branch = _require_branch(reference.removeprefix(prefix))
+    workflow = _require_workflow_path(payload.get("workflow"))
+    head_revision = _require_oid(environ.get("GITHUB_SHA"))
+    expected_workflow_ref = f"{repository}/{workflow}@{reference}"
+    if (
+        repository != _nonempty_environment(environ, "GITHUB_REPOSITORY")
+        or reference != _nonempty_environment(environ, "GITHUB_REF")
+        or branch != _nonempty_environment(environ, "GITHUB_REF_NAME")
+        or environ.get("GITHUB_REF_TYPE") != "branch"
+        or environ.get("GITHUB_WORKFLOW_REF") != expected_workflow_ref
+    ):
+        _invalid()
+    return EventContext(
+        "workflow_dispatch",
+        event_path,
+        None,
+        head_revision,
+        branch,
+        head_revision,
+    )
+
+
 def _resolve_event(environ: Mapping[str, str]) -> EventContext:
     if (
         environ.get("GITHUB_ACTIONS") != "true"
@@ -654,12 +720,14 @@ def _resolve_event(environ: Mapping[str, str]) -> EventContext:
     ):
         _invalid()
     name = _nonempty_environment(environ, "GITHUB_EVENT_NAME")
-    if name not in {"push", "pull_request"}:
+    if name not in {"push", "pull_request", "workflow_dispatch"}:
         _invalid()
     event_path, payload = _event_payload(environ)
     if name == "push":
         return _resolve_push_event(environ, event_path, payload)
-    return _resolve_pull_request_event(environ, event_path, payload)
+    if name == "pull_request":
+        return _resolve_pull_request_event(environ, event_path, payload)
+    return _resolve_workflow_dispatch_event(environ, event_path, payload)
 
 
 def _repository_path(environ: Mapping[str, str]) -> Path:
@@ -726,17 +794,44 @@ def _complete_repository(repository: Path, event: EventContext, home: Path) -> R
         shallow = _git(repository, home, "rev-parse", "--is-shallow-repository")
         if shallow.returncode != 0 or shallow.stdout.strip() == b"true":
             _raise("ERR-CONFIG-008")
-        revisions = {event.base_revision, event.head_revision, event.checkout_revision}
+        revisions = {
+            revision
+            for revision in (
+                event.base_revision,
+                event.head_revision,
+                event.checkout_revision,
+            )
+            if revision is not None
+        }
         for revision in revisions:
             result = _git(repository, home, "cat-file", "-e", f"{revision}^{{commit}}")
             if result.returncode != 0:
                 _raise("ERR-CONFIG-008")
         if event.name == "pull_request":
+            if event.base_revision is None:
+                _raise("ERR-CONFIG-008")
             result = _git(repository, home, "merge-base", event.base_revision, event.head_revision)
             comparison_base = result.stdout.decode("ascii", errors="strict").strip()
             if result.returncode != 0 or _OID_PATTERN.fullmatch(comparison_base) is None:
                 _raise("ERR-CONFIG-008")
+        elif event.name == "workflow_dispatch":
+            checkout = _git(repository, home, "rev-parse", "--verify", "HEAD^{commit}")
+            checkout_revision = checkout.stdout.decode("ascii", errors="strict").strip()
+            if checkout.returncode != 0 or checkout_revision != event.head_revision:
+                _raise("ERR-CONFIG-008")
+            result = _git(
+                repository,
+                home,
+                "rev-parse",
+                "--verify",
+                f"{event.head_revision}^1^{{commit}}",
+            )
+            comparison_base = result.stdout.decode("ascii", errors="strict").strip()
+            if result.returncode != 0 or _OID_PATTERN.fullmatch(comparison_base) is None:
+                _raise("ERR-CONFIG-008")
         else:
+            if event.base_revision is None:
+                _raise("ERR-CONFIG-008")
             comparison_base = event.base_revision
         comparison = _git(
             repository,
