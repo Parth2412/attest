@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import shutil
 import stat
 import subprocess
@@ -90,6 +91,22 @@ def _pull_request_event(base: str, head: str) -> dict[str, object]:
                 "repo": {"full_name": "example/repo"},
             },
         },
+    }
+
+
+def _workflow_dispatch_event(
+    *,
+    inputs: dict[str, str] | None = None,
+    reference: str = "refs/heads/main",
+    repository: str = "example/repo",
+    workflow: str = ".github/workflows/attest.yml",
+) -> dict[str, object]:
+    return {
+        "inputs": inputs,
+        "ref": reference,
+        "repository": {"full_name": repository},
+        "sender": {"login": "reviewer"},
+        "workflow": workflow,
     }
 
 
@@ -387,6 +404,76 @@ def test_in_process_cli_uses_only_the_sanitized_environment_and_restores_state(
     assert os.environ["ATTEST_PARENT_ONLY"] == "must-be-restored"
     assert Path.cwd() == original_directory
     assert not marker.exists()
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_digest_matched_run_mints_private_fork_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F06-170: only the digest-matched in-process run receives fresh authority."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    supplied = {entrypoint._ACTION_FORK_MARKER: "caller-value", "NO_COLOR": "1"}
+    observed: dict[str, str] = {}
+    expected = entrypoint.CliProcessResult(0, b"{}", b"")
+
+    def capture(
+        arguments: object,
+        *,
+        environment: Mapping[str, str],
+        repository: Path,
+    ) -> entrypoint.CliProcessResult:
+        del arguments, repository
+        observed.update(environment)
+        return expected
+
+    monkeypatch.setattr(entrypoint, "_matches_bundled_cli_digest", lambda *arguments: True)
+    monkeypatch.setattr(entrypoint, "_run_cli_in_process", capture)
+    monkeypatch.setattr(secrets, "token_hex", lambda length: "f" * (length * 2))
+    monkeypatch.setattr(
+        sys,
+        "flags",
+        type("Flags", (), {"isolated": 1, "safe_path": True})(),
+    )
+
+    actual = entrypoint._run_cli(
+        [os.fspath(entrypoint._ATTEST_EXECUTABLE), "run"],
+        environment=supplied,
+        repository=repository,
+    )
+
+    assert actual is expected
+    assert observed[entrypoint._ACTION_FORK_MARKER] == "f" * 64
+    assert supplied[entrypoint._ACTION_FORK_MARKER] == "caller-value"
+
+
+@pytest.mark.ac("AC-F06-170")
+def test_in_process_cli_scopes_private_fork_authorization(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-F06-170: Action authority exists only around one in-process invocation."""
+    from attest_sign import sigstore_signer
+
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    entered: list[str] = []
+
+    @contextmanager
+    def authorization(capability: str) -> Iterator[None]:
+        entered.append(capability)
+        yield
+        entered.append("closed")
+
+    monkeypatch.setattr(sigstore_signer, "_action_fork_authorization", authorization)
+
+    result = entrypoint._run_cli_in_process(
+        ["/opt/venv/bin/attest", "version", "--json", "--no-color"],
+        environment={entrypoint._ACTION_FORK_MARKER: "a" * 64, "NO_COLOR": "1"},
+        repository=repository,
+    )
+
+    assert result.returncode == 0
+    assert entered == ["a" * 64, "closed"]
 
 
 @pytest.mark.ac("AC-F11-100")
@@ -739,12 +826,14 @@ def test_run_needs_only_automatic_github_and_oidc_tokens_and_never_emits_them(
 
 
 @pytest.mark.ac("AC-F11-070")
-@pytest.mark.parametrize("event_name", ["push", "pull_request"])
+@pytest.mark.parametrize("event_name", ["push", "pull_request", "workflow_dispatch"])
 def test_supported_branch_events_reach_the_cli(tmp_path: Path, event_name: str) -> None:
     repository, base, head = _repository(tmp_path)
     event = _push_event(base, head)
     if event_name == "pull_request":
         event = _pull_request_event(base, head)
+    elif event_name == "workflow_dispatch":
+        event = _workflow_dispatch_event()
     environment = _runner_environment(
         tmp_path,
         repository,
@@ -758,6 +847,177 @@ def test_supported_branch_events_reach_the_cli(tmp_path: Path, event_name: str) 
     exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
 
     assert exit_code == 0, rendered
+
+
+@pytest.mark.ac("AC-F11-070")
+@pytest.mark.ac("AC-F11-260")
+@pytest.mark.parametrize("inputs", [None, {}, {"reviewed": "true"}])
+def test_branch_dispatch_matches_the_corresponding_push_coordinates(
+    tmp_path: Path,
+    inputs: dict[str, str] | None,
+) -> None:
+    """REQ-F11-260: reviewed dispatch and automatic push select one ChangeSet."""
+    repository, base, head = _repository(tmp_path)
+    observed: list[dict[str, object]] = []
+    for index, (event_name, event) in enumerate(
+        (
+            ("push", _push_event(base, head)),
+            ("workflow_dispatch", _workflow_dispatch_event(inputs=inputs)),
+        )
+    ):
+        invocation = tmp_path / f"invocation-{index}"
+        invocation.mkdir()
+        environment = _runner_environment(
+            invocation,
+            repository,
+            base,
+            head,
+            event_name=event_name,
+            event=event,
+        )
+        record = invocation / "observed.json"
+        executable = _fake_attest(
+            invocation,
+            _report("run"),
+            exit_code=0,
+            record=record,
+        )
+
+        exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+        assert exit_code == 0, rendered
+        decoded = json.loads(record.read_text(encoding="utf-8"))
+        assert isinstance(decoded, dict)
+        observed.append(decoded)
+
+    coordinates: list[tuple[str, str, str]] = []
+    for observed_invocation in observed:
+        arguments = observed_invocation["argv"]
+        assert isinstance(arguments, list)
+        coordinates.append(
+            (
+                arguments[arguments.index("--base") + 1],
+                arguments[arguments.index("--head") + 1],
+                arguments[arguments.index("--target-branch") + 1],
+            )
+        )
+    assert coordinates == [(base, head, "main"), (base, head, "main")]
+
+
+@pytest.mark.ac("AC-F11-070")
+@pytest.mark.ac("AC-F11-260")
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "tag",
+        "extra-field",
+        "missing-field",
+        "invalid-inputs",
+        "invalid-sender",
+        "invalid-sha",
+        "path-traversal",
+        "repository-mismatch",
+        "ref-mismatch",
+        "ref-name-mismatch",
+        "ref-type-mismatch",
+        "workflow-mismatch",
+        "workflow-extension",
+        "workflow-ref-mismatch",
+    ],
+)
+def test_malformed_or_inconsistent_dispatches_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """REQ-F11-260: only the closed exact branch dispatch contract is accepted."""
+    repository, base, head = _repository(tmp_path)
+    event = _workflow_dispatch_event(inputs={})
+    environment = _runner_environment(
+        tmp_path,
+        repository,
+        base,
+        head,
+        event_name="workflow_dispatch",
+        event=event,
+    )
+    if mutation == "tag":
+        event["ref"] = "refs/tags/v0.1.5"
+        environment.update(
+            GITHUB_REF="refs/tags/v0.1.5",
+            GITHUB_REF_NAME="v0.1.5",
+            GITHUB_REF_TYPE="tag",
+        )
+    elif mutation == "extra-field":
+        event["unexpected"] = True
+    elif mutation == "missing-field":
+        del event["sender"]
+    elif mutation == "invalid-inputs":
+        event["inputs"] = ["unexpected"]
+    elif mutation == "invalid-sender":
+        event["sender"] = None
+    elif mutation == "invalid-sha":
+        environment["GITHUB_SHA"] = "0" * 40
+    elif mutation == "path-traversal":
+        event["workflow"] = ".github/workflows/../attest.yml"
+    elif mutation == "repository-mismatch":
+        event["repository"] = {"full_name": "attacker/repo"}
+    elif mutation == "ref-mismatch":
+        event["ref"] = "refs/heads/other"
+    elif mutation == "ref-name-mismatch":
+        environment["GITHUB_REF_NAME"] = "other"
+    elif mutation == "ref-type-mismatch":
+        environment["GITHUB_REF_TYPE"] = "tag"
+    elif mutation == "workflow-mismatch":
+        event["workflow"] = ".github/workflows/other.yml"
+    elif mutation == "workflow-extension":
+        event["workflow"] = ".github/workflows/attest.txt"
+    elif mutation == "workflow-ref-mismatch":
+        environment["GITHUB_WORKFLOW_REF"] = (
+            "example/repo/.github/workflows/attest.yml@refs/heads/other"
+        )
+    Path(environment["GITHUB_EVENT_PATH"]).write_text(json.dumps(event), encoding="utf-8")
+    executable = _fake_attest(tmp_path, _report("run"), exit_code=0)
+
+    exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+    assert exit_code == 2
+    assert _error_code(rendered) == "ERR-CONFIG-007"
+
+
+@pytest.mark.ac("AC-F11-070")
+@pytest.mark.ac("AC-F11-260")
+@pytest.mark.parametrize("revision", ["root", "checkout-mismatch", "shallow"])
+def test_dispatch_requires_the_checked_out_head_and_its_first_parent(
+    tmp_path: Path,
+    revision: str,
+) -> None:
+    """REQ-F11-260: repository proof rejects roots and a different checkout."""
+    repository, base, head = _repository(tmp_path)
+    selected = base if revision == "root" else head
+    if revision == "shallow":
+        source = repository
+        repository = tmp_path / "shallow"
+        subprocess.run(
+            ["git", "clone", "--depth", "1", f"file://{source}", os.fspath(repository)],
+            check=True,
+            capture_output=True,
+        )
+    else:
+        _git(repository, "checkout", "--detach", base)
+    environment = _runner_environment(
+        tmp_path,
+        repository,
+        base,
+        selected,
+        event_name="workflow_dispatch",
+        event=_workflow_dispatch_event(),
+    )
+    executable = _fake_attest(tmp_path, _report("run"), exit_code=0)
+
+    exit_code, rendered = _invoke(["--mode", "run"], environment, executable)
+
+    assert exit_code == 2
+    assert _error_code(rendered) == "ERR-CONFIG-008"
 
 
 @pytest.mark.ac("AC-F11-070")
@@ -967,6 +1227,7 @@ def test_environment_is_sanitized_and_repository_executables_never_run(tmp_path:
         PATH=f"{repository}:{os.environ.get('PATH', '')}",
         PYTHONPATH=os.fspath(repository),
         PYTHONHOME=os.fspath(repository),
+        _ATTEST_ACTION_FORK_CAPABILITY="caller-value",
         BASH_ENV=os.fspath(repository / "attest.py"),
         ENV=os.fspath(repository / "attest.py"),
         GIT_CONFIG_SYSTEM=os.fspath(repository / "attest.py"),
@@ -983,6 +1244,7 @@ def test_environment_is_sanitized_and_repository_executables_never_run(tmp_path:
     for forbidden in (
         "PYTHONPATH",
         "PYTHONHOME",
+        "_ATTEST_ACTION_FORK_CAPABILITY",
         "BASH_ENV",
         "ENV",
         "GIT_CONFIG_SYSTEM",
@@ -1041,6 +1303,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-260")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1106,6 +1369,8 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "--compile-bytecode" not in dockerfile
     assert dockerfile.count("FROM scratch") == 9
     assert "py_compile.PycInvalidationMode.CHECKED_HASH" in dockerfile
+    assert "RUN PYTHONNODEBUGRANGES=1 /opt/venv/bin/python <<'PYTHON'" in dockerfile
+    assert "ENV PYTHONNODEBUGRANGES" not in dockerfile
     assert 'cfile=source.with_suffix(".pyc")' in dockerfile
     assert "source.unlink()" in dockerfile
     assert 'archive_path = standard_library.parent / "python312.zip"' in dockerfile

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.6` |
+| Version | `1.4.7` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-10 |
+| Last updated | 2026-10-12 |
 
 ---
 
@@ -198,6 +198,7 @@ one byte anywhere, assert verification never succeeds.
 | CLI file-I/O tests race and replace inputs/outputs, exercise symlinks/devices/limits, and assert create-only or explicit atomic overwrite behavior |
 | CLI egress tests deny sockets by default and allow only the operation and explicit option under test; doctor probes never send credentials or sign |
 | Action contract tests run the real container entry point with table-driven inputs/events and hostile paths, environment, summaries, output files, workflow commands, and repository executables |
+| Action signer tests prove a caller marker cannot authorize `fork`, every unsafe platform/thread/fallback path uses `spawn`, the guarded real container creates an actual `fork` child, authorization resets after one invocation, and both start methods retain the same supervised process boundary |
 | Action tests prove OIDC preflight precedes repository reads in `run`, while `verify` and `gate` never request OIDC |
 | Action policy-advisory tests neutralize only verified decision-backed exits `3`/`5`; every configuration, verification, signing, storage, network, and internal failure remains fatal |
 | Candidate/release tests inspect final build-context equality, exact manifest promotion, both image architectures, base and Action digest pins, lock equality, SBOM, provenance, GitHub artifact attestation, and clean package/image installation |
@@ -242,9 +243,11 @@ A release **MUST NOT** ship unless:
 - [ ] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
 - [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
 - [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
-- [ ] The `0.1.5-candidate` image uses ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client, the exact build-only toolchain and size flags, pinned dynamic system OpenSSL/libgcc with only the closed `rpds-py` compatibility link, ADR-058's build-verified non-timestamp TUF seed, ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass real-container cryptographic/native-module/trust-seed/archive tests, scans, SBOM/provenance checks, and identity-bound attestation
+- [x] Candidate run `38038325243` proves the `0.1.5-candidate` image uses ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client, the exact build-only toolchain and size flags, pinned dynamic system OpenSSL/libgcc with only the closed `rpds-py` compatibility link, ADR-058's build-verified non-timestamp TUF seed, ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, balanced zstd layers, and digest-guarded in-process CLI; both architectures pass all 17 real-container cryptographic/native-module/trust-seed/archive tests, scans, SBOM/provenance checks, and identity-bound attestation
 - [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
 - [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
+- [x] The Action-only signer process boundary permits `fork` solely through the digest-matched adapter's fresh scoped capability on Linux's sole main thread, rejects caller markers, and preserves identical isolation, deadline, retry, termination, and secret-safety behavior under `spawn` and `fork`
+- [x] Local build and real-container contracts prove both deterministic archives omit only fine-grained debug ranges and that exact branch dispatches derive the checked-out head's first parent while malformed, tag, root, incomplete, and inconsistent dispatches fail closed
 - [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
 - [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite

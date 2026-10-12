@@ -21,7 +21,7 @@ PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.y
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:6d0deb74d178d37971f36c226bde2e45072fa4f1bcf24b68e91401a2518964c7"
+IMAGE_DIGEST: Final[str] = "sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 WORKFLOW_IDENTITY: Final[str] = (
@@ -69,6 +69,7 @@ def _step(job: dict[str, Any], name: str) -> dict[str, Any]:
 
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-260")
 def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     """REQ-F11-100: the immutable Action is measured in 20 hosted jobs on main."""
     workflow = _workflow()
@@ -152,6 +153,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     assert "secrets." not in rendered
     assert "pull_request_target:" not in rendered
     assert "workflow_dispatch:" in rendered
+    assert "38056326479" not in rendered
     assert "docker pull" not in rendered
 
 

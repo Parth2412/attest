@@ -110,10 +110,32 @@ def _push_event(root: Path, base: str, head: str) -> Path:
     return path
 
 
-def _runner_arguments(root: Path, head: str) -> list[str]:
+def _workflow_dispatch_event(root: Path) -> Path:
+    path = root / "event.json"
+    path.write_text(
+        json.dumps(
+            {
+                "inputs": None,
+                "ref": "refs/heads/main",
+                "repository": {"full_name": "example/repo"},
+                "sender": {"login": "reviewer"},
+                "workflow": ".github/workflows/attest.yml",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _runner_arguments(
+    root: Path,
+    head: str,
+    *,
+    event_name: str = "push",
+) -> list[str]:
     values = {
         "GITHUB_ACTIONS": "true",
-        "GITHUB_EVENT_NAME": "push",
+        "GITHUB_EVENT_NAME": event_name,
         "GITHUB_EVENT_PATH": "/github/event.json",
         "GITHUB_REPOSITORY": "example/repo",
         "GITHUB_REF": "refs/heads/main",
@@ -178,7 +200,9 @@ def _fake_attest(root: Path) -> Path:
         "from pathlib import Path\n"
         f"report = {json.dumps(report, separators=(',', ':'))!r}\n"
         f"bundle = {json.dumps(bundle, separators=(',', ':'))!r}\n"
-        "Path('/github/observed.json').write_text(json.dumps(dict(os.environ)))\n"
+        "observed = dict(os.environ)\n"
+        "observed['argv'] = sys.argv[1:]\n"
+        "Path('/github/observed.json').write_text(json.dumps(observed))\n"
         "for index, argument in enumerate(sys.argv):\n"
         "    if argument == '--output' and index + 1 < len(sys.argv):\n"
         "        Path(sys.argv[index + 1]).write_text(bundle)\n"
@@ -486,6 +510,74 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-260")
+def test_runtime_archives_omit_only_fine_grained_debug_ranges() -> None:
+    script = """
+import dis
+import marshal
+import types
+import zipfile
+
+archives = (
+    "/usr/local/lib/python312.zip",
+    "/opt/venv/lib/python3.12/site-packages/attest-runtime.zip",
+)
+all_codes = []
+for archive_path in archives:
+    archive_codes = []
+    with zipfile.ZipFile(archive_path) as archive:
+        members = [name for name in archive.namelist() if name.endswith(".pyc")]
+        assert members
+        assert not any(".opt-" in name for name in members)
+        for name in members:
+            payload = archive.read(name)
+            assert int.from_bytes(payload[4:8], "little") == 3
+            pending = [marshal.loads(payload[16:])]
+            while pending:
+                code = pending.pop()
+                assert isinstance(code, types.CodeType)
+                positions = tuple(code.co_positions())
+                assert positions
+                assert any(start_line is not None for start_line, _, _, _ in positions)
+                assert all(
+                    start_column is None and end_column is None
+                    for _, _, start_column, end_column in positions
+                )
+                assert code.co_firstlineno >= 1
+                pending.extend(
+                    value for value in code.co_consts if isinstance(value, types.CodeType)
+                )
+                archive_codes.append(code)
+    assert archive_codes
+    all_codes.extend(archive_codes)
+
+typing_code = next(
+    code
+    for code in all_codes
+    if code.co_filename.endswith("/typing.py") and code.co_name == "<module>"
+)
+assert isinstance(typing_code.co_consts[0], str)
+assert any(
+    instruction.opname == "LOAD_ASSERTION_ERROR"
+    for code in all_codes
+    for instruction in dis.get_instructions(code)
+)
+"""
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        script,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-240")
@@ -616,6 +708,43 @@ def test_container_checks_oidc_before_missing_repository_paths() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F06-170")
+def test_container_runs_only_the_guarded_fork_boundary() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        "import multiprocessing, os; "
+        "from attest_sign import sigstore_signer as signer; "
+        "capability = 'a' * 64; "
+        "os.environ[signer._ACTION_FORK_MARKER] = capability; "
+        "assert signer._select_process_start_method() == 'spawn'; "
+        "authorization = signer._action_fork_authorization(capability); "
+        "authorization.__enter__(); "
+        "method = signer._select_process_start_method(); "
+        "assert method == 'fork'; "
+        "context = multiprocessing.get_context(method); "
+        "receive, send = context.Pipe(duplex=False); "
+        "process = context.Process(target=send.send, args=('isolated',)); "
+        "process.start(); "
+        "send.close(); "
+        "assert receive.recv() == 'isolated'; "
+        "process.join(); "
+        "assert process.exitcode == 0; "
+        "process.close(); "
+        "receive.close(); "
+        "authorization.__exit__(None, None, None); "
+        "assert signer._select_process_start_method() == 'spawn'",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-040")
 @pytest.mark.ac("AC-F11-050")
 @pytest.mark.ac("AC-F11-060")
@@ -679,6 +808,54 @@ def test_container_runs_the_full_sanitized_output_boundary(docker_mount_root: Pa
     assert observed["GITHUB_EVENT_NAME"] == "push"
     assert "PYTHONPATH" not in observed
     assert "BASH_ENV" not in observed
+
+
+@pytest.mark.container
+@pytest.mark.ac("AC-F11-070")
+@pytest.mark.ac("AC-F11-260")
+def test_container_accepts_exact_branch_dispatch_and_derives_first_parent(
+    docker_mount_root: Path,
+) -> None:
+    _, base, head = _complete_repository(docker_mount_root)
+    _workflow_dispatch_event(docker_mount_root)
+    fake_attest = _fake_attest(docker_mount_root)
+    output = docker_mount_root / "output"
+    summary = docker_mount_root / "summary"
+    output.touch()
+    summary.touch()
+    arguments = _runner_arguments(
+        docker_mount_root,
+        head,
+        event_name="workflow_dispatch",
+    )
+    arguments.extend(
+        [
+            "--volume",
+            f"{fake_attest}:/opt/venv/bin/attest:ro",
+            "--env",
+            "ACTIONS_ID_TOKEN_REQUEST_URL=https://example.invalid/oidc",
+            "--env",
+            "ACTIONS_ID_TOKEN_REQUEST_TOKEN=opaque",
+            "--env",
+            "GITHUB_TOKEN=opaque",
+            "--env",
+            "GITHUB_OUTPUT=/github/output",
+            "--env",
+            "GITHUB_STEP_SUMMARY=/github/summary",
+            _image(),
+            "--mode",
+            "run",
+        ]
+    )
+
+    result = _docker(*arguments)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads((docker_mount_root / "observed.json").read_text(encoding="utf-8"))
+    invocation = observed["argv"]
+    assert invocation[invocation.index("--base") + 1] == base
+    assert invocation[invocation.index("--head") + 1] == head
+    assert invocation[invocation.index("--target-branch") + 1] == "main"
 
 
 @pytest.mark.container

@@ -198,8 +198,7 @@ COPY --from=build /opt/venv /opt/venv
 COPY action/entrypoint.py /opt/attest/entrypoint.py
 COPY --from=build /build/action/trust /opt/attest/trust
 
-RUN <<'PYTHON'
-#!/opt/venv/bin/python
+RUN PYTHONNODEBUGRANGES=1 /opt/venv/bin/python <<'PYTHON'
 import hashlib
 import importlib
 import pathlib
