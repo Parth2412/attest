@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Proposed ADR-062's source-verified minimal Git/HTTPS Action runtime after the first eligible
+  ADR-061 performance run retained 20 successful samples but failed closed at p95 17 seconds;
+  production work remains blocked on ADR acceptance.
 - Added ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, reducing the Action's
   applied filesystem footprint while retaining the closed bytecode set, fixed metadata, in-place
   imports, and every existing candidate and performance gate.
