@@ -3611,3 +3611,141 @@ movement of `v1`.
 
 **Consequences.** What this costs, and what now becomes harder or impossible.
 ```
+
+---
+
+## ADR-062 — Build a source-verified minimal Git HTTPS runtime
+
+**Status:** Proposed · **Date:** 2026-10-13 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-053`, `ADR-054`, `ADR-059`, `ADR-061`
+
+**Context.** The exact merged Action commit
+`e8a7a9ff2de79b06d1405202af98d7b7209e6bb6` and `ADR-061` candidate manifest
+`sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`
+passed CI run `38257587256`, end-to-end signing run `38257587278`, and every candidate gate in
+run `38250635610`. Automatic performance run `38257587284`, attempt 1, retained 20 successful
+samples but correctly failed at p50 10 seconds and nearest-rank p95 17 seconds. The sorted API
+durations were 8, 8, 9, 10, 10, 10, 10, 10, 10, 10, 11, 12, 15, 16, 16, 16, 16, 17, 17, and
+19 seconds. Exact log timestamps measured total p50 10.128 seconds and p95 17.197 seconds,
+image pull/extraction p50 3.153 seconds and p95 10.159 seconds, and post-pull p50 6.828 seconds
+and p95 8.308 seconds. The run is immutable negative evidence and has not started the required
+three-run sequence.
+
+Credential-free staging diagnostics isolated the remaining signing path before changing it.
+Run `38361086071` measured one live sign-and-verify path at 4.031 seconds, including 1.898
+seconds for Fulcio and 1.887 seconds for bundle submission. Run `38361367008` measured another at
+5.405 seconds; its independently instrumented phases included 0.286 seconds for ambient identity,
+0.544 seconds for online trust, 2.895 seconds for Fulcio, 2.208 seconds for bundle submission, and
+0.009 seconds for refreshed verification. The bundle submission comprised 0.204 seconds for TSA
+and 2.003 seconds for Rekor. Parallelizing those two private Sigstore operations could therefore
+have removed at most about 0.204 seconds from that sample while abandoning the public
+`sign_dsse` boundary. Twenty exact-image local probes measured the complete post-configuration,
+pre-sign phase at median 0.151 seconds and p95 0.194 seconds, so beginning Fulcio only after
+validated configuration cannot hide material network time. The diagnostic branch was deleted and
+none of its code enters production.
+
+The remaining material local lever is the Action image's Git transport closure. The exact amd64
+image is 46,530,206 bytes unpacked. Its Alpine Git and curl runtime includes Git's PCRE2 linkage
+and curl's c-ares, HTTP/2, international-domain, public-suffix, zstd, and Brotli closure even
+though the closed Action image retains only `git`, `git-remote-http`, and the HTTPS helper link.
+A production-equivalent, flattened prototype instead built the same Git `2.52.0` source and curl
+`8.22.0` source with only the Action's local and smart-HTTP transport needs. It reduced the image
+to 42,440,503 bytes, a 4,089,703-byte or 8.79% reduction. A directional gzip-9 comparison of
+local `docker image save` output fell from 21,525,338 to 19,708,708 bytes, a 1,816,630-byte or
+8.44% reduction; this is not registry zstd acceptance evidence. The prototype passed HTTPS
+`ls-remote`, shallow clone, fetch, CLI startup, and all 19 applicable real-container contracts.
+Only the final balanced-layer contract was excluded because the measurement prototype was
+deliberately flattened.
+
+**Decision.** Replace only the Action image's Alpine-packaged Git/curl transport closure with
+unmodified, source-built Git `2.52.0` and curl `8.22.0`. Fetch Git's release archive from
+kernel.org and require SHA-256
+`3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5`; fetch curl's release
+archive from curl.se and require SHA-512
+`d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7`.
+Both downloads must fail before extraction on a hash mismatch. Build them in the existing
+digest-pinned Alpine/Python base with an exact version-pinned, removable C toolchain and the
+existing pinned OpenSSL `3.5.9` and zlib. Do not patch either upstream source.
+
+Compile Git with prefix `/usr`, size optimisation, section garbage collection, musl's bundled
+`REG_STARTEND` compatibility implementation, and without gettext, Perl, Python, Tcl/Tk, Expat, or
+PCRE. Retain exactly `/usr/bin/git`, its receive/upload-pack links,
+`/usr/libexec/git-core/git-remote-http`, and its HTTPS link. Preserve every Git command exercised
+by collection, repository verification, Git-ref import/push, and the complete real-container
+suite; this decision does not authorize a reduced Git builtin set.
+
+Compile shared libcurl with OpenSSL, zlib, IPv6, POSIX threaded DNS, CA-bundle/path verification,
+HTTPS-proxy handling, and HTTP/1.1 `http`/`https` smart transport. Disable every non-HTTP
+protocol, WebSockets, HTTP/2 and HTTP/3, c-ares, IDN, PSL and cookies, zstd, and Brotli. This
+bounded Action runtime therefore accepts ASCII or caller-punycode HTTP(S) hosts and local Git
+paths; the separately installed CLI and libraries continue to use the operator's Git transport
+without this Action-only restriction. Certificate verification, the repository's configured
+Git authentication header, hard Git deadline, sanitized environment, non-force ref rules, and
+secret-safe errors remain mandatory. No insecure TLS option or credential-bearing URL is added.
+
+After loader inspection of every retained executable and native module on both architectures,
+remove a shared library only when the replaced Git/curl closure was its sole consumer. The
+prototype's removable set was PCRE2-8, c-ares, nghttp2, libidn2, libpsl, zstd, Brotli decode/common,
+and libunistring; the production build must rediscover and assert the exact closed set rather than
+trusting that prototype list. Rebalance the resulting filesystem across exactly three primary
+zstd layers and record each platform's unpacked image, primary compressed layers, Git/curl
+binaries, and dependency mapping.
+
+Retain Git's GPL-2.0-only text and curl's copyright/permission text in the image. Before a
+candidate binary image becomes publicly downloadable, publish a public, digest-bound
+corresponding-source artifact containing both exact source archives, their licence files, hashes,
+and the exact build recipe; keep it available for as long as the binary image and link it from the
+candidate evidence. The immutable release must retain the same materials. The candidate gate must
+also establish exact Git/curl version and licence entries in retained component evidence and scan
+those components for the same critical and fixable-high vulnerability policy as the image. It
+must fail closed if source correspondence, component identity, or scanning is absent.
+
+Do not change a Python dependency or distribution, Sigstore operation, trust seed, signing
+behavior, public Action input/output, stable error, sample count, timing boundary, threshold, or
+promotion rule. Run `38257587284` must not be rerun or counted. A new unique candidate must pass
+every existing amd64/arm64 container, transport, native, scan, source-correspondence, SBOM,
+provenance, and identity-attestation gate. Only the exact merged Action and that candidate may
+begin a fresh automatic-plus-two-reviewed-dispatch sequence of three consecutive attempt-1 20-job
+measurements and the combined 60-sample gate.
+
+**Rationale.** The failed hosted evidence has two independent tails: image pull/extraction and
+post-pull signing. Public Sigstore boundaries and mandatory live trust consume most of the latter;
+the measured safe overlaps are too small to close the gap. The Git/curl closure is the largest
+remaining image region that can be reduced without changing the signed payload, identity,
+transparency evidence, Python runtime, or storage algorithm. The prototype demonstrates an 8.79%
+unpacked reduction and complete applicable container behavior. Exact upstream hashes, a pinned
+ephemeral toolchain, loader closure, component scanning, retained notices, and public
+corresponding source make the added source build reviewable rather than hiding it from the supply
+chain. The unchanged hosted gate remains the only acceptance authority.
+
+**Rejected alternatives.** Parallel private TSA/Rekor submission saves only the shorter request
+and bypasses Sigstore's public atomic operation. Fulcio prewarming after validated configuration
+can overlap less than 0.2 seconds locally. Suppressing live TUF refresh, omitting TSA or Rekor,
+weakening self-verification, reusing signing side effects, or relaxing process isolation violates
+accepted security contracts. Replacing generic Git transport with the GitHub API changes F-07
+semantics and excludes non-GitHub remotes. Removing Git from a benchmark-only image would measure
+a product different from the released Action. Retaining the full Alpine curl dependency closure
+leaves the measured size lever largely unchanged. Shipping an untracked source-built binary,
+relying only on an expiring workflow artifact for corresponding source, or omitting Git/curl from
+component scanning creates supply-chain and licence risk. Rerunning the failed attempt, excluding
+image pull, reducing samples, or accepting p95 at or above 15 seconds would falsify the evidence.
+
+**Consequences.** The Action image adds two explicit source builds and their version/CVE watch,
+longer multi-platform candidate builds, public corresponding-source retention, and exact
+component evidence. Its embedded Git HTTP transport no longer supports Unicode hostnames unless
+the caller supplies punycode, cookie authentication, HTTP/2 or HTTP/3, or compressed HTTP content
+beyond zlib; installed CLI users retain their system Git behavior. The runtime removes about 4.09
+MB in the amd64 prototype and gains small licence notices, but actual zstd layers and hosted
+latency remain unverified until a candidate passes. Publication stays blocked until the new
+candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
+independent `v1` review all pass.
+
+### ADR-062 proposed implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-270` | Build hash-locked minimal Git/curl; prove the closed loader and transport contract on both platforms; retain licences and public corresponding source; expose and scan exact component evidence; rebalance three zstd layers; preserve failed run `38257587284`; build a unique candidate and restart every performance gate | `action/Dockerfile`, container/candidate/release/performance tests and workflows, source/licence evidence, `TECH-001`, `QA-001`, `SEC-001`, `BRD-F11`, `CH-09`, project/release records |
+
+Acceptance would authorize only this bounded Action-runtime transport correction. It would not
+authorize a private Sigstore call, failed-run rerun, Python publication, threshold change,
+release, or movement of `v1`.
