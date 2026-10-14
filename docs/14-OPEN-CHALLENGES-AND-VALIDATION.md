@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.5` |
+| Version | `1.1.6` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-14 |
 
 ---
 
@@ -363,6 +363,18 @@ superseded manifest, retained p50 12 s and p95 16 s and remain excluded. Candida
 `38250635610`, attempt 1, then passed every two-platform, scan, SBOM, provenance,
 identity-attestation, and 20-test real-container gate as manifest
 `sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
+Automatic run `38257587284`, attempt 1, then retained 20 successful samples at p50 10 seconds and
+p95 17 seconds and remains immutable negative evidence. Accepted `ADR-062` replaces only the
+Action image's Git/curl transport closure with exact hash-locked minimal source builds, public
+corresponding source, component scanning, and both-platform loader/layer evidence before another
+unique candidate restarts every supply-chain and performance gate.
+Candidate run `38529646263`, attempt 1, then passed every source-correspondence, exact-component,
+two-platform, scan, SBOM, provenance, identity-attestation, and 22-test real-container gate for
+source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public source
+artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`. It is the sole
+ADR-062 baseline for the still-pending fresh three-run performance sequence.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
@@ -385,7 +397,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, and `38249545348` retained later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, and `ADR-061` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061` |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, `38249545348`, and `38257587284` retained later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate, and candidate run `38529646263` passed the complete `ADR-062` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, and `ADR-062` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061`; `ADR-062` |
 
 ---
 

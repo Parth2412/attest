@@ -332,9 +332,11 @@ is by far the most persuasive demo you will have.
 | GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable/promoted `v1.0.4`; bounded immutable `v1.0.5` only after its release gates; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-The released performance-correction image records and pins the verified
-`python:3.12.14-alpine3.23` base digest and exact `git=2.52.0-r0` package; release builds
-from the committed lock with user-site/current-directory imports disabled. Multi-arch is
+The performance-correction image records and pins the verified
+`python:3.12.14-alpine3.23` base digest and, under `ADR-062`, builds unmodified Git `2.52.0` and
+curl `8.22.0` from their exact hash-locked upstream sources rather than retaining Alpine's broad
+Git/curl transport closure. Release builds from the committed lock with
+user-site/current-directory imports disabled. Multi-arch is
 `linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
 artifact attestation. PyPI publication uses per-package Trusted Publishing environments with build
 and publish jobs separated and no long-lived package token. Because PyPI permits only three pending
@@ -376,6 +378,17 @@ both deterministic archives while retaining optimisation level zero, assertions,
 source line numbers, and every existing archive contract; the final runtime does not set that
 environment variable. Public files must byte-match the single build, and Python 3.12/3.13 clean
 installs must pass; core, collect, store, policy, and export are not rebuilt or uploaded.
+`ADR-062` pins the removable C toolchain, OpenSSL, and zlib; retains only Git's complete builtin
+binary plus receive/upload-pack and HTTP(S) helper links; and compiles libcurl for verified
+HTTP/HTTPS smart transport, IPv6, threaded DNS, CA bundle/path, HTTPS proxy, and zlib. Both
+architectures must prove the rediscovered loader closure and the absence of PCRE2, c-ares, HTTP/2,
+IDN, PSL, zstd, Brotli, and libunistring. A public digest-bound, GitHub-attested source artifact
+containing both archives, licences, hashes, SPDX component evidence, exact OpenVEX, and the exact
+recipe must exist before the candidate binary; the binary labels that source digest, and the immutable release
+re-fetches and retains the same materials. Exact Git/curl component evidence receives the same
+critical and fixable-high scan policy as the image through immutable CPE-aware Grype. The sole
+not-affected statement covers Git-for-Windows `CVE-2026-62960`; its exact product, status,
+justification, and the raw scanner/database evidence are retained and fail closed on drift.
 
 ---
 

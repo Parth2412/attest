@@ -19,12 +19,17 @@ IMAGE_REFERENCE: Final[re.Pattern[str]] = re.compile(
     r"^[ \t]*image:[ \t]+docker://ghcr\.io/parth2412/attest@(sha256:[0-9a-f]{64})[ \t]*$",
     re.MULTILINE,
 )
+SOURCE_REFERENCE: Final[re.Pattern[str]] = re.compile(
+    r"ghcr\.io/parth2412/attest@(sha256:[0-9a-f]{64})\Z"
+)
 EXPECTED_FILES: Final[frozenset[str]] = frozenset(
     {
         "build-metadata.json",
         "context-digest.txt",
         "context-manifest.json",
         "image-digest.txt",
+        "layers-linux-amd64.json",
+        "layers-linux-arm64.json",
         "manifest.json",
         "manifest-linux-amd64.json",
         "manifest-linux-arm64.json",
@@ -32,6 +37,54 @@ EXPECTED_FILES: Final[frozenset[str]] = frozenset(
         "sbom.spdx.json",
     }
 )
+EXPECTED_SOURCE_EVIDENCE_FILES: Final[frozenset[str]] = frozenset(
+    {
+        "runtime-components.openvex.json",
+        "runtime-components.spdx.json",
+        "source-artifact-digest.txt",
+        "source-artifact-manifest.json",
+        "source-artifact-reference.txt",
+        "source-attestation-verification.json",
+        "source-attestation.jsonl",
+        "source-manifest.json",
+    }
+)
+EXPECTED_RUNTIME_SOURCE_FILES: Final[frozenset[str]] = frozenset(
+    {
+        "Dockerfile",
+        "SOURCE-MANIFEST.json",
+        "curl-8.22.0.tar.xz",
+        "curl-COPYING",
+        "git-2.52.0.tar.xz",
+        "git-COPYING",
+        "runtime-components.openvex.json",
+        "runtime-components.spdx.json",
+        "runtime-sources.json",
+    }
+)
+EXPECTED_COMPONENTS: Final[dict[str, dict[str, str]]] = {
+    "curl": {
+        "version": "8.22.0",
+        "license": "curl",
+        "purl": "pkg:generic/curl@8.22.0",
+        "cpe": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+        "archive": "curl-8.22.0.tar.xz",
+        "algorithm": "sha512",
+        "digest": (
+            "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebe"
+            "aa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+        ),
+    },
+    "git": {
+        "version": "2.52.0",
+        "license": "GPL-2.0-only",
+        "purl": "pkg:generic/git@2.52.0",
+        "cpe": "cpe:2.3:a:git-scm:git:2.52.0:*:*:*:*:*:*:*",
+        "archive": "git-2.52.0.tar.xz",
+        "algorithm": "sha256",
+        "digest": "3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5",
+    },
+}
 PLATFORMS: Final[frozenset[str]] = frozenset({"linux/amd64", "linux/arm64"})
 PLATFORM_MANIFESTS: Final[dict[str, str]] = {
     "linux/amd64": "manifest-linux-amd64.json",
@@ -172,8 +225,8 @@ def _validate_platform_manifest(
     ):
         _fail(f"candidate {platform} manifest is invalid")
     layers = document.get("layers")
-    if not isinstance(layers, list) or not layers:
-        _fail(f"candidate {platform} manifest has no layers")
+    if not isinstance(layers, list) or len(layers) != 4:
+        _fail(f"candidate {platform} manifest does not have four layers")
     for layer in layers:
         if not isinstance(layer, dict) or layer.get("mediaType") != ZSTD_LAYER_MEDIA_TYPE:
             _fail(f"candidate {platform} image layers are not all zstd")
@@ -187,6 +240,13 @@ def _validate_platform_manifest(
             or size <= 0
         ):
             _fail(f"candidate {platform} layer descriptor is invalid")
+    layer_evidence = _json(evidence / f"layers-{platform.replace('/', '-')}.json")
+    if layer_evidence != {
+        "platform": platform,
+        "primaryLayers": layers[:3],
+        "entrypointLayer": layers[3],
+    }:
+        _fail(f"invalid candidate {platform} layer evidence")
 
 
 def _validate_platform_evidence(path: Path, label: str) -> None:
@@ -239,23 +299,221 @@ def _validate_action_manifest(action_manifest: Path, expected_image_digest: str)
         _fail("Action manifest does not pin the reviewed image digest")
 
 
-def _validate_directory(evidence: Path) -> None:
+def _validate_source_contract(runtime_sources: Path) -> None:
+    document = _json(runtime_sources / "runtime-sources.json")
+    if not isinstance(document, dict) or set(document) != {"schemaVersion", "components"}:
+        _fail("runtime source contract is invalid")
+    if document.get("schemaVersion") != 1 or not isinstance(document.get("components"), list):
+        _fail("runtime source contract is invalid")
+    components = document["components"]
+    if not isinstance(components, list) or len(components) != len(EXPECTED_COMPONENTS):
+        _fail("runtime source contract has unexpected components")
+    observed: dict[str, dict[str, object]] = {}
+    for component in components:
+        if not isinstance(component, dict) or not isinstance(component.get("name"), str):
+            _fail("runtime source component is invalid")
+        name = component["name"]
+        if name in observed:
+            _fail("runtime source contract repeats a component")
+        observed[name] = component
+    if set(observed) != set(EXPECTED_COMPONENTS):
+        _fail("runtime source contract has unexpected components")
+    for name, expected in EXPECTED_COMPONENTS.items():
+        component = observed[name]
+        archive = component.get("archive")
+        licence = component.get("licence")
+        if not isinstance(archive, dict) or not isinstance(licence, dict):
+            _fail(f"runtime source {name} contract is invalid")
+        digest = archive.get("digest")
+        if not isinstance(digest, dict):
+            _fail(f"runtime source {name} digest is invalid")
+        if (
+            component.get("version") != expected["version"]
+            or component.get("purl") != expected["purl"]
+            or component.get("cpe") != expected["cpe"]
+            or archive.get("filename") != expected["archive"]
+            or digest.get("algorithm") != expected["algorithm"]
+            or digest.get("value") != expected["digest"]
+            or licence.get("spdx") != expected["license"]
+        ):
+            _fail(f"runtime source {name} identity mismatch")
+
+
+def _validate_component_sbom(path: Path) -> None:
+    document = _json(path)
+    if not isinstance(document, dict) or document.get("spdxVersion") != "SPDX-2.3":
+        _fail("runtime component SBOM is invalid")
+    packages = document.get("packages")
+    if not isinstance(packages, list) or len(packages) != len(EXPECTED_COMPONENTS):
+        _fail("runtime component SBOM has unexpected packages")
+    observed: dict[str, dict[str, object]] = {}
+    for package in packages:
+        if not isinstance(package, dict) or not isinstance(package.get("name"), str):
+            _fail("runtime component SBOM package is invalid")
+        name = package["name"]
+        if name in observed:
+            _fail("runtime component SBOM repeats a package")
+        observed[name] = package
+    if set(observed) != set(EXPECTED_COMPONENTS):
+        _fail("runtime component SBOM has unexpected packages")
+    for name, expected in EXPECTED_COMPONENTS.items():
+        package = observed[name]
+        references = package.get("externalRefs")
+        if not isinstance(references, list):
+            _fail(f"runtime component SBOM {name} references are invalid")
+        locators = {
+            reference.get("referenceType"): reference.get("referenceLocator")
+            for reference in references
+            if isinstance(reference, dict)
+        }
+        if (
+            package.get("versionInfo") != expected["version"]
+            or package.get("licenseDeclared") != expected["license"]
+            or locators.get("purl") != expected["purl"]
+            or locators.get("cpe23Type") != expected["cpe"]
+        ):
+            _fail(f"runtime component SBOM {name} identity mismatch")
+
+
+def _validate_component_scan(path: Path) -> None:
+    document = _json(path)
+    if not isinstance(document, dict) or not isinstance(document.get("matches"), list):
+        _fail("runtime component scan is invalid")
+    source = document.get("source")
+    descriptor = document.get("descriptor")
+    if not isinstance(source, dict) or not isinstance(descriptor, dict):
+        _fail("runtime component scan is invalid")
+    target = source.get("target")
+    configuration = descriptor.get("configuration")
+    database = descriptor.get("db")
+    if (
+        source.get("type") != "sbom-file"
+        or not isinstance(target, str)
+        or not target.endswith("/runtime-components.spdx.json")
+        or descriptor.get("name") != "grype"
+        or descriptor.get("version") != "0.107.0"
+        or not isinstance(configuration, dict)
+        or not isinstance(configuration.get("match"), dict)
+        or not isinstance(configuration["match"].get("stock"), dict)
+        or configuration["match"]["stock"].get("using-cpes") is not True
+        or not isinstance(database, dict)
+        or not isinstance(database.get("status"), dict)
+        or database["status"].get("valid") is not True
+    ):
+        _fail("runtime component scan is invalid")
+
+
+def _validate_source_manifest(runtime_sources: Path, evidence_manifest: Path) -> None:
+    runtime_manifest = _regular_bytes(runtime_sources / "SOURCE-MANIFEST.json")
+    if runtime_manifest != _regular_bytes(evidence_manifest):
+        _fail("source manifest evidence mismatch")
     try:
-        metadata = evidence.lstat()
-        entries = tuple(evidence.iterdir())
+        document = json.loads(runtime_manifest)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise CandidateValidationError("source manifest must be valid JSON") from error
+    if (
+        not isinstance(document, dict)
+        or set(document) != {"schemaVersion", "digestAlgorithm", "files"}
+        or document.get("schemaVersion") != 1
+        or document.get("digestAlgorithm") != "sha256"
+        or not isinstance(document.get("files"), list)
+    ):
+        _fail("source manifest is invalid")
+    expected_paths = EXPECTED_RUNTIME_SOURCE_FILES - {"SOURCE-MANIFEST.json"}
+    entries: dict[str, dict[str, object]] = {}
+    for entry in document["files"]:
+        if not isinstance(entry, dict) or set(entry) != {"path", "size", "sha256"}:
+            _fail("source manifest entry is invalid")
+        path = entry.get("path")
+        if not isinstance(path, str) or path in entries:
+            _fail("source manifest entry is invalid")
+        entries[path] = entry
+    if set(entries) != expected_paths:
+        _fail("source manifest has an unexpected file set")
+    for name, entry in entries.items():
+        content = _regular_bytes(runtime_sources / name)
+        if (
+            entry.get("size") != len(content)
+            or entry.get("sha256") != hashlib.sha256(content).hexdigest()
+        ):
+            _fail(f"source manifest mismatch: {name}")
+
+
+def _validate_source(
+    evidence: Path,
+    runtime_sources: Path,
+    component_scan: Path,
+) -> str:
+    _validate_exact_directory(evidence, EXPECTED_SOURCE_EVIDENCE_FILES, "source evidence")
+    _validate_exact_directory(runtime_sources, EXPECTED_RUNTIME_SOURCE_FILES, "runtime source")
+    source_digest = _digest_text(evidence / "source-artifact-digest.txt", "source artifact digest")
+    source_reference = _text(evidence / "source-artifact-reference.txt")
+    if not source_reference.endswith("\n") or "\n" in source_reference[:-1]:
+        _fail("invalid source artifact reference evidence")
+    match = SOURCE_REFERENCE.fullmatch(source_reference[:-1])
+    if match is None or match.group(1) != source_digest:
+        _fail("source artifact reference mismatch")
+    manifest_bytes = _regular_bytes(evidence / "source-artifact-manifest.json")
+    if f"sha256:{hashlib.sha256(manifest_bytes).hexdigest()}" != source_digest:
+        _fail("source artifact manifest digest mismatch")
+    try:
+        artifact_manifest = json.loads(manifest_bytes)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise CandidateValidationError("source artifact manifest must be valid JSON") from error
+    if not isinstance(artifact_manifest, dict) or artifact_manifest.get("schemaVersion") != 2:
+        _fail("source artifact manifest is invalid")
+
+    _validate_source_manifest(runtime_sources, evidence / "source-manifest.json")
+    component_bytes = _regular_bytes(runtime_sources / "runtime-components.spdx.json")
+    if component_bytes != _regular_bytes(evidence / "runtime-components.spdx.json"):
+        _fail("runtime component SBOM evidence mismatch")
+    vex_bytes = _regular_bytes(runtime_sources / "runtime-components.openvex.json")
+    if vex_bytes != _regular_bytes(evidence / "runtime-components.openvex.json"):
+        _fail("runtime component VEX evidence mismatch")
+    _validate_source_contract(runtime_sources)
+    _validate_component_sbom(runtime_sources / "runtime-components.spdx.json")
+    _validate_component_scan(component_scan)
+    verification = _json(evidence / "source-attestation-verification.json")
+    if not isinstance(verification, (dict, list)) or not verification:
+        _fail("source attestation verification is invalid")
+    bundle_lines = _text(evidence / "source-attestation.jsonl").splitlines()
+    try:
+        bundles = [json.loads(line) for line in bundle_lines]
+    except json.JSONDecodeError as error:
+        raise CandidateValidationError("source attestation bundle is invalid") from error
+    if not bundles or any(not isinstance(bundle, dict) or not bundle for bundle in bundles):
+        _fail("source attestation bundle is invalid")
+    return source_reference[:-1]
+
+
+def _validate_exact_directory(
+    directory: Path,
+    expected_files: frozenset[str],
+    label: str,
+) -> None:
+    try:
+        metadata = directory.lstat()
+        entries = tuple(directory.iterdir())
     except OSError as error:
-        raise CandidateValidationError("candidate evidence directory cannot be read") from error
-    if evidence.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
-        _fail("candidate evidence path must be a directory")
-    if {entry.name for entry in entries} != EXPECTED_FILES:
-        _fail("candidate evidence directory does not contain the exact release set")
+        raise CandidateValidationError(f"{label} directory cannot be read") from error
+    if directory.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
+        _fail(f"{label} path must be a directory")
+    if {entry.name for entry in entries} != expected_files:
+        _fail(f"{label} directory does not contain the exact release set")
     for entry in entries:
         _regular_bytes(entry)
+
+
+def _validate_directory(evidence: Path) -> None:
+    _validate_exact_directory(evidence, EXPECTED_FILES, "candidate evidence")
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence-directory", required=True, type=Path)
+    parser.add_argument("--source-evidence-directory", required=True, type=Path)
+    parser.add_argument("--runtime-sources", required=True, type=Path)
+    parser.add_argument("--component-scan", required=True, type=Path)
     parser.add_argument("--current-context-manifest", required=True, type=Path)
     parser.add_argument("--action-manifest", required=True, type=Path)
     parser.add_argument("--expected-context-digest", required=True)
@@ -274,6 +532,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     try:
         _validate_directory(arguments.evidence_directory)
+        _validate_source(
+            arguments.source_evidence_directory,
+            arguments.runtime_sources,
+            arguments.component_scan,
+        )
         _validate_context(
             arguments.evidence_directory,
             arguments.current_context_manifest,
@@ -284,7 +547,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (CandidateValidationError, OSError) as error:
         sys.stderr.write(f"candidate evidence error: {error}\n")
         return 1
-    sys.stdout.write("candidate evidence: validated exact reviewed context and image\n")
+    sys.stdout.write("candidate evidence: validated exact reviewed context, source, and image\n")
     return 0
 
 

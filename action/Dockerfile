@@ -1,5 +1,140 @@
 FROM ghcr.io/astral-sh/uv:0.11.2@sha256:c4f5de312ee66d46810635ffc5df34a1973ba753e7241ce3a08ef979ddd7bea5 AS uv
 
+FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS transport-build
+
+RUN apk add --no-cache \
+        binutils=2.45.1-r0 \
+        gcc=15.2.0-r2 \
+        make=4.4.1-r3 \
+        musl-dev=1.2.5-r23 \
+        openssl-dev=3.5.9-r0 \
+        pkgconf=2.5.1-r0 \
+        xz=5.8.4-r0 \
+        zlib-dev=1.3.2-r1
+
+WORKDIR /build
+COPY action/runtime-sources/git-2.52.0.tar.xz ./git-2.52.0.tar.xz
+COPY action/runtime-sources/curl-8.22.0.tar.xz ./curl-8.22.0.tar.xz
+COPY action/runtime-sources/git-COPYING ./git-COPYING
+COPY action/runtime-sources/curl-COPYING ./curl-COPYING
+
+RUN printf '%s  %s\n' \
+        3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5 \
+        git-2.52.0.tar.xz \
+        | sha256sum -c - \
+    && printf '%s  %s\n' \
+        d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7 \
+        curl-8.22.0.tar.xz \
+        | sha512sum -c - \
+    && tar -xJf git-2.52.0.tar.xz \
+    && tar -xJf curl-8.22.0.tar.xz \
+    && cmp git-COPYING git-2.52.0/COPYING \
+    && cmp curl-COPYING curl-8.22.0/COPYING
+
+RUN cd curl-8.22.0 \
+    && ./configure \
+        --prefix=/usr \
+        --disable-alt-svc \
+        --disable-cookies \
+        --disable-dict \
+        --disable-docs \
+        --disable-file \
+        --disable-ftp \
+        --disable-gopher \
+        --disable-headers-api \
+        --disable-hsts \
+        --disable-imap \
+        --disable-ipfs \
+        --disable-ldap \
+        --disable-ldaps \
+        --disable-manual \
+        --disable-mqtt \
+        --disable-pop3 \
+        --disable-rtsp \
+        --disable-smb \
+        --disable-smtp \
+        --disable-static \
+        --disable-telnet \
+        --disable-tftp \
+        --disable-websockets \
+        --enable-http \
+        --enable-ipv6 \
+        --enable-shared \
+        --enable-threaded-resolver \
+        --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+        --with-ca-path=/etc/ssl/certs \
+        --with-openssl \
+        --with-zlib \
+        --without-brotli \
+        --without-libidn2 \
+        --without-libpsl \
+        --without-libssh2 \
+        --without-nghttp2 \
+        --without-nghttp3 \
+        --without-ngtcp2 \
+        --without-zstd \
+        CFLAGS="-Os -ffunction-sections -fdata-sections" \
+        LDFLAGS="-Wl,--gc-sections -s" \
+    && make -j2 \
+    && make DESTDIR=/out install \
+    && test "$(/out/usr/bin/curl-config --version)" = "libcurl 8.22.0" \
+    && test "$(/out/usr/bin/curl-config --protocols | tr '\n' ' ')" = "HTTP HTTPS " \
+    && /out/usr/bin/curl-config --features | grep -Fx IPv6 \
+    && /out/usr/bin/curl-config --features | grep -Fx HTTPS-proxy \
+    && /out/usr/bin/curl-config --features | grep -Fx SSL \
+    && /out/usr/bin/curl-config --features | grep -Fx libz \
+    && ! /out/usr/bin/curl-config --features | grep -E 'brotli|HTTP2|HTTP3|IDN|PSL|zstd'
+
+RUN cd git-2.52.0 \
+    && make -j2 \
+        prefix=/usr \
+        CURL_CONFIG=/out/usr/bin/curl-config \
+        CURLDIR=/out/usr \
+        CFLAGS="-Os -ffunction-sections -fdata-sections" \
+        CPPFLAGS="-I/out/usr/include" \
+        LDFLAGS="-L/out/usr/lib -Wl,--gc-sections -s" \
+        NO_EXPAT=YesPlease \
+        NO_GETTEXT=YesPlease \
+        NO_PCRE=YesPlease \
+        NO_PERL=YesPlease \
+        NO_PYTHON=YesPlease \
+        NO_REGEX=YesPlease \
+        NO_TCLTK=YesPlease \
+        git git-remote-http
+
+COPY action/runtime-sources/runtime-components.spdx.json ./runtime-components.spdx.json
+COPY action/runtime-sources/runtime-components.openvex.json ./runtime-components.openvex.json
+COPY action/runtime-sources/SOURCE-MANIFEST.json ./SOURCE-MANIFEST.json
+
+RUN cd git-2.52.0 \
+    && mkdir -p \
+        /out/usr/bin \
+        /out/usr/libexec/git-core \
+        /out/usr/share/attest \
+        /out/usr/share/licenses/curl \
+        /out/usr/share/licenses/git \
+    && cp git /out/usr/bin/git \
+    && ln -s git /out/usr/bin/git-receive-pack \
+    && ln -s git /out/usr/bin/git-upload-pack \
+    && cp git-remote-http /out/usr/libexec/git-core/git-remote-http \
+    && ln -s git-remote-http /out/usr/libexec/git-core/git-remote-https \
+    && cp /build/git-COPYING /out/usr/share/licenses/git/COPYING \
+    && cp /build/curl-COPYING /out/usr/share/licenses/curl/COPYING \
+    && cp /build/runtime-components.spdx.json \
+        /out/usr/share/attest/runtime-components.spdx.json \
+    && cp /build/runtime-components.openvex.json \
+        /out/usr/share/attest/runtime-components.openvex.json \
+    && cp /build/SOURCE-MANIFEST.json /out/usr/share/attest/SOURCE-MANIFEST.json \
+    && rm -rf \
+        /out/usr/bin/curl \
+        /out/usr/bin/curl-config \
+        /out/usr/include \
+        /out/usr/lib/libcurl.a \
+        /out/usr/lib/libcurl.la \
+        /out/usr/lib/pkgconfig \
+        /out/usr/share/aclocal \
+        /out/usr/share/man
+
 FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS build
 
 COPY --from=uv /uv /usr/local/bin/uv
@@ -55,8 +190,9 @@ RUN apk add --no-cache \
 
 FROM python:3.12.14-alpine3.23@sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a AS runtime
 
+COPY --from=transport-build /out/ /
+
 RUN apk add --no-cache \
-        git=2.52.0-r0 \
         libcrypto3=3.5.9-r0 \
         libgcc=15.2.0-r2 \
         libssl3=3.5.9-r0 \
@@ -185,7 +321,6 @@ RUN apk add --no-cache \
         /etc/apk \
         /var/cache/apk \
         /var/log/apk.log \
-        /usr/bin/scanelf \
         /usr/bin/git-shell \
         /usr/libexec/git-core/git-http-fetch \
         /usr/libexec/git-core/git-http-push \
@@ -395,6 +530,28 @@ for directory in sorted(standard_library.rglob("*"), reverse=True):
             pass
 PYTHON
 
+RUN set -o pipefail \
+    && scanelf --recursive --needed --nobanner --format '%F|%n' \
+        /bin \
+        /usr/bin \
+        /usr/lib \
+        /usr/libexec \
+        /usr/local/bin \
+        /usr/local/lib \
+        /opt/venv \
+        2>/dev/null \
+        | grep -v '^/usr/bin/scanelf|' \
+        | sort > /usr/share/attest/loader-dependencies.txt \
+    && test -s /usr/share/attest/loader-dependencies.txt \
+    && grep -F '/usr/bin/git|' /usr/share/attest/loader-dependencies.txt \
+    && grep -F '/usr/libexec/git-core/git-remote-http|libcurl.so.4' \
+        /usr/share/attest/loader-dependencies.txt \
+    && grep -F '/opt/venv/' /usr/share/attest/loader-dependencies.txt \
+    && ! grep -E \
+        'lib(pcre2-8|cares|nghttp2|idn2|psl|zstd|brotlidec|brotlicommon|unistring)\.so' \
+        /usr/share/attest/loader-dependencies.txt \
+    && rm -f /usr/bin/scanelf
+
 FROM scratch AS system-lib
 COPY --from=runtime /usr/lib /usr/lib
 
@@ -403,6 +560,9 @@ RUN destination=/split \
     && mkdir -p \
         "${destination}/usr/bin" \
         "${destination}/usr/libexec/git-core" \
+        "${destination}/usr/share/attest" \
+        "${destination}/usr/share/licenses/curl" \
+        "${destination}/usr/share/licenses/git" \
     && cp /usr/bin/git "${destination}/usr/bin/git" \
     && ln -s git "${destination}/usr/bin/git-receive-pack" \
     && ln -s git "${destination}/usr/bin/git-upload-pack" \
@@ -411,7 +571,17 @@ RUN destination=/split \
         "${destination}/usr/libexec/git-core/git-remote-http" \
     && ln -s \
         git-remote-http \
-        "${destination}/usr/libexec/git-core/git-remote-https"
+        "${destination}/usr/libexec/git-core/git-remote-https" \
+    && cp \
+        /usr/share/attest/SOURCE-MANIFEST.json \
+        /usr/share/attest/loader-dependencies.txt \
+        /usr/share/attest/runtime-components.openvex.json \
+        /usr/share/attest/runtime-components.spdx.json \
+        "${destination}/usr/share/attest/" \
+    && cp /usr/share/licenses/curl/COPYING \
+        "${destination}/usr/share/licenses/curl/COPYING" \
+    && cp /usr/share/licenses/git/COPYING \
+        "${destination}/usr/share/licenses/git/COPYING"
 
 FROM scratch AS system-git
 COPY --from=system-git-files /split/ /

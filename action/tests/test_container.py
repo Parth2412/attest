@@ -376,6 +376,142 @@ def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> No
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-270")
+def test_source_built_git_https_runtime_has_exact_component_and_loader_evidence() -> None:
+    script = """
+import ctypes
+import hashlib
+import json
+import pathlib
+
+attest = pathlib.Path("/usr/share/attest")
+licences = pathlib.Path("/usr/share/licenses")
+components = json.loads((attest / "runtime-components.spdx.json").read_text())
+vex = json.loads((attest / "runtime-components.openvex.json").read_text())
+packages = {
+    package["name"]: (
+        package["versionInfo"],
+        package["licenseConcluded"],
+        {reference["referenceType"]: reference["referenceLocator"]
+         for reference in package["externalRefs"]},
+    )
+    for package in components["packages"]
+}
+assert packages == {
+    "curl": (
+        "8.22.0",
+        "curl",
+        {
+            "purl": "pkg:generic/curl@8.22.0",
+            "cpe23Type": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+        },
+    ),
+    "git": (
+        "2.52.0",
+        "GPL-2.0-only",
+        {
+            "purl": "pkg:generic/git@2.52.0",
+            "cpe23Type": "cpe:2.3:a:git-scm:git:2.52.0:*:*:*:*:*:*:*",
+        },
+    ),
+}
+assert vex["statements"] == [{
+    "vulnerability": {"@id": "CVE-2026-62960"},
+    "products": [{"@id": "pkg:generic/git@2.52.0"}],
+    "status": "not_affected",
+    "justification": "vulnerable_code_not_present",
+    "impact_statement": (
+        "The advisory requires Git for Windows UNC/SMB path handling; this artifact is "
+        "built for Linux with musl and contains no Windows compatibility code."
+    ),
+}]
+source_manifest = json.loads((attest / "SOURCE-MANIFEST.json").read_text())
+source_files = {entry["path"]: entry for entry in source_manifest["files"]}
+for component in ("curl", "git"):
+    licence = licences / component / "COPYING"
+    assert licence.is_file() and not licence.is_symlink()
+    content = licence.read_bytes()
+    recorded = source_files[f"{component}-COPYING"]
+    assert len(content) == recorded["size"]
+    assert hashlib.sha256(content).hexdigest() == recorded["sha256"]
+
+curl_version = ctypes.CDLL("/usr/lib/libcurl.so.4").curl_version
+curl_version.restype = ctypes.c_char_p
+assert curl_version().decode() == "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2"
+
+mapping = (attest / "loader-dependencies.txt").read_text()
+assert "/usr/bin/git|" in mapping
+assert "/usr/libexec/git-core/git-remote-http|libcurl.so.4" in mapping
+assert "/opt/venv/" in mapping
+assert "/usr/bin/scanelf|" not in mapping
+for library in (
+    "libpcre2-8.so",
+    "libcares.so",
+    "libnghttp2.so",
+    "libidn2.so",
+    "libpsl.so",
+    "libzstd.so",
+    "libbrotlidec.so",
+    "libbrotlicommon.so",
+    "libunistring.so",
+):
+    assert library not in mapping
+    assert not tuple(pathlib.Path("/usr/lib").glob(f"{library}*"))
+"""
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/opt/venv/bin/python",
+        _image(),
+        "-I",
+        "-c",
+        script,
+    )
+    git_version = _docker("run", "--rm", "--entrypoint", "/usr/bin/git", _image(), "--version")
+
+    assert result.returncode == 0, result.stderr
+    assert git_version.returncode == 0, git_version.stderr
+    assert git_version.stdout == "git version 2.52.0\n"
+
+
+@pytest.mark.container
+@pytest.mark.ac("AC-F11-270")
+def test_source_built_git_clones_over_verified_public_https() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--env",
+        "GIT_TERMINAL_PROMPT=0",
+        "--env",
+        "GIT_CONFIG_COUNT=3",
+        "--env",
+        "GIT_CONFIG_KEY_0=http.sslVerify",
+        "--env",
+        "GIT_CONFIG_VALUE_0=true",
+        "--env",
+        "GIT_CONFIG_KEY_1=http.lowSpeedLimit",
+        "--env",
+        "GIT_CONFIG_VALUE_1=1",
+        "--env",
+        "GIT_CONFIG_KEY_2=http.lowSpeedTime",
+        "--env",
+        "GIT_CONFIG_VALUE_2=30",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "set -eu; destination=$(/bin/busybox mktemp -d); "
+        "git clone --quiet --depth=1 --filter=blob:none --no-checkout "
+        'https://github.com/Parth2412/attest.git "${destination}/repository"; '
+        'git -C "${destination}/repository" fetch --quiet --depth=1 origin main; '
+        'test -n "$(git -C "${destination}/repository" rev-parse FETCH_HEAD)"',
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-200")
 @pytest.mark.ac("AC-F11-210")
