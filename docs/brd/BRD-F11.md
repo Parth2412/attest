@@ -423,6 +423,16 @@ OpenVEX statement for Git-for-Windows `CVE-2026-62960` applies. A unique candida
 merged Action restart the entire
 candidate and three-run performance sequence.
 
+Candidate run `38529646263`, attempt 1, passed this complete boundary for exact source
+`49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, image
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public
+corresponding-source artifact
+`sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`. Both platforms passed
+all 22 real-container contracts, exact loader and four-layer evidence, image scans, component
+scan, SBOM, provenance, and identity-bound attestations. This success authorizes candidate
+pinning and a fresh performance sequence; it does not authorize release.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -559,7 +569,7 @@ write authority.
 - [ ] Cross-cutting obligations satisfied for the bounded correction
 - [x] Candidate run `38038325243` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
 - [x] Candidate run `38250635610` satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
-- [ ] A new unique candidate satisfies `ADR-062` source correspondence, minimal Git/HTTPS transport, component scan, both-platform loader/layer evidence, and every prior supply-chain contract
+- [x] Candidate run `38529646263` satisfies `ADR-062` source correspondence, minimal Git/HTTPS transport, component scan, both-platform loader/layer evidence, and every prior supply-chain contract
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
 - [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
@@ -589,3 +599,8 @@ attempt 1, passed all `ADR-061` supply-chain gates for exact source
 `b1d5475da39b2e9522482894dc675c73ecb118a1`, context
 `sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`, and manifest
 `sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
+Candidate run `38529646263`, attempt 1, passed all `ADR-062` supply-chain gates for exact source
+`49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public source
+artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`.

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.8` |
+| Version | `1.4.9` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-14 |
 
 ---
 
@@ -248,7 +248,7 @@ A release **MUST NOT** ship unless:
 - [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [x] The Action-only signer process boundary permits `fork` solely through the digest-matched adapter's fresh scoped capability on Linux's sole main thread, rejects caller markers, and preserves identical isolation, deadline, retry, termination, and secret-safety behavior under `spawn` and `fork`
 - [x] Local build and real-container contracts prove both deterministic archives omit only fine-grained debug ranges and that exact branch dispatches derive the checked-out head's first parent while malformed, tag, root, incomplete, and inconsistent dispatches fail closed
-- [ ] A new unique candidate proves ADR-062's exact hash-locked Git/curl source builds, licences, component SPDX, immutable CPE-aware Grype output, the single exact OpenVEX not-affected statement, and unchanged vulnerability gate; both-platform local and verified-HTTPS transport, forbidden-library absence, loader mappings, binary hashes/sizes, and four-layer/three-primary-zstd layout; public identity-attested corresponding source must exist before that binary and the release must retain the exact same materials
+- [x] Candidate run `38529646263` proves ADR-062's exact hash-locked Git/curl source builds, licences, component SPDX, immutable CPE-aware Grype output, the single exact OpenVEX not-affected statement, and unchanged vulnerability gate; both-platform local and verified-HTTPS transport, forbidden-library absence, loader mappings, binary hashes/sizes, and four-layer/three-primary-zstd layout; public identity-attested source artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457` preceded and is linked from image `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`
 - [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
 - [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
 - [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite

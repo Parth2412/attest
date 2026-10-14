@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.28.1` |
+| Version | `1.28.2` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-14 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3744,6 +3744,26 @@ MB in the amd64 prototype and gains small licence notices, but actual zstd layer
 latency remain unverified until a candidate passes. Publication stays blocked until the new
 candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
 independent `v1` review all pass.
+
+**Implementation evidence.** Candidate run `38529646263`, attempt 1, passed for exact `dev`
+source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, enumerated context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, and multi-platform
+manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`.
+Before the binary build, the workflow published and identity-attested public corresponding-source
+artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`; both platform images
+carry that exact reference. Grype `0.107.0` with valid database build
+`2026-10-14T06:30:34Z` found only `CVE-2026-62960` against Git's exact CPE, and the gate accepted
+only the retained Linux/musl not-affected OpenVEX statement. Both platform image scans and all 22
+real-container contracts passed, including local and certificate-verified HTTPS Git transport,
+exact component and loader evidence, and forbidden-library absence.
+
+The retained amd64 image is 42,468,203 unpacked bytes; its three primary zstd layers are
+4,843,687, 6,578,935, and 6,894,366 bytes. The arm64 image is 43,549,181 unpacked bytes; its
+primary layers are 5,163,648, 6,614,703, and 6,907,497 bytes. Each image has exactly those three
+primary layers plus its entrypoint layer. The retained evidence binds each platform's exact Git,
+HTTP helper, and libcurl sizes and hashes, source and image manifests, SBOM, maximum provenance,
+component scan, loader mapping, and GitHub attestations. This candidate is the sole ADR-062
+performance baseline; no performance run is accepted by this evidence alone.
 
 ### ADR-062 accepted implementation plan
 
