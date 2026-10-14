@@ -17,6 +17,7 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 CONTEXT_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/prepare_action_context.py"
 SCAN_CHECK_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/check_action_scan.py"
 CANDIDATE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-candidate.yml"
+CI_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/ci.yml"
 ACTION_MANIFEST: Final[Path] = REPOSITORY_ROOT / "action/action.yml"
 JUSTFILE: Final[Path] = REPOSITORY_ROOT / "Justfile"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
@@ -36,6 +37,14 @@ REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
     "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
 )
+
+
+def test_ci_action_contract_stages_verified_runtime_sources() -> None:
+    """The CI container build must consume the independently verified sources."""
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "scripts/prepare_action_runtime_sources.py" in workflow
+    assert "--runtime-sources build/action-runtime-sources" in workflow
 
 
 def _run_context(
