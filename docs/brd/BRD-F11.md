@@ -387,6 +387,15 @@ the OIDC-before-repository-read boundary. Tags, root commits, incomplete history
 or additional event data fail closed. A new unique candidate and exact merged Action restart every
 existing supply-chain and three-run performance gate.
 
+Pre-candidate automatic runs `38225190032` and `38249545348`, both attempt 1 against the
+superseded `ADR-060` manifest, retained 20 successful samples at p50 12 seconds and p95 16
+seconds. They remain immutable negative evidence and do not start the required sequence.
+Candidate run `38250635610`, attempt 1, passed every `ADR-061` two-platform, 20-test
+real-container, scan, SBOM, provenance, and identity-attestation gate for source
+`b1d5475da39b2e9522482894dc675c73ecb118a1`, context
+`sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`, and manifest
+`sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -516,7 +525,7 @@ write authority.
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
 - [ ] Cross-cutting obligations satisfied for the bounded correction
 - [x] Candidate run `38038325243` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
-- [ ] A new candidate satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
+- [x] Candidate run `38250635610` satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
 - [ ] Three consecutive attempt-1 20-job runs and their combined 60-sample result each remain below 15 seconds nearest-rank p95
 - [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
@@ -539,3 +548,9 @@ Candidate run `38038325243`, attempt 1, passed all `ADR-060` supply-chain gates 
 `57ab2e08c297a2bf2131d2ea942d9e439d9c8faf`, context
 `sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`, and manifest
 `sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.
+Pre-candidate automatic runs `38225190032` and `38249545348`, attempt 1, each measured p50 12 s
+and p95 16 s against that superseded manifest and remain excluded. Candidate run `38250635610`,
+attempt 1, passed all `ADR-061` supply-chain gates for exact source
+`b1d5475da39b2e9522482894dc675c73ecb118a1`, context
+`sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`, and manifest
+`sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.

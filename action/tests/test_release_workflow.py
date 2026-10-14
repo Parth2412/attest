@@ -17,11 +17,11 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.5.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab"
+IMAGE_DIGEST: Final[str] = "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf"
+    "sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b"
 )
-CANDIDATE_SHA: Final[str] = "57ab2e08c297a2bf2131d2ea942d9e439d9c8faf"
+CANDIDATE_SHA: Final[str] = "b1d5475da39b2e9522482894dc675c73ecb118a1"
 PRIOR_RELEASE_SHA: Final[str] = "4e73dcaf888f15967da66826d48cca5ac6684fcb"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -73,6 +73,7 @@ def _commands(job: dict[str, Any]) -> str:
 
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-260")
 def test_release_is_closed_to_the_two_approved_python_patches() -> None:
     """REQ-F11-220: v0.1.5 may publish only signer 0.1.1 and CLI 0.1.4."""
     workflow = _workflow()
@@ -131,7 +132,7 @@ def test_release_is_closed_to_the_two_approved_python_patches() -> None:
         "PUBLIC_CLI_VERSION": "0.1.4",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 38038325243,
+        "REVIEWED_CANDIDATE_RUN_ID": 38250635610,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -453,11 +454,15 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_4() -> None:
 
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-260")
 def test_release_notes_state_the_bounded_artifact_set() -> None:
     notes = RELEASE_NOTES.read_text(encoding="utf-8")
     for fragment in (
         "# attest 0.1.5 / GitHub Action v1.0.5",
         IMAGE_DIGEST,
+        CONTEXT_DIGEST,
+        CANDIDATE_SHA,
+        "38250635610",
         "python:3.12.14-alpine3.23",
         "cryptography==50.0.1",
         "maturin==1.15.0",
@@ -470,6 +475,8 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         "attest-sign==0.1.1",
         "attest-cli==0.1.4",
         "No other Python distribution",
+        "fine-grained traceback",
+        "workflow_dispatch",
         "v1",
         "v1.0.4",
     ):
