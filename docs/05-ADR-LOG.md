@@ -3616,7 +3616,7 @@ movement of `v1`.
 
 ## ADR-062 — Build a source-verified minimal Git HTTPS runtime
 
-**Status:** Proposed · **Date:** 2026-10-13 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+**Status:** Accepted · **Date:** 2026-10-13 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
 `BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-053`, `ADR-054`, `ADR-059`, `ADR-061`
 
 **Context.** The exact merged Action commit
@@ -3697,8 +3697,12 @@ corresponding-source artifact containing both exact source archives, their licen
 and the exact build recipe; keep it available for as long as the binary image and link it from the
 candidate evidence. The immutable release must retain the same materials. The candidate gate must
 also establish exact Git/curl version and licence entries in retained component evidence and scan
-those components for the same critical and fixable-high vulnerability policy as the image. It
-must fail closed if source correspondence, component identity, or scanning is absent.
+those components with immutable CPE-aware Grype for the same critical and fixable-high
+vulnerability policy as the image. The only not-affected statement is an exact retained OpenVEX
+record for Git-for-Windows `CVE-2026-62960`: the Linux/musl artifact contains neither its Windows
+UNC/SMB path handling nor Windows compatibility code. Scanner identity, CPE matching, database
+validity, VEX bytes, and every raw match are release evidence. The gate must fail closed if source
+correspondence, component identity, scanner evidence, or exact VEX validation is absent.
 
 Do not change a Python dependency or distribution, Sigstore operation, trust seed, signing
 behavior, public Action input/output, stable error, sample count, timing boundary, threshold, or
@@ -3731,8 +3735,9 @@ component scanning creates supply-chain and licence risk. Rerunning the failed a
 image pull, reducing samples, or accepting p95 at or above 15 seconds would falsify the evidence.
 
 **Consequences.** The Action image adds two explicit source builds and their version/CVE watch,
-longer multi-platform candidate builds, public corresponding-source retention, and exact
-component evidence. Its embedded Git HTTP transport no longer supports Unicode hostnames unless
+longer multi-platform candidate builds, public corresponding-source retention, exact component
+evidence, and a maintained CPE/OpenVEX review boundary. Its embedded Git HTTP transport no longer
+supports Unicode hostnames unless
 the caller supplies punycode, cookie authentication, HTTP/2 or HTTP/3, or compressed HTTP content
 beyond zlib; installed CLI users retain their system Git behavior. The runtime removes about 4.09
 MB in the amd64 prototype and gains small licence notices, but actual zstd layers and hosted
@@ -3740,12 +3745,12 @@ latency remain unverified until a candidate passes. Publication stays blocked un
 candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
 independent `v1` review all pass.
 
-### ADR-062 proposed implementation plan
+### ADR-062 accepted implementation plan
 
 | Requirement | Production work | Files |
 |---|---|---|
-| `REQ-F11-270` | Build hash-locked minimal Git/curl; prove the closed loader and transport contract on both platforms; retain licences and public corresponding source; expose and scan exact component evidence; rebalance three zstd layers; preserve failed run `38257587284`; build a unique candidate and restart every performance gate | `action/Dockerfile`, container/candidate/release/performance tests and workflows, source/licence evidence, `TECH-001`, `QA-001`, `SEC-001`, `BRD-F11`, `CH-09`, project/release records |
+| `REQ-F11-270` | Build hash-locked minimal Git/curl; prove the closed loader and transport contract on both platforms; retain licences and public corresponding source; expose and scan exact CPE component evidence with immutable Grype and exact OpenVEX; rebalance three zstd layers; preserve failed run `38257587284`; build a unique candidate and restart every performance gate | `action/Dockerfile`, container/candidate/release/performance tests and workflows, source/licence/VEX evidence, `TECH-001`, `QA-001`, `SEC-001`, `BRD-F11`, `CH-09`, project/release records |
 
-Acceptance would authorize only this bounded Action-runtime transport correction. It would not
+Acceptance authorizes only this bounded Action-runtime transport correction. It does not
 authorize a private Sigstore call, failed-run rerun, Python publication, threshold change,
 release, or movement of `v1`.
