@@ -1304,6 +1304,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-270")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1314,7 +1315,7 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "python:3.12.14-alpine3.23@"
         "sha256:d339953547bb5bc57eb5c1ff3224c40890ce56e494b13a52a574658e5a0f888a"
     )
-    assert dockerfile.count(python_base) == 2
+    assert dockerfile.count(python_base) == 3
     assert "ghcr.io/astral-sh/uv:0.11.2@sha256:" in dockerfile
     for build_package in (
         "binutils=2.45.1-r0",
@@ -1352,13 +1353,67 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "COPY --from=build /build/action/trust /opt/attest/trust" in dockerfile
     assert 'pathlib.Path("/opt/attest/attest-console-script.sha256")' in dockerfile
     assert "hashlib.sha256(console_script.read_bytes()).hexdigest()" in dockerfile
-    for runtime_package in (
-        "git=2.52.0-r0",
-        "libcrypto3=3.5.9-r0",
-        "libgcc=15.2.0-r2",
-        "libssl3=3.5.9-r0",
-    ):
+    for runtime_package in ("libcrypto3=3.5.9-r0", "libgcc=15.2.0-r2", "libssl3=3.5.9-r0"):
         assert runtime_package in dockerfile
+    assert "git=2.52.0-r0" not in dockerfile
+    for transport_build_package in (
+        "binutils=2.45.1-r0",
+        "gcc=15.2.0-r2",
+        "make=4.4.1-r3",
+        "musl-dev=1.2.5-r23",
+        "openssl-dev=3.5.9-r0",
+        "pkgconf=2.5.1-r0",
+        "xz=5.8.4-r0",
+        "zlib-dev=1.3.2-r1",
+    ):
+        assert transport_build_package in dockerfile
+    assert "COPY action/runtime-sources/git-2.52.0.tar.xz" in dockerfile
+    assert "COPY action/runtime-sources/curl-8.22.0.tar.xz" in dockerfile
+    assert "3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5" in dockerfile
+    assert (
+        "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+        in dockerfile
+    )
+    assert dockerfile.index("sha256sum -c") < dockerfile.index("tar -xJf git-2.52.0.tar.xz")
+    assert dockerfile.index("sha512sum -c") < dockerfile.index("tar -xJf curl-8.22.0.tar.xz")
+    for curl_option in (
+        "--disable-cookies",
+        "--disable-websockets",
+        "--without-brotli",
+        "--without-libidn2",
+        "--without-libpsl",
+        "--without-nghttp2",
+        "--without-nghttp3",
+        "--without-ngtcp2",
+        "--without-zstd",
+        "--with-openssl",
+        "--with-zlib",
+    ):
+        assert curl_option in dockerfile
+    for git_option in (
+        "NO_EXPAT=YesPlease",
+        "NO_GETTEXT=YesPlease",
+        "NO_PCRE=YesPlease",
+        "NO_PERL=YesPlease",
+        "NO_PYTHON=YesPlease",
+        "NO_REGEX=YesPlease",
+        "NO_TCLTK=YesPlease",
+    ):
+        assert git_option in dockerfile
+    assert 'CFLAGS="-Os -ffunction-sections -fdata-sections"' in dockerfile
+    assert 'LDFLAGS="-Wl,--gc-sections -s"' in dockerfile
+    assert "/usr/share/licenses/git/COPYING" in dockerfile
+    assert "/usr/share/licenses/curl/COPYING" in dockerfile
+    assert "/usr/share/attest/runtime-components.spdx.json" in dockerfile
+    assert "/usr/share/attest/runtime-components.openvex.json" in dockerfile
+    assert "/usr/share/attest/SOURCE-MANIFEST.json" in dockerfile
+    assert "/usr/share/attest/loader-dependencies.txt" in dockerfile
+    assert "scanelf --recursive --needed --nobanner" in dockerfile
+    assert dockerfile.index("COPY --from=build /opt/venv /opt/venv") < dockerfile.index(
+        "scanelf --recursive --needed --nobanner"
+    )
+    assert "grep -v '^/usr/bin/scanelf|'" in dockerfile
+    assert "lib(pcre2-8|cares|nghttp2|idn2|psl|zstd|brotlidec|brotlicommon|unistring)" in dockerfile
     assert "cryptography.libs" not in dockerfile
     assert workspace["dependency-groups"]["action-build"] == [
         "maturin==1.15.0",

@@ -343,6 +343,7 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-270")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     """REQ-F11-210: the reviewed context, scans, labels, and identity are rechecked."""
     preflight = _workflow()["jobs"]["preflight"]
@@ -354,6 +355,13 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         "scripts/prepare_action_context.py",
         "scripts/validate_release_candidate.py",
         "scripts/check_action_scan.py",
+        "scripts/check_action_component_scan.py",
+        '--source-evidence-directory "${RUNNER_TEMP}/candidate-source"',
+        '--runtime-sources "${RUNNER_TEMP}/reviewed-runtime-sources"',
+        '--component-scan "${RUNNER_TEMP}/candidate-component-scan/grype-runtime-components.json"',
+        'docker pull "${source_reference}"',
+        '"io.github.parth2412.attest.source-artifact": source_reference',
+        "candidate-source-attestation-verification.json",
         '"org.opencontainers.image.version": "0.1.5-candidate"',
         "--signer-workflow",
         "--source-ref refs/heads/dev",
@@ -364,9 +372,49 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         "candidate-image-manifest-linux-arm64.json",
     ):
         assert fragment in commands
+    assert "action-candidate-source-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}" in str(preflight)
+    assert "action-candidate-component-scan-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}" in str(
+        preflight
+    )
+    assert "action-candidate-container-linux-amd64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}" in str(
+        preflight
+    )
+    assert "action-candidate-container-linux-arm64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}" in str(
+        preflight
+    )
+    assert "reviewed-runtime-sources" in str(preflight)
     assert commands.count("scripts/check_action_scan.py") == 2
+    assert commands.count("scripts/check_action_component_scan.py") == 1
     assert "linux/amd64" in commands
     assert "linux/arm64" in commands
+    for fragment in (
+        "gitVersion",
+        "git version 2.52.0",
+        "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2",
+        "loader-dependencies.txt",
+        "candidate-image-layers-linux-amd64.json",
+        "candidate-image-layers-linux-arm64.json",
+    ):
+        assert fragment in commands
+
+    source_upload = _step(preflight, "Retain the exact corresponding source for release")
+    assert source_upload["with"] == {
+        "name": "release-corresponding-source-v0.1.5",
+        "path": "${{ runner.temp }}/reviewed-runtime-sources",
+        "if-no-files-found": "error",
+        "include-hidden-files": False,
+        "retention-days": 90,
+    }
+
+    assemble = _workflow()["jobs"]["assemble-assets"]
+    source_download = next(
+        step
+        for step in assemble["steps"]
+        if step.get("uses", "").startswith("actions/download-artifact")
+        and step.get("with", {}).get("name") == "release-corresponding-source-v0.1.5"
+    )
+    assert source_download["with"]["path"] == "corresponding-source"
+    assert "action-corresponding-source-v1.0.5.tar.gz" in _commands(assemble)
 
 
 @pytest.mark.ac("AC-F11-090")
@@ -487,7 +535,7 @@ def _candidate_fixture(
     root: Path,
     *,
     layer_media_type: str = "application/vnd.oci.image.layer.v1.tar+zstd",
-) -> tuple[Path, Path, Path, str, str]:
+) -> tuple[Path, Path, Path, Path, Path, Path, str, str]:
     evidence = root / "candidate"
     evidence.mkdir()
     context = {
@@ -503,21 +551,33 @@ def _candidate_fixture(
     (evidence / "context-manifest.json").write_text(json.dumps(context_manifest), encoding="utf-8")
     (evidence / "context-digest.txt").write_text(f"{context_digest}\n", encoding="utf-8")
 
+    layers = [
+        {
+            "mediaType": layer_media_type,
+            "digest": "sha256:" + str(index) * 64,
+            "size": index,
+        }
+        for index in range(1, 5)
+    ]
     platform_manifest = {
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "layers": [
-            {
-                "mediaType": layer_media_type,
-                "digest": "sha256:" + "3" * 64,
-                "size": 1,
-            }
-        ],
+        "layers": layers,
     }
     platform_manifest_bytes = json.dumps(platform_manifest, separators=(",", ":")).encode()
     platform_manifest_digest = f"sha256:{hashlib.sha256(platform_manifest_bytes).hexdigest()}"
     for architecture in ("amd64", "arm64"):
         (evidence / f"manifest-linux-{architecture}.json").write_bytes(platform_manifest_bytes)
+        (evidence / f"layers-linux-{architecture}.json").write_text(
+            json.dumps(
+                {
+                    "platform": f"linux/{architecture}",
+                    "primaryLayers": layers[:3],
+                    "entrypointLayer": layers[3],
+                }
+            ),
+            encoding="utf-8",
+        )
     manifest = {
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.index.v1+json",
@@ -560,6 +620,124 @@ def _candidate_fixture(
     for name in ("sbom.spdx.json", "provenance.slsa.json"):
         (evidence / name).write_text(json.dumps(platform_evidence), encoding="utf-8")
 
+    runtime_sources = root / "runtime-sources"
+    runtime_sources.mkdir()
+    source_files = {
+        "Dockerfile": b"FROM source-build\n",
+        "curl-8.22.0.tar.xz": b"exact curl source",
+        "curl-COPYING": b"curl licence",
+        "git-2.52.0.tar.xz": b"exact git source",
+        "git-COPYING": b"git licence",
+        "runtime-components.openvex.json": (
+            REPOSITORY_ROOT / "action/runtime-components.openvex.json"
+        ).read_bytes(),
+        "runtime-sources.json": (REPOSITORY_ROOT / "action/runtime-sources.json").read_bytes(),
+    }
+    component_sbom = {
+        "spdxVersion": "SPDX-2.3",
+        "packages": [
+            {
+                "name": "curl",
+                "versionInfo": "8.22.0",
+                "licenseDeclared": "curl",
+                "externalRefs": [
+                    {
+                        "referenceType": "purl",
+                        "referenceLocator": "pkg:generic/curl@8.22.0",
+                    },
+                    {
+                        "referenceType": "cpe23Type",
+                        "referenceLocator": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+                    },
+                ],
+            },
+            {
+                "name": "git",
+                "versionInfo": "2.52.0",
+                "licenseDeclared": "GPL-2.0-only",
+                "externalRefs": [
+                    {
+                        "referenceType": "purl",
+                        "referenceLocator": "pkg:generic/git@2.52.0",
+                    },
+                    {
+                        "referenceType": "cpe23Type",
+                        "referenceLocator": "cpe:2.3:a:git-scm:git:2.52.0:*:*:*:*:*:*:*",
+                    },
+                ],
+            },
+        ],
+    }
+    source_files["runtime-components.spdx.json"] = (
+        json.dumps(component_sbom, sort_keys=True) + "\n"
+    ).encode()
+    for name, content in source_files.items():
+        (runtime_sources / name).write_bytes(content)
+    source_manifest = {
+        "schemaVersion": 1,
+        "digestAlgorithm": "sha256",
+        "files": [
+            {
+                "path": name,
+                "size": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }
+            for name, content in sorted(source_files.items())
+        ],
+    }
+    source_manifest_bytes = (json.dumps(source_manifest, sort_keys=True) + "\n").encode()
+    (runtime_sources / "SOURCE-MANIFEST.json").write_bytes(source_manifest_bytes)
+
+    source_evidence = root / "source-evidence"
+    source_evidence.mkdir()
+    source_artifact_manifest = {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {"digest": "sha256:" + "7" * 64, "size": 1},
+        "layers": [{"digest": "sha256:" + "8" * 64, "size": 1}],
+    }
+    source_artifact_bytes = json.dumps(source_artifact_manifest, separators=(",", ":")).encode()
+    source_digest = f"sha256:{hashlib.sha256(source_artifact_bytes).hexdigest()}"
+    source_reference = f"ghcr.io/parth2412/attest@{source_digest}"
+    source_evidence_files = {
+        "runtime-components.openvex.json": source_files["runtime-components.openvex.json"],
+        "runtime-components.spdx.json": source_files["runtime-components.spdx.json"],
+        "source-artifact-digest.txt": f"{source_digest}\n".encode(),
+        "source-artifact-manifest.json": source_artifact_bytes,
+        "source-artifact-reference.txt": f"{source_reference}\n".encode(),
+        "source-attestation-verification.json": b'{"verified":true}\n',
+        "source-attestation.jsonl": b'{"bundle":"present"}\n',
+        "source-manifest.json": source_manifest_bytes,
+    }
+    for name, content in source_evidence_files.items():
+        (source_evidence / name).write_bytes(content)
+
+    component_scan = root / "grype-runtime-components.json"
+    component_scan.write_text(
+        json.dumps(
+            {
+                "matches": [],
+                "source": {
+                    "type": "sbom-file",
+                    "target": "/source/runtime-components.spdx.json",
+                },
+                "descriptor": {
+                    "name": "grype",
+                    "version": "0.107.0",
+                    "configuration": {"match": {"stock": {"using-cpes": True}}},
+                    "db": {
+                        "status": {
+                            "valid": True,
+                            "built": "2026-10-13T06:35:20Z",
+                            "from": "https://grype.anchore.io/databases/example",
+                        }
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
     current_context = root / "current-context.json"
     current_context.write_text(json.dumps(context_manifest), encoding="utf-8")
     action_manifest = root / "action.yml"
@@ -567,11 +745,23 @@ def _candidate_fixture(
         f"runs:\n  using: docker\n  image: docker://ghcr.io/parth2412/attest@{image_digest}\n",
         encoding="utf-8",
     )
-    return evidence, current_context, action_manifest, context_digest, image_digest
+    return (
+        evidence,
+        source_evidence,
+        runtime_sources,
+        component_scan,
+        current_context,
+        action_manifest,
+        context_digest,
+        image_digest,
+    )
 
 
 def _validate_candidate(
     evidence: Path,
+    source_evidence: Path,
+    runtime_sources: Path,
+    component_scan: Path,
     current_context: Path,
     action_manifest: Path,
     context_digest: str,
@@ -583,6 +773,12 @@ def _validate_candidate(
             str(VALIDATOR),
             "--evidence-directory",
             str(evidence),
+            "--source-evidence-directory",
+            str(source_evidence),
+            "--runtime-sources",
+            str(runtime_sources),
+            "--component-scan",
+            str(component_scan),
             "--current-context-manifest",
             str(current_context),
             "--action-manifest",
@@ -603,7 +799,9 @@ def _validate_candidate(
 def test_release_candidate_validator_accepts_exact_reviewed_evidence(tmp_path: Path) -> None:
     result = _validate_candidate(*_candidate_fixture(tmp_path))
     assert result.returncode == 0, result.stderr
-    assert "candidate evidence: validated exact reviewed context and image" in result.stdout
+    assert (
+        "candidate evidence: validated exact reviewed context, source, and image" in result.stdout
+    )
 
 
 @pytest.mark.ac("AC-F11-150")
@@ -614,18 +812,46 @@ def test_release_candidate_validator_accepts_exact_reviewed_evidence(tmp_path: P
         ("image-digest.txt", "sha256:" + "2" * 64 + "\n", "image digest mismatch"),
         ("sbom.spdx.json", "{}", "invalid SBOM platform evidence"),
         ("provenance.slsa.json", "{}", "invalid provenance platform evidence"),
+        ("layers-linux-amd64.json", "{}", "invalid candidate linux/amd64 layer evidence"),
     ],
 )
 def test_release_candidate_validator_rejects_mismatched_evidence(
     tmp_path: Path, target: str, replacement: str, message: str
 ) -> None:
-    evidence, current_context, action_manifest, context_digest, image_digest = _candidate_fixture(
-        tmp_path
-    )
+    fixture = _candidate_fixture(tmp_path)
+    evidence = fixture[0]
     (evidence / target).write_text(replacement, encoding="utf-8")
-    result = _validate_candidate(
-        evidence, current_context, action_manifest, context_digest, image_digest
-    )
+    result = _validate_candidate(*fixture)
+    assert result.returncode == 1
+    assert message in result.stderr
+
+
+@pytest.mark.ac("AC-F11-270")
+@pytest.mark.parametrize(
+    ("target", "replacement", "message"),
+    [
+        ("git-2.52.0.tar.xz", b"changed", "source manifest mismatch"),
+        (
+            "runtime-components.spdx.json",
+            b'{"spdxVersion":"SPDX-2.3","packages":[]}\n',
+            "source manifest mismatch",
+        ),
+        (
+            "runtime-components.openvex.json",
+            b'{"statements":[]}\n',
+            "source manifest mismatch",
+        ),
+    ],
+)
+def test_release_candidate_validator_rejects_source_drift(
+    tmp_path: Path, target: str, replacement: bytes, message: str
+) -> None:
+    fixture = _candidate_fixture(tmp_path)
+    runtime_sources = fixture[2]
+    (runtime_sources / target).write_bytes(replacement)
+
+    result = _validate_candidate(*fixture)
+
     assert result.returncode == 1
     assert message in result.stderr
 

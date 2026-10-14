@@ -294,6 +294,29 @@ single future, and neither can create another signer context or Rekor submission
 
 ---
 
+### T-17 — Source-built Action transport obscures provenance or expands native attack surface
+
+**Likelihood:** medium · **Impact:** high
+
+Replacing distribution packages with locally built Git/curl can conceal substituted sources,
+licence obligations, unreported vulnerable components, or a larger native dependency closure than
+the reviewed design. A private or short-lived source attachment would also make the released
+binary unauditable.
+
+**C-17:** `ADR-062` permits only unmodified Git `2.52.0` and curl `8.22.0` from exact upstream
+URLs and digests verified before archive inspection or extraction, with an exact pinned removable
+toolchain and a closed feature set. CI publishes and identity-attests public digest-bound
+corresponding source before the binary, embeds exact licence/component/loader evidence, links the
+binary to that digest, and scans the exact SPDX CPE packages with immutable Grype under the same
+critical/fixable-high policy. Only an exact retained OpenVEX not-affected statement for the
+Windows-only Git `CVE-2026-62960` may suppress a match; scanner/database/VEX drift fails closed. CI
+also proves local and certificate-verified HTTPS behavior plus forbidden-library absence on both
+architectures. Release promotion independently re-fetches the source digest, verifies its manifest
+and attestation, reconstructs the candidate context, and retains and attests the exact archives,
+licences, hashes, and recipe (`REQ-F11-270`, `ADR-062`).
+
+---
+
 ## 5. Residual risks (accepted and documented)
 
 | # | Residual risk | Why accepted |
@@ -326,6 +349,7 @@ and publishing them is worth more than the risk they represent.
 | Action runtime tests prove build tools are absent, cryptography uses the exact system OpenSSL, the bundled-script digest guard fails closed, and both execution paths preserve sanitized state, typed reports, and exact exit codes |
 | Signer tests prove mandatory online refresh overlaps only with same-environment bootstrap, success waits for refreshed-root exact-payload verification, and stale pre-Rekor recovery cannot exceed the shared two-attempt ceiling |
 | Release tests prove exact package scope, Trusted Publisher/environment binding, final context equality and exact candidate-manifest promotion, multi-platform SBOM/provenance/attestations, and immutable Action/image references |
+| Action transport tests prove pre-extraction source hashes, exact Git/curl identities and licences, closed loader dependencies, certificate-verified HTTPS behavior, public source-before-binary correspondence, component scanning, and immutable release retention |
 | `pip-audit` and `bandit` gate releases |
 
 ---

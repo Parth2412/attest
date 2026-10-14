@@ -226,8 +226,12 @@ content. `run` checks OIDC before any repository-controlled read; `verify` and `
 OIDC. Only validated branch `pull_request`, branch `push`, and exact branch `workflow_dispatch`
 events cross the boundary. Dispatches bind the closed event payload and workflow identity, then
 prove the checked-out head and its first parent from complete local history. Exact inputs, outputs,
-failure treatment, and two-phase release ownership are governed by `ADR-046`, `ADR-061`, and
-`BRD-F11`.
+failure treatment, source-verified minimal Git/HTTPS transport, and two-phase release ownership are
+governed by `ADR-046`, `ADR-061`, `ADR-062`, and `BRD-F11`. Candidate publication makes exact
+corresponding source public and identity-attested before the binary, and release promotion
+re-verifies that digest and retains the same source materials. The source contract includes exact
+Git/curl SPDX CPE identities and the single reviewed OpenVEX not-affected statement; immutable
+Grype output and database validity are checked before candidate attestation and again at release.
 
 ---
 

@@ -1,0 +1,22 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/Parth2412/attest/vex/ADR-062",
+  "author": "https://github.com/Parth2412/attest",
+  "timestamp": "2026-10-13T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "@id": "CVE-2026-62960"
+      },
+      "products": [
+        {
+          "@id": "pkg:generic/git@2.52.0"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The advisory requires Git for Windows UNC/SMB path handling; this artifact is built for Linux with musl and contains no Windows compatibility code."
+    }
+  ]
+}
