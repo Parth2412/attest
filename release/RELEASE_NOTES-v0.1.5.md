@@ -7,7 +7,7 @@ Verification rules, outputs, and failure semantics remain fail closed.
 ## Release contents
 
 - GitHub Action `v1.0.5` pins the reviewed multi-platform image manifest
-  `sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab`.
+  `sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
   `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
   `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
@@ -25,15 +25,23 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - The closed pure-Python runtime bytecode archive uses deterministic DEFLATE level 9 with sorted
   members, fixed timestamps and modes, and in-place imports; it introduces no runtime extraction
   path and leaves the already-deflated standard-library archive unchanged.
+- Both deterministic Python archives omit fine-grained traceback end-line and column tables while
+  retaining optimisation level zero, assertions, docstrings, source line numbers, checked-hash
+  invalidation, and their existing deterministic content contracts.
 - The isolated wrapper may invoke the bundled CLI in-process only when the installed console
   script matches its build-generated SHA-256 marker. Any missing, malformed, symlinked, or changed
   script uses the existing sanitized subprocess boundary.
-- Both `linux/amd64` and `linux/arm64` execute the complete 17-test real-container contract suite,
+- The sanitized single-threaded Linux Action boundary uses a separately terminable `fork` child;
+  public CLI and library callers and every failed precondition retain the `spawn` boundary.
+- Exact branch `workflow_dispatch` events validate their closed payload, workflow identity,
+  checkout, complete history, and first-parent comparison before using push-equivalent ChangeSet
+  coordinates; tags, roots, traversal, incomplete history, and mismatches fail closed.
+- Both `linux/amd64` and `linux/arm64` execute the complete 20-test real-container contract suite,
   including offline historical signature verification, before release.
 - The retained candidate includes clean per-platform scans, SBOM, maximum provenance,
   source/context/manifest digests, and a GitHub-hosted identity-bound attestation. Attempt-1 run
-  `38038325243` binds source `57ab2e08c297a2bf2131d2ea942d9e439d9c8faf` and context
-  `sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf`.
+  `38250635610` binds source `b1d5475da39b2e9522482894dc675c73ecb118a1` and context
+  `sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`.
 - The exact merged Action and candidate digest must pass three consecutive fresh attempt-1 hosted
   measurements of 20 jobs each. Every individual p95 and the combined 60-sample p95 must remain
   below 15 seconds.

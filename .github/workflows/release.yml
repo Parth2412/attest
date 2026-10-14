@@ -39,10 +39,10 @@ env:
   PUBLIC_CLI_VERSION: "0.1.4"
   IMAGE_NAME: ghcr.io/parth2412/attest
   PRIOR_RELEASE_SHA: 4e73dcaf888f15967da66826d48cca5ac6684fcb
-  REVIEWED_CANDIDATE_RUN_ID: 38038325243
-  REVIEWED_CANDIDATE_SOURCE_SHA: 57ab2e08c297a2bf2131d2ea942d9e439d9c8faf
-  REVIEWED_CONTEXT_DIGEST: sha256:58acc9a031c2d193f7160cffb16cd709ef7d1ce1dae6bb4cc92196b18a77b6bf
-  REVIEWED_IMAGE_DIGEST: sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab
+  REVIEWED_CANDIDATE_RUN_ID: 38250635610
+  REVIEWED_CANDIDATE_SOURCE_SHA: b1d5475da39b2e9522482894dc675c73ecb118a1
+  REVIEWED_CONTEXT_DIGEST: sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b
+  REVIEWED_IMAGE_DIGEST: sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584
 
 jobs:
   preflight:
@@ -204,6 +204,22 @@ jobs:
           github-token: ${{ github.token }}
           repository: Parth2412/attest
           run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed corresponding-source evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-source-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-source
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed component scan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-component-scan-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-component-scan
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
       - name: Download the reviewed amd64 scan
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -220,6 +236,22 @@ jobs:
           github-token: ${{ github.token }}
           repository: Parth2412/attest
           run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed amd64 container evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-container-linux-amd64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-container-amd64
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Download the reviewed arm64 container evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: action-candidate-container-linux-arm64-${{ env.REVIEWED_CANDIDATE_SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate-container-arm64
+          github-token: ${{ github.token }}
+          repository: Parth2412/attest
+          run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
       - name: Download the reviewed candidate attestation evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -228,6 +260,37 @@ jobs:
           github-token: ${{ github.token }}
           repository: Parth2412/attest
           run-id: ${{ env.REVIEWED_CANDIDATE_RUN_ID }}
+      - name: Materialize and verify the public corresponding source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_digest="$(tr -d '\n' < "${RUNNER_TEMP}/candidate-source/source-artifact-digest.txt")"
+          source_reference="$(tr -d '\n' < "${RUNNER_TEMP}/candidate-source/source-artifact-reference.txt")"
+          test "${source_digest}" != "${source_digest#sha256:}"
+          test "${#source_digest}" -eq 71
+          test "${source_reference}" = "${IMAGE_NAME}@${source_digest}"
+          docker buildx imagetools inspect "${source_reference}" --raw \
+            > release-preflight-evidence/live-source-artifact-manifest.json
+          observed="sha256:$(sha256sum release-preflight-evidence/live-source-artifact-manifest.json | cut -d ' ' -f 1)"
+          test "${observed}" = "${source_digest}"
+          cmp "${RUNNER_TEMP}/candidate-source/source-artifact-manifest.json" \
+            release-preflight-evidence/live-source-artifact-manifest.json
+          docker pull "${source_reference}"
+          container="$(docker create "${source_reference}" /unused)"
+          trap 'docker rm -f "${container}" >/dev/null 2>&1 || true' EXIT
+          mkdir "${RUNNER_TEMP}/reviewed-runtime-sources"
+          docker cp "${container}:/source/." "${RUNNER_TEMP}/reviewed-runtime-sources"
+          gh attestation verify \
+            "oci://${source_reference}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/action-candidate.yml" \
+            --source-digest "${REVIEWED_CANDIDATE_SOURCE_SHA}" \
+            --source-ref refs/heads/dev \
+            --deny-self-hosted-runners \
+            --format json \
+            > release-preflight-evidence/candidate-source-attestation-verification.json
       - name: Prove candidate context, image, scans, and identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -236,10 +299,14 @@ jobs:
           set -euo pipefail
           uv run --no-project python scripts/prepare_action_context.py \
             "${RUNNER_TEMP}/release-action-context" \
+            --runtime-sources "${RUNNER_TEMP}/reviewed-runtime-sources" \
             --manifest-output release-preflight-evidence/current-context-manifest.json \
             --digest-output release-preflight-evidence/current-context-digest.txt
           uv run --no-project python scripts/validate_release_candidate.py \
             --evidence-directory "${RUNNER_TEMP}/candidate-build" \
+            --source-evidence-directory "${RUNNER_TEMP}/candidate-source" \
+            --runtime-sources "${RUNNER_TEMP}/reviewed-runtime-sources" \
+            --component-scan "${RUNNER_TEMP}/candidate-component-scan/grype-runtime-components.json" \
             --current-context-manifest release-preflight-evidence/current-context-manifest.json \
             --action-manifest action/action.yml \
             --expected-context-digest "${REVIEWED_CONTEXT_DIGEST}" \
@@ -267,10 +334,15 @@ jobs:
           )
           if set(images) != {"linux/amd64", "linux/arm64"}:
               raise SystemExit(f"unexpected live image platforms: {sorted(images)}")
+          source_reference = Path(
+              os.environ["RUNNER_TEMP"],
+              "candidate-source/source-artifact-reference.txt",
+          ).read_text(encoding="utf-8").strip()
           expected = {
               "io.github.parth2412.attest.context-digest": os.environ[
                   "REVIEWED_CONTEXT_DIGEST"
               ],
+              "io.github.parth2412.attest.source-artifact": source_reference,
               "org.opencontainers.image.revision": os.environ[
                   "REVIEWED_CANDIDATE_SOURCE_SHA"
               ],
@@ -286,13 +358,98 @@ jobs:
             "${RUNNER_TEMP}/candidate-scan-amd64/trivy-linux-amd64.json"
           python3 scripts/check_action_scan.py \
             "${RUNNER_TEMP}/candidate-scan-arm64/trivy-linux-arm64.json"
+          python3 scripts/check_action_component_scan.py \
+            "${RUNNER_TEMP}/candidate-component-scan/grype-runtime-components.json" \
+            --sbom "${RUNNER_TEMP}/reviewed-runtime-sources/runtime-components.spdx.json" \
+            --vex "${RUNNER_TEMP}/reviewed-runtime-sources/runtime-components.openvex.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          from pathlib import Path
+
+          output = Path("release-preflight-evidence")
+          digest = re.compile(r"[0-9a-f]{64}")
+          forbidden = (
+              "libpcre2-8.so",
+              "libcares.so",
+              "libnghttp2.so",
+              "libidn2.so",
+              "libpsl.so",
+              "libzstd.so",
+              "libbrotlidec.so",
+              "libbrotlicommon.so",
+              "libunistring.so",
+          )
+          for architecture in ("amd64", "arm64"):
+              slug = f"linux-{architecture}"
+              root = Path(os.environ["RUNNER_TEMP"], f"candidate-container-{architecture}")
+              expected_files = {
+                  f"{slug}-sizes.json",
+                  f"{slug}-loader-dependencies.txt",
+                  f"{slug}.xml",
+              }
+              if {path.name for path in root.iterdir()} != expected_files:
+                  raise SystemExit(f"invalid {slug} container evidence set")
+              sizes = json.loads((root / f"{slug}-sizes.json").read_text(encoding="utf-8"))
+              if set(sizes) != {
+                  "platform",
+                  "imageBytes",
+                  "standardLibraryArchiveBytes",
+                  "runtimeArchiveBytes",
+                  "gitBytes",
+                  "gitSha256",
+                  "gitRemoteHttpBytes",
+                  "gitRemoteHttpSha256",
+                  "libcurlBytes",
+                  "libcurlSha256",
+                  "gitVersion",
+                  "curlVersion",
+              }:
+                  raise SystemExit(f"invalid {slug} runtime size evidence")
+              if sizes["platform"] != f"linux/{architecture}":
+                  raise SystemExit(f"invalid {slug} runtime platform")
+              if sizes["gitVersion"] != "git version 2.52.0":
+                  raise SystemExit(f"invalid {slug} Git version")
+              if sizes["curlVersion"] != "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2":
+                  raise SystemExit(f"invalid {slug} curl version")
+              for name in (
+                  "imageBytes",
+                  "standardLibraryArchiveBytes",
+                  "runtimeArchiveBytes",
+                  "gitBytes",
+                  "gitRemoteHttpBytes",
+                  "libcurlBytes",
+              ):
+                  if isinstance(sizes[name], bool) or not isinstance(sizes[name], int) or sizes[name] <= 0:
+                      raise SystemExit(f"invalid {slug} size: {name}")
+              for name in ("gitSha256", "gitRemoteHttpSha256", "libcurlSha256"):
+                  if not isinstance(sizes[name], str) or digest.fullmatch(sizes[name]) is None:
+                      raise SystemExit(f"invalid {slug} digest: {name}")
+              mapping = (root / f"{slug}-loader-dependencies.txt").read_text(encoding="utf-8")
+              if (
+                  "/usr/bin/git|" not in mapping
+                  or "/usr/libexec/git-core/git-remote-http|libcurl.so.4" not in mapping
+                  or any(library in mapping for library in forbidden)
+              ):
+                  raise SystemExit(f"invalid {slug} loader-dependencies.txt")
+              for name in expected_files:
+                  shutil.copyfile(root / name, output / f"candidate-{name}")
+          PY
+          source_digest="$(tr -d '\n' < "${RUNNER_TEMP}/candidate-source/source-artifact-digest.txt")"
+          source_reference="$(tr -d '\n' < "${RUNNER_TEMP}/candidate-source/source-artifact-reference.txt")"
           jq -e \
             --arg imageRef "${IMAGE_NAME}:candidate-${REVIEWED_CANDIDATE_SOURCE_SHA}-${REVIEWED_CANDIDATE_RUN_ID}-1" \
             --arg context "${REVIEWED_CONTEXT_DIGEST}" \
-            --arg image "${REVIEWED_IMAGE_DIGEST}" '
+            --arg image "${REVIEWED_IMAGE_DIGEST}" \
+            --arg sourceDigest "${source_digest}" \
+            --arg sourceRef "${source_reference}" '
               ."image-ref" == $imageRef and
               ."context-digest" == $context and
-              ."image-digest" == $image
+              ."image-digest" == $image and
+              ."source-artifact-digest" == $sourceDigest and
+              ."source-artifact-ref" == $sourceRef
             ' "${RUNNER_TEMP}/candidate-attestation/candidate-outputs.json" > /dev/null
           gh attestation verify \
             "oci://${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}" \
@@ -312,6 +469,10 @@ jobs:
             release-preflight-evidence/candidate-image-manifest-linux-amd64.json
           cp "${RUNNER_TEMP}/candidate-build/manifest-linux-arm64.json" \
             release-preflight-evidence/candidate-image-manifest-linux-arm64.json
+          cp "${RUNNER_TEMP}/candidate-build/layers-linux-amd64.json" \
+            release-preflight-evidence/candidate-image-layers-linux-amd64.json
+          cp "${RUNNER_TEMP}/candidate-build/layers-linux-arm64.json" \
+            release-preflight-evidence/candidate-image-layers-linux-arm64.json
           cp "${RUNNER_TEMP}/candidate-build/sbom.spdx.json" \
             release-preflight-evidence/candidate-image-sbom.spdx.json
           cp "${RUNNER_TEMP}/candidate-build/provenance.slsa.json" \
@@ -322,6 +483,28 @@ jobs:
             release-preflight-evidence/candidate-scan-linux-arm64.json
           cp "${RUNNER_TEMP}/candidate-attestation/candidate-outputs.json" \
             release-preflight-evidence/candidate-outputs.json
+          cp "${RUNNER_TEMP}/candidate-source/source-artifact-digest.txt" \
+            release-preflight-evidence/candidate-source-artifact-digest.txt
+          cp "${RUNNER_TEMP}/candidate-source/source-artifact-reference.txt" \
+            release-preflight-evidence/candidate-source-artifact-reference.txt
+          cp "${RUNNER_TEMP}/candidate-source/source-artifact-manifest.json" \
+            release-preflight-evidence/candidate-source-artifact-manifest.json
+          cp "${RUNNER_TEMP}/candidate-source/source-manifest.json" \
+            release-preflight-evidence/candidate-source-manifest.json
+          cp "${RUNNER_TEMP}/candidate-source/runtime-components.spdx.json" \
+            release-preflight-evidence/candidate-runtime-components.spdx.json
+          cp "${RUNNER_TEMP}/candidate-source/runtime-components.openvex.json" \
+            release-preflight-evidence/candidate-runtime-components.openvex.json
+          cp "${RUNNER_TEMP}/candidate-component-scan/grype-runtime-components.json" \
+            release-preflight-evidence/candidate-runtime-component-scan.json
+      - name: Retain the exact corresponding source for release
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-corresponding-source-v0.1.5
+          path: ${{ runner.temp }}/reviewed-runtime-sources
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 90
       - name: Validate the three consecutive performance runs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -607,6 +790,10 @@ jobs:
         with:
           name: python-release-assets-v0.1.5
           path: python-release-assets
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-corresponding-source-v0.1.5
+          path: corresponding-source
       - name: Assemble the bounded package and image release assets
         env:
           PERFORMANCE_RUN_ID_1: ${{ inputs.performance_run_id_1 }}
@@ -628,6 +815,9 @@ jobs:
             release-assets/image-sbom-v0.1.5.spdx.json
           cp preflight/candidate-image-provenance.slsa.json \
             release-assets/image-provenance-v0.1.5.slsa.json
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+            --format=posix -C corresponding-source -cf - . \
+            | gzip -n -9 > release-assets/action-corresponding-source-v1.0.5.tar.gz
           cp preflight/performance-summary-1.json \
             release-assets/performance-run-1-summary-v1.0.5.json
           cp preflight/performance-summary-2.json \
@@ -660,6 +850,12 @@ jobs:
                   "source": os.environ["REVIEWED_CANDIDATE_SOURCE_SHA"],
                   "contextDigest": os.environ["REVIEWED_CONTEXT_DIGEST"],
                   "imageDigest": os.environ["REVIEWED_IMAGE_DIGEST"],
+                  "sourceArtifactDigest": Path(
+                      "preflight/candidate-source-artifact-digest.txt"
+                  ).read_text(encoding="utf-8").strip(),
+                  "sourceArtifactReference": Path(
+                      "preflight/candidate-source-artifact-reference.txt"
+                  ).read_text(encoding="utf-8").strip(),
               },
               "performanceRunIds": [
                   int(os.environ["PERFORMANCE_RUN_ID_1"]),

@@ -190,10 +190,15 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with: { version: "0.11.2", python-version: "3.12", enable-cache: false }
       - run: uv sync --locked --all-packages
+      - name: Stage and verify the locked Action runtime sources
+        run: >-
+          uv run --no-project python scripts/prepare_action_runtime_sources.py
+          build/action-runtime-sources
       - name: Stage the enumerated Action build context
         run: >-
           uv run --no-project python scripts/prepare_action_context.py
           build/action-context
+          --runtime-sources build/action-runtime-sources
           --manifest-output build/action-context-manifest.json
           --digest-output build/action-context.sha256
       - name: Build the locked Action runtime

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted and implemented ADR-062's source-verified minimal Git/HTTPS Action runtime after
+  ADR-061 run `38257587284` retained 20 successful samples but failed closed at p95 17 seconds.
+  The Action now builds hash-locked Git 2.52.0 and curl 8.22.0 with their minimal verified
+  transport closure, publishes identity-attested corresponding source before the binary, scans
+  exact CPE component evidence with immutable Grype and one exact Windows-only OpenVEX
+  not-affected statement, and retains both-platform layer/binary/loader and release evidence;
+  a new candidate and complete three-run performance sequence remain required.
 - Added ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, reducing the Action's
   applied filesystem footprint while retaining the closed bytecode set, fixed metadata, in-place
   imports, and every existing candidate and performance gate.

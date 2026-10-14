@@ -25,6 +25,8 @@ FIXED_FILES: Final[tuple[PurePosixPath, ...]] = (
     PurePosixPath("uv.lock"),
     PurePosixPath("action/Dockerfile"),
     PurePosixPath("action/entrypoint.py"),
+    PurePosixPath("action/runtime-components.openvex.json"),
+    PurePosixPath("action/runtime-sources.json"),
     PurePosixPath("action/verify_trust_seed.py"),
     PurePosixPath("action/trust/manifest.json"),
     PurePosixPath("action/trust/production/signing_config.v0.2.json.b64"),
@@ -41,6 +43,17 @@ FIXED_FILES: Final[tuple[PurePosixPath, ...]] = (
 )
 PACKAGE_FILES: Final[tuple[str, ...]] = ("LICENSE", "README.md", "pyproject.toml")
 PACKAGE_NAME: Final[re.Pattern[str]] = re.compile(r"attest-[a-z]+\Z")
+RUNTIME_SOURCE_FIXED_FILES: Final[frozenset[str]] = frozenset(
+    {
+        "Dockerfile",
+        "SOURCE-MANIFEST.json",
+        "curl-COPYING",
+        "git-COPYING",
+        "runtime-components.spdx.json",
+        "runtime-components.openvex.json",
+        "runtime-sources.json",
+    }
+)
 
 
 class ContextError(ValueError):
@@ -105,13 +118,103 @@ def _regular_source(
     return path
 
 
-def _context_files(repository: Path) -> tuple[tuple[PurePosixPath, Path], ...]:
+def _runtime_source_files(
+    repository: Path, runtime_sources: Path
+) -> tuple[tuple[PurePosixPath, Path], ...]:
+    try:
+        source_metadata = runtime_sources.lstat()
+        entries = tuple(runtime_sources.iterdir())
+        contract_bytes = (repository / "action/runtime-sources.json").read_bytes()
+        recipe_bytes = (repository / "action/Dockerfile").read_bytes()
+        vex_bytes = (repository / "action/runtime-components.openvex.json").read_bytes()
+        contract = json.loads(contract_bytes)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ContextError("runtime source correspondence cannot be read") from error
+    if runtime_sources.is_symlink() or not stat.S_ISDIR(source_metadata.st_mode):
+        raise ContextError("runtime source correspondence must be a directory")
+    try:
+        components = contract["components"]
+        archives = {
+            component["archive"]["filename"]
+            for component in components
+            if component["name"] in {"curl", "git"}
+        }
+    except (KeyError, TypeError) as error:
+        raise ContextError("runtime source contract cannot be parsed") from error
+    if (
+        not isinstance(components, list)
+        or len(components) != 2
+        or not all(isinstance(name, str) and PurePosixPath(name).name == name for name in archives)
+        or len(archives) != 2
+    ):
+        raise ContextError("runtime source contract cannot be parsed")
+    expected_names = RUNTIME_SOURCE_FIXED_FILES | archives
+    if {entry.name for entry in entries} != expected_names:
+        raise ContextError("runtime source correspondence does not contain the exact file set")
+    for entry in entries:
+        metadata = entry.lstat()
+        if entry.is_symlink() or not stat.S_ISREG(metadata.st_mode):
+            raise ContextError(f"runtime source must be a regular file: {entry.name}")
+    if (runtime_sources / "runtime-sources.json").read_bytes() != contract_bytes:
+        raise ContextError("runtime source contract differs from the reviewed context")
+    if (runtime_sources / "Dockerfile").read_bytes() != recipe_bytes:
+        raise ContextError("runtime source recipe differs from the reviewed context")
+    if (runtime_sources / "runtime-components.openvex.json").read_bytes() != vex_bytes:
+        raise ContextError("runtime component VEX differs from the reviewed context")
+    try:
+        source_manifest = json.loads(
+            (runtime_sources / "SOURCE-MANIFEST.json").read_text(encoding="utf-8")
+        )
+        source_entries = source_manifest["files"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise ContextError("runtime source manifest cannot be parsed") from error
+    if (
+        source_manifest.get("schemaVersion") != 1
+        or source_manifest.get("digestAlgorithm") != "sha256"
+        or not isinstance(source_entries, list)
+    ):
+        raise ContextError("runtime source manifest cannot be parsed")
+    recorded: dict[str, tuple[int, str]] = {}
+    for entry in source_entries:
+        if not isinstance(entry, dict):
+            raise ContextError("runtime source manifest cannot be parsed")
+        name = entry.get("path")
+        size = entry.get("size")
+        digest = entry.get("sha256")
+        if (
+            not isinstance(name, str)
+            or name in recorded
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size <= 0
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        ):
+            raise ContextError("runtime source manifest cannot be parsed")
+        recorded[name] = (size, digest)
+    manifest_files = expected_names - {"SOURCE-MANIFEST.json"}
+    if set(recorded) != manifest_files:
+        raise ContextError("runtime source manifest does not cover the exact file set")
+    for name, (expected_size, expected_digest) in recorded.items():
+        content = (runtime_sources / name).read_bytes()
+        if len(content) != expected_size or hashlib.sha256(content).hexdigest() != expected_digest:
+            raise ContextError(f"runtime source manifest mismatch: {name}")
+    return tuple(
+        (PurePosixPath("action/runtime-sources") / name, runtime_sources / name)
+        for name in sorted(expected_names - {"Dockerfile", "runtime-sources.json"})
+    )
+
+
+def _context_files(
+    repository: Path, runtime_sources: Path
+) -> tuple[tuple[PurePosixPath, Path], ...]:
     tracked = _tracked_paths(repository)
     if RELEASE_MANIFEST not in tracked:
         raise ContextError("release/packages.toml must be tracked by Git")
     selected: list[tuple[PurePosixPath, Path]] = [
         (relative, _regular_source(repository, relative, tracked)) for relative in FIXED_FILES
     ]
+    selected.extend(_runtime_source_files(repository, runtime_sources))
     for package in _release_packages(repository):
         package_root = PurePosixPath("packages") / package
         for name in PACKAGE_FILES:
@@ -226,6 +329,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
     parser.add_argument("--repository-root", type=Path, default=REPOSITORY_ROOT)
+    parser.add_argument("--runtime-sources", required=True, type=Path)
     parser.add_argument("--manifest-output", type=Path)
     parser.add_argument("--digest-output", type=Path)
     return parser
@@ -236,7 +340,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     repository = arguments.repository_root.resolve()
     try:
-        files = _context_files(repository)
+        files = _context_files(repository, arguments.runtime_sources.resolve())
         _stage(repository, arguments.destination, files)
         staged_files = tuple(
             (relative, arguments.destination.resolve().joinpath(*relative.parts))

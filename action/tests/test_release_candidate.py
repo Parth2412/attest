@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -16,11 +17,14 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 CONTEXT_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/prepare_action_context.py"
 SCAN_CHECK_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/check_action_scan.py"
 CANDIDATE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-candidate.yml"
+CI_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/ci.yml"
 ACTION_MANIFEST: Final[Path] = REPOSITORY_ROOT / "action/action.yml"
+JUSTFILE: Final[Path] = REPOSITORY_ROOT / "Justfile"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25",
     "astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d",
@@ -31,12 +35,20 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:06581569a1382003b8537e016ce15b159066c275e186fbc27f8810da0105d5ab"
+    "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
 )
 
 
+def test_ci_action_contract_stages_verified_runtime_sources() -> None:
+    """The CI container build must consume the independently verified sources."""
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "scripts/prepare_action_runtime_sources.py" in workflow
+    assert "--runtime-sources build/action-runtime-sources" in workflow
+
+
 def _run_context(
-    repository: Path, destination: Path, evidence: Path
+    repository: Path, destination: Path, evidence: Path, runtime_sources: Path
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -45,6 +57,8 @@ def _run_context(
             str(destination),
             "--repository-root",
             str(repository),
+            "--runtime-sources",
+            str(runtime_sources),
             "--manifest-output",
             str(evidence / "manifest.json"),
             "--digest-output",
@@ -57,7 +71,7 @@ def _run_context(
     )
 
 
-def _fixture_repository(root: Path) -> None:
+def _fixture_repository(root: Path) -> Path:
     files = {
         "pyproject.toml": "[tool.uv.workspace]\nmembers = ['packages/*']\n",
         "uv.lock": "version = 1\n",
@@ -66,6 +80,12 @@ def _fixture_repository(root: Path) -> None:
         ),
         "action/Dockerfile": "FROM scratch\nCOPY packages/attest-core /package\n",
         "action/entrypoint.py": "raise SystemExit(0)\n",
+        "action/runtime-components.openvex.json": '{"statements":[]}\n',
+        "action/runtime-sources.json": (
+            '{"schemaVersion":1,"components":['
+            '{"name":"curl","archive":{"filename":"curl.tar.xz"}},'
+            '{"name":"git","archive":{"filename":"git.tar.xz"}}]}\n'
+        ),
         "action/verify_trust_seed.py": "raise SystemExit(0)\n",
         "action/trust/manifest.json": "{}\n",
         "action/trust/production/signing_config.v0.2.json.b64": "e30K\n",
@@ -92,6 +112,36 @@ def _fixture_repository(root: Path) -> None:
         path.write_text(content, encoding="utf-8")
     subprocess.run(["git", "init", "--quiet", str(root)], check=True, timeout=30)
     subprocess.run(["git", "-C", str(root), "add", "."], check=True, timeout=30)
+    runtime_sources = root.parent / f"{root.name}-runtime-sources"
+    runtime_sources.mkdir()
+    source_files = {
+        "Dockerfile": files["action/Dockerfile"].encode(),
+        "runtime-sources.json": files["action/runtime-sources.json"].encode(),
+        "curl.tar.xz": b"curl source",
+        "git.tar.xz": b"git source",
+        "curl-COPYING": b"curl licence",
+        "git-COPYING": b"git licence",
+        "runtime-components.spdx.json": b'{"spdxVersion":"SPDX-2.3"}\n',
+        "runtime-components.openvex.json": files["action/runtime-components.openvex.json"].encode(),
+    }
+    for name, payload in source_files.items():
+        (runtime_sources / name).write_bytes(payload)
+    source_manifest = {
+        "schemaVersion": 1,
+        "digestAlgorithm": "sha256",
+        "files": [
+            {
+                "path": name,
+                "size": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }
+            for name, content in sorted(source_files.items())
+        ],
+    }
+    (runtime_sources / "SOURCE-MANIFEST.json").write_text(
+        json.dumps(source_manifest), encoding="utf-8"
+    )
+    return runtime_sources
 
 
 def _uses(value: object) -> set[str]:
@@ -128,8 +178,10 @@ def _run_scan_check(
 def test_action_context_is_closed_deterministic_and_excludes_manifest(tmp_path: Path) -> None:
     """REQ-F11-150: candidate bytes come only from the enumerated context."""
     repository = tmp_path / "repository"
-    _fixture_repository(repository)
-    first = _run_context(repository, tmp_path / "context-one", tmp_path / "evidence-one")
+    runtime_sources = _fixture_repository(repository)
+    first = _run_context(
+        repository, tmp_path / "context-one", tmp_path / "evidence-one", runtime_sources
+    )
     assert first.returncode == 0, first.stderr
     first_digest = (tmp_path / "evidence-one/digest.txt").read_text(encoding="utf-8")
     first_manifest = json.loads(
@@ -140,6 +192,15 @@ def test_action_context_is_closed_deterministic_and_excludes_manifest(tmp_path: 
     assert [entry["path"] for entry in first_manifest["files"]] == [
         "action/Dockerfile",
         "action/entrypoint.py",
+        "action/runtime-components.openvex.json",
+        "action/runtime-sources.json",
+        "action/runtime-sources/SOURCE-MANIFEST.json",
+        "action/runtime-sources/curl-COPYING",
+        "action/runtime-sources/curl.tar.xz",
+        "action/runtime-sources/git-COPYING",
+        "action/runtime-sources/git.tar.xz",
+        "action/runtime-sources/runtime-components.openvex.json",
+        "action/runtime-sources/runtime-components.spdx.json",
         "action/trust/manifest.json",
         "action/trust/production/signing_config.v0.2.json.b64",
         "action/trust/production/snapshot.json.b64",
@@ -164,14 +225,18 @@ def test_action_context_is_closed_deterministic_and_excludes_manifest(tmp_path: 
     assert not (tmp_path / "context-one/packages/attest-core/tests").exists()
 
     (repository / "action/action.yml").write_text("reviewed digest pin\n", encoding="utf-8")
-    second = _run_context(repository, tmp_path / "context-two", tmp_path / "evidence-two")
+    second = _run_context(
+        repository, tmp_path / "context-two", tmp_path / "evidence-two", runtime_sources
+    )
     assert second.returncode == 0, second.stderr
     assert (tmp_path / "evidence-two/digest.txt").read_text(encoding="utf-8") == first_digest
 
     (repository / "packages/attest-core/src/attest_core/__init__.py").write_text(
         "VERSION = 'changed'\n", encoding="utf-8"
     )
-    third = _run_context(repository, tmp_path / "context-three", tmp_path / "evidence-three")
+    third = _run_context(
+        repository, tmp_path / "context-three", tmp_path / "evidence-three", runtime_sources
+    )
     assert third.returncode == 0, third.stderr
     assert (tmp_path / "evidence-three/digest.txt").read_text(encoding="utf-8") != first_digest
 
@@ -180,11 +245,11 @@ def test_action_context_is_closed_deterministic_and_excludes_manifest(tmp_path: 
 def test_action_context_rejects_non_regular_source(tmp_path: Path) -> None:
     """REQ-F11-150: context staging fails closed on filesystem indirection."""
     repository = tmp_path / "repository"
-    _fixture_repository(repository)
+    runtime_sources = _fixture_repository(repository)
     source = repository / "packages/attest-core/src/attest_core/__init__.py"
     source.unlink()
     source.symlink_to(repository / "action/entrypoint.py")
-    result = _run_context(repository, tmp_path / "context", tmp_path / "evidence")
+    result = _run_context(repository, tmp_path / "context", tmp_path / "evidence", runtime_sources)
     assert result.returncode == 1
     assert "context source must be a regular file" in result.stderr
     assert not (tmp_path / "context").exists()
@@ -194,14 +259,36 @@ def test_action_context_rejects_non_regular_source(tmp_path: Path) -> None:
 def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) -> None:
     """REQ-F11-150: staging never recursively replaces an unrelated directory."""
     repository = tmp_path / "repository"
-    _fixture_repository(repository)
+    runtime_sources = _fixture_repository(repository)
     destination = tmp_path / "context"
     destination.mkdir()
     (destination / "unrelated.txt").write_text("preserve\n", encoding="utf-8")
-    result = _run_context(repository, destination, tmp_path / "evidence")
+    result = _run_context(repository, destination, tmp_path / "evidence", runtime_sources)
     assert result.returncode == 1
     assert "not a prior closed Action context" in result.stderr
     assert (destination / "unrelated.txt").read_text(encoding="utf-8") == "preserve\n"
+
+
+@pytest.mark.ac("AC-F11-270")
+def test_action_context_rejects_runtime_source_drift(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    runtime_sources = _fixture_repository(repository)
+    (runtime_sources / "git.tar.xz").write_bytes(b"changed after verification")
+
+    result = _run_context(repository, tmp_path / "context", tmp_path / "evidence", runtime_sources)
+
+    assert result.returncode == 1
+    assert "runtime source manifest mismatch: git.tar.xz" in result.stderr
+    assert not (tmp_path / "context").exists()
+
+
+@pytest.mark.ac("AC-F11-270")
+def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
+    recipe = JUSTFILE.read_text(encoding="utf-8")
+
+    assert "scripts/prepare_action_runtime_sources.py" in recipe
+    assert '--runtime-sources "${validation_root}/runtime-sources"' in recipe
+    assert '--file "${validation_root}/action-context/action/Dockerfile"' in recipe
 
 
 @pytest.mark.ac("AC-F11-150")
@@ -214,6 +301,7 @@ def test_action_context_will_not_replace_an_unowned_directory(tmp_path: Path) ->
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-270")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -229,15 +317,37 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.1-sign.toml",
         "release/patches/0.1.4.toml",
     } <= set(triggers["push"]["paths"])
+    assert {
+        "action/runtime-source-artifact.Dockerfile",
+        "action/runtime-components.openvex.json",
+        "action/runtime-sources.json",
+        "scripts/check_action_component_scan.py",
+        "scripts/prepare_action_runtime_sources.py",
+    } <= set(triggers["push"]["paths"])
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"]["cancel-in-progress"] is False
 
     jobs = workflow["jobs"]
-    assert set(jobs) == {"validate", "build", "test-image", "scan", "attest"}
-    assert jobs["build"]["needs"] == "validate"
+    assert set(jobs) == {
+        "validate",
+        "source",
+        "component-scan",
+        "build",
+        "test-image",
+        "scan",
+        "attest",
+    }
+    assert jobs["source"]["needs"] == "validate"
+    assert jobs["component-scan"]["needs"] == "source"
+    assert jobs["build"]["needs"] == ["source", "component-scan"]
     assert jobs["test-image"]["needs"] == "build"
     assert jobs["scan"]["needs"] == "build"
-    assert jobs["attest"]["needs"] == ["build", "test-image", "scan"]
+    assert jobs["attest"]["needs"] == [
+        "build",
+        "test-image",
+        "scan",
+        "component-scan",
+    ]
     release_gate = jobs["validate"]["steps"][-1]["run"]
     for required_command in (
         "uv run ruff check .",
@@ -246,7 +356,9 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "uv run python scripts/run_test_group.py vectors F-01 F-02",
         "uv run python scripts/run_test_group.py adversarial F-08",
         "uv run --no-project python scripts/validate_release_artifacts.py",
+        "uv run --no-project python scripts/prepare_action_runtime_sources.py",
         "uv run --no-project python scripts/prepare_action_context.py",
+        "--runtime-sources build/action-runtime-sources",
         "uv run pytest action/tests/test_container.py -m container",
         "uv run python scripts/check_traceability.py",
         "uv run bandit",
@@ -254,6 +366,16 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     ):
         assert required_command in release_gate
     assert jobs["build"]["permissions"] == {"contents": "read", "packages": "write"}
+    assert jobs["source"]["permissions"] == {
+        "attestations": "write",
+        "contents": "read",
+        "id-token": "write",
+        "packages": "write",
+    }
+    assert jobs["source"]["outputs"] == {
+        "source-digest": "${{ steps.source.outputs.digest }}",
+        "source-ref": "${{ steps.source.outputs.reference }}",
+    }
     assert jobs["scan"]["strategy"]["matrix"]["include"] == [
         {"platform": "linux/amd64", "slug": "linux-amd64"},
         {"platform": "linux/arm64", "slug": "linux-arm64"},
@@ -330,6 +452,72 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "packages": "write",
     }
 
+    source_steps = jobs["source"]["steps"]
+    source_commands = "\n".join(
+        step.get("run", "") for step in source_steps if isinstance(step, dict)
+    )
+    for fragment in (
+        "scripts/prepare_action_runtime_sources.py",
+        "source-candidate-${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}",
+        "action/runtime-source-artifact.Dockerfile",
+        'docker pull "${source_reference}"',
+        "runtime source artifact differs from the verified payload",
+        "gh attestation verify",
+    ):
+        assert fragment in source_commands or fragment in str(source_steps)
+    source_build = next(step for step in source_steps if step.get("id") == "source-build")
+    assert source_build["with"] == {
+        "context": "${{ runner.temp }}/runtime-sources",
+        "file": "${{ github.workspace }}/action/runtime-source-artifact.Dockerfile",
+        "platforms": "linux/amd64",
+        "pull": True,
+        "outputs": (
+            "type=image,name=${{ steps.source-tag.outputs.reference }},push=true,"
+            "oci-mediatypes=true,compression=zstd,compression-level=22,"
+            "force-compression=true"
+        ),
+        "provenance": False,
+        "sbom": False,
+    }
+    source_attest = next(step for step in source_steps if step.get("id") == "source-attest")
+    assert source_attest["with"] == {
+        "subject-name": "ghcr.io/parth2412/attest",
+        "subject-digest": "${{ steps.source-build.outputs.digest }}",
+        "push-to-registry": True,
+    }
+
+    component_scan = jobs["component-scan"]
+    assert component_scan["permissions"] == {"contents": "read"}
+    component_scan_step = next(
+        step for step in component_scan["steps"] if step.get("name") == "Scan exact components"
+    )
+    assert (
+        "anchore/grype@sha256:"
+        "8abea00b30d3eefe8903c954da241e751a0a23051e7f6463311611a90d854750"
+        in component_scan_step["run"]
+    )
+    assert "sbom:/source/runtime-components.spdx.json" in component_scan_step["run"]
+    assert "--output json" in component_scan_step["run"]
+    assert "grype-runtime-components.json" in component_scan_step["run"]
+    component_steps = component_scan["steps"]
+    component_upload_index = next(
+        index
+        for index, step in enumerate(component_steps)
+        if step.get("name") == "Upload component scan evidence"
+    )
+    component_gate_index = next(
+        index
+        for index, step in enumerate(component_steps)
+        if step.get("name") == "Enforce the component security gate"
+    )
+    assert component_upload_index < component_gate_index
+    assert component_steps[component_gate_index]["run"] == (
+        "python3 scripts/check_action_component_scan.py "
+        '"${RUNNER_TEMP}/component-scan/grype-runtime-components.json" '
+        '--sbom "${RUNNER_TEMP}/runtime-sources/runtime-components.spdx.json" '
+        '--vex "${RUNNER_TEMP}/runtime-sources/runtime-components.openvex.json"'
+    )
+
     build_step = next(step for step in jobs["build"]["steps"] if step.get("id") == "build")
     assert build_step["with"]["context"] == "${{ runner.temp }}/attest-action-context"
     assert (
@@ -345,6 +533,13 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "tags" not in build_step["with"]
     assert build_step["with"]["sbom"] is True
     assert build_step["with"]["provenance"] == "mode=max"
+    assert build_step["with"]["labels"].splitlines() == [
+        "io.github.parth2412.attest.context-digest=${{ steps.context.outputs.digest }}",
+        "io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}",
+        "org.opencontainers.image.revision=${{ github.sha }}",
+        "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
+        "org.opencontainers.image.version=0.1.5-candidate",
+    ]
     evidence_step = next(
         step
         for step in jobs["build"]["steps"]
@@ -355,8 +550,25 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert 'f"manifest-{operating_system}-{architecture}.json"' in evidence_script
     assert '{"linux/amd64", "linux/arm64"}' in evidence_script
     assert "application/vnd.oci.image.layer.v1.tar+zstd" in evidence_script
+    assert "len(layers) != 4" in evidence_script
+    assert 'f"layers-{operating_system}-{architecture}.json"' in evidence_script
+    assert '"primaryLayers": layers[:3]' in evidence_script
     assert 'write_text(f"{image_digest}\\n"' in evidence_script
     assert 'write_text(f"{digest}\\n"' not in evidence_script
+
+    runtime_evidence = size_step["run"]
+    for fragment in (
+        "/usr/bin/git",
+        "/usr/libexec/git-core/git-remote-http",
+        "/usr/lib/libcurl.so.4",
+        "loader-dependencies.txt",
+        "gitVersion",
+        "curlVersion",
+        "gitSha256",
+        "gitRemoteHttpSha256",
+        "libcurlSha256",
+    ):
+        assert fragment in runtime_evidence
 
     attest_step = next(step for step in jobs["attest"]["steps"] if step.get("id") == "attest")
     assert attest_step["with"] == {

@@ -60,8 +60,13 @@ package-contract:
     uv run --no-project python scripts/validate_release_artifacts.py build/cli-dist --manifest release/patches/0.1.4.toml --hash-output build/CLI-SHA256SUMS
 
 action-contract:
-    uv run --no-project python scripts/prepare_action_context.py build/action-context --manifest-output build/action-context-manifest.json --digest-output build/action-context.sha256
-    docker build --tag attest-action-runtime:test --file build/action-context/action/Dockerfile build/action-context
+    #!/usr/bin/env bash
+    set -euo pipefail
+    validation_root="$(mktemp -d -p build action-contract-XXXXXX)"
+    trap 'rm -rf -- "${validation_root}"' EXIT
+    uv run --no-project python scripts/prepare_action_runtime_sources.py "${validation_root}/runtime-sources"
+    uv run --no-project python scripts/prepare_action_context.py "${validation_root}/action-context" --runtime-sources "${validation_root}/runtime-sources" --manifest-output "${validation_root}/context-manifest.json" --digest-output "${validation_root}/context-digest.txt"
+    docker build --tag attest-action-runtime:test --file "${validation_root}/action-context/action/Dockerfile" "${validation_root}/action-context"
     ATTEST_ACTION_IMAGE=attest-action-runtime:test uv run pytest action/tests/test_container.py -m container
 
 mutation-core:
