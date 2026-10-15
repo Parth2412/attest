@@ -5,24 +5,25 @@ attestations for code changes. It records declared AI-authorship claims and forg
 records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
 Statement with a CI workload identity.
 
-> **Development status:** public pre-alpha. F-01 through F-10 and the initial F-11 release are
-> implemented and evidence-backed. Six Python distributions, the multi-platform `0.1.4` image,
-> immutable Action `v1.0.4`, and the reviewed moving `v1` tag are public. F-11 is temporarily in
-> progress for the bounded `ADR-054`–`ADR-062` cold-start and signing-trust correction. Evidence
-> export (F-12) and the external M2/M3 adoption and auditor gates remain pending, so this is not
-> yet the complete product/v1 launch.
+> **Development status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed.
+> Six Python distributions, the multi-platform `0.1.5` image, immutable Action `v1.0.5`, and the
+> reviewed moving `v1` tag are public. Evidence export (F-12) remains Planned and unpublished
+> pending real-auditor validation (`CH-04`); the external M2/M3 adoption gates also remain open, so
+> this is not yet the complete product/v1 launch.
 
 ## Public release
 
 The current immutable release is
-[`v0.1.4`](https://github.com/Parth2412/attest/releases/tag/v0.1.4), and the current immutable
-Action is `Parth2412/attest/action@v1.0.4`. The reviewed moving-major alias
-`Parth2412/attest/action@v1` resolves to the same release commit. The Action pins the reviewed
-multi-platform image by manifest digest; no mutable image tag is used at runtime.
+[`v0.1.5`](https://github.com/Parth2412/attest/releases/tag/v0.1.5), and the current immutable
+Action is `Parth2412/attest/action@v1.0.5`. The reviewed moving-major alias
+`Parth2412/attest/action@v1` resolves to the same release commit,
+`203d2deb7dff946dc82c6efc6506bc34adbcd209`. The Action pins the reviewed multi-platform image at
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; no mutable image tag is
+used at runtime.
 
-The public Python package set remains `attest-core==0.1.0`, `attest-collect==0.1.0`,
-`attest-sign==0.1.0`, `attest-store==0.1.1`, `attest-policy==0.1.0`, and
-`attest-cli==0.1.3`. `attest-export` is intentionally unpublished until F-12 is complete.
+The public Python package set is `attest-core==0.1.0`, `attest-collect==0.1.0`,
+`attest-sign==0.1.1`, `attest-store==0.1.1`, `attest-policy==0.1.0`, and
+`attest-cli==0.1.4`. `attest-export` is intentionally unpublished until F-12 is complete.
 
 ## What attest establishes
 
@@ -43,9 +44,9 @@ status are recorded in [PROJECT_SPECS.md](PROJECT_SPECS.md).
   change.
 - A compromised CI environment can sign malicious content with a genuine workload identity.
 - Predicate identifiers remain unstable throughout the `v0.x` series.
-- The exact v1.0.4 release gate passed 20 hosted measurements at p95 14 seconds, but later
-  fail-closed monitoring has reproduced p95 above the 15-second target; performance reliability
-  remains active launch work.
+- The v1.0.5 release sequence measured three attempt-1 hosted p95 values of 15, 14, and 16 seconds
+  and a combined 60-sample p95 of 16 seconds. All passed the strict release SLO below 18 seconds;
+  the stricter engineering target below 15 seconds remains visible and was not met consistently.
 
 ## Development setup
 

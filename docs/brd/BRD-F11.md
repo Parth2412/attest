@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In Progress** · `v1.0.4` complete; bounded `ADR-054`–`ADR-063` correction underway |
+| Status | **Done** · exact `v0.1.5` / `v1.0.5` release and reviewed `v1` promotion complete under `ADR-064` |
 
 ---
 
@@ -589,7 +589,7 @@ write authority.
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
+- [x] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
 - [x] The exact F-10-generated and copy-pasteable README workflows run unmodified on a fresh repository
 - [x] The six packages and multi-platform image are publicly installable by immutable version/digest
 - [x] Dogfood release evidence verifies publicly
@@ -598,12 +598,12 @@ write authority.
 - [x] The `zettacore-labs` fork proof fails safely before repository reads
 - [x] The retained 20-run measurement meets p95 below 15 seconds
 - [x] The image-only `0.1.4` / Action `v1.0.4` correction satisfies `ADR-053` without republishing Python packages
-- [ ] Cross-cutting obligations satisfied for the bounded correction
+- [x] Cross-cutting obligations satisfied for the bounded correction
 - [x] Candidate run `38038325243` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
 - [x] Candidate run `38250635610` satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
 - [x] Candidate run `38529646263` satisfies `ADR-062` source correspondence, minimal Git/HTTPS transport, component scan, both-platform loader/layer evidence, and every prior supply-chain contract
-- [ ] Three fresh consecutive attempt-1 20-job runs and their combined 60-sample result each remain strictly below the 18-second nearest-rank p95 release SLO, with the strict 15-second engineering target recorded independently
-- [ ] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
+- [x] Three fresh consecutive attempt-1 20-job runs and their combined 60-sample result each remain strictly below the 18-second nearest-rank p95 release SLO, with the strict 15-second engineering target recorded independently
+- [x] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run
@@ -638,3 +638,22 @@ Candidate run `38529646263`, attempt 1, passed all `ADR-062` supply-chain gates 
 `sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
 `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public source
 artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`.
+
+The qualifying `ADR-063` sequence measured exact release commit
+`203d2deb7dff946dc82c6efc6506bc34adbcd209` and the unchanged candidate manifest. Automatic run
+`38709056956` and reviewed dispatches `38709259244` and `38709401770`, all attempt 1, retained 20
+successful samples each at p95 15, 14, and 16 seconds. Their recomputed 60-sample summary retained
+p50 10 seconds and p95 16 seconds. Every result passed the strict release SLO below 18 seconds;
+the first, third, and combined summaries independently recorded that the strict engineering target
+below 15 seconds was not met.
+
+Release run `38709868210`, attempt 1, published only signer `0.1.1` and CLI `0.1.4`, promoted the
+exact reviewed image as `0.1.5` without rebuilding, created immutable `v0.1.5` and `v1.0.5` records,
+and completed clean Python 3.12/3.13 verification, dogfood, asset attestation, public verification,
+and immutable evidence publication. Public proof PR `Parth2412/attest-action-proof#8` retained the
+no-review denial, passed run `38711403197` attempt 3 only after independent approval, and merged as
+`604dab14ac52489255e8f792c5907eeb109f91c7`; fork proof PR #9 retained failure run `38735753424`,
+attempt 1, before repository-controlled execution. Protected promotion run `38738669979`, attempt
+1, independently revalidated the release and proof, received the required environment approval,
+and moved `v1` from `4e73dcaf888f15967da66826d48cca5ac6684fcb` to exact release commit
+`203d2deb7dff946dc82c6efc6506bc34adbcd209`. `ADR-064` closes F-11 on this immutable evidence.

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Completed F-11 under ADR-064 on exact product release `v0.1.5` and Action `v1.0.5`: the three
+  attempt-1 performance runs and combined 60 samples passed the strict release SLO, signer `0.1.1`
+  and CLI `0.1.4` verified publicly, the reviewed image was promoted without rebuilding, dogfood
+  and same-repository/fork proofs completed, and protected reviewed promotion moved `v1` to the
+  immutable release commit.
 - Accepted and implemented ADR-062's source-verified minimal Git/HTTPS Action runtime after
   ADR-061 run `38257587284` retained 20 successful samples but failed closed at p95 17 seconds.
   The Action now builds hash-locked Git 2.52.0 and curl 8.22.0 with their minimal verified
