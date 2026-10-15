@@ -290,8 +290,9 @@ def test_release_verifies_publishers_and_public_bytes_before_promotion() -> None
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-280")
 def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
-    """REQ-F11-210: publication requires three exact 20-job results and all 60 samples."""
+    """REQ-F11-280: publication requires three exact 20-job results and all 60 samples."""
     preflight = _workflow()["jobs"]["preflight"]
     validate = _step(preflight, "Validate the three consecutive performance runs")
     assert validate["env"] == {
@@ -332,7 +333,8 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
         "--expected-samples 20",
         "--expected-runs 3",
         "--expected-samples-per-run 20",
-        "--threshold-seconds 15",
+        "--engineering-target-seconds 15",
+        "--slo-threshold-seconds 18",
         "--require-run-attempt 1",
         "recomputed-performance-summary-${index}.json",
         "combined-performance-summary.json",

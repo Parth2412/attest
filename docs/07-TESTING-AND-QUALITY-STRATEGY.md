@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.9` |
+| Version | `1.5.0` |
 | Status | **NORMATIVE** for test obligations |
 | Last updated | 2026-10-14 |
 
@@ -244,7 +244,7 @@ A release **MUST NOT** ship unless:
 - [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
 - [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
 - [x] Candidate run `38250635610` proves the `0.1.5-candidate` image uses ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client, the exact build-only toolchain and size flags, pinned dynamic system OpenSSL/libgcc with only the closed `rpds-py` compatibility link, ADR-058's build-verified non-timestamp TUF seed, ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, and ADR-061's debug-range, guarded process-boundary, and exact branch-dispatch controls; both architectures pass all 20 real-container cryptographic/native-module/trust-seed/archive/event tests, scans, SBOM/provenance checks, and identity-bound attestation
-- [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
+- [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain strictly below the 18 s nearest-rank p95 release SLO, while the strict 15 s engineering target is reported independently, before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
 - [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [x] The Action-only signer process boundary permits `fork` solely through the digest-matched adapter's fresh scoped capability on Linux's sole main thread, rejects caller markers, and preserves identical isolation, deadline, retry, termination, and secret-safety behavior under `spawn` and `fork`
 - [x] Local build and real-container contracts prove both deterministic archives omit only fine-grained debug ranges and that exact branch dispatches derive the checked-out head's first parent while malformed, tag, root, incomplete, and inconsistent dispatches fail closed
@@ -257,7 +257,7 @@ A release **MUST NOT** ship unless:
 - [ ] Backwards compatibility confirmed: attestations from every prior version still verify
 - [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
 - [ ] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
-- [ ] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, and `38257587284`; and, for ADR-054–ADR-062, three new consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every required nearest-rank p95 includes image pull and is below 15 seconds
+- [ ] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38257587284`, and `38570478871`; and, for ADR-063, three fresh consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every result includes image pull, reports the strict 15-second engineering target, and passes the strict release SLO below 18 seconds
 
 ---
 

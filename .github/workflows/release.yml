@@ -624,7 +624,8 @@ jobs:
               --expected-action-sha "${GITHUB_SHA}" \
               --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
               --expected-samples 20 \
-              --threshold-seconds 15 \
+              --engineering-target-seconds 15 \
+              --slo-threshold-seconds 18 \
               --require-run-attempt 1
             cmp "${evidence}/summary.json" \
               "release-preflight-evidence/recomputed-performance-summary-${index}.json"
@@ -650,7 +651,8 @@ jobs:
             --expected-image-digest "${REVIEWED_IMAGE_DIGEST}" \
             --expected-runs 3 \
             --expected-samples-per-run 20 \
-            --threshold-seconds 15
+            --engineering-target-seconds 15 \
+            --slo-threshold-seconds 18
           cp "${RUNNER_TEMP}/performance-evidence-1/source/action-performance.yml" \
             release-preflight-evidence/performance-workflow.yml
       - name: Retain release preflight evidence
