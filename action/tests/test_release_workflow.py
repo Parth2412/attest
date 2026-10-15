@@ -286,6 +286,27 @@ def test_release_verifies_publishers_and_public_bytes_before_promotion() -> None
         assert fragment in commands
 
 
+@pytest.mark.ac("AC-F11-220")
+def test_release_recovery_crosses_only_successful_publisher_skips() -> None:
+    """REQ-F11-220: exact recovery continues only through successful direct gates."""
+    jobs = _workflow()["jobs"]
+    expected_conditions = {
+        "promote-image": (
+            "always() && "
+            "needs.preflight.result == 'success' && "
+            "needs.verify-published.result == 'success'"
+        ),
+        "dogfood": (
+            "always() && "
+            "needs.promote-image.result == 'success' && "
+            "needs.verify-published.result == 'success'"
+        ),
+    }
+    for job_name, expected in expected_conditions.items():
+        observed = " ".join(jobs[job_name]["if"].split())
+        assert observed == expected
+
+
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-250")
