@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.7` |
+| Version | `1.7.8` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-14 |
+| Last updated | 2026-10-15 |
 
 ---
 
@@ -327,9 +327,9 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | Current core/collect/sign/policy `0.1.0`, store `0.1.1`, and CLI `0.1.3`; the bounded `ADR-055` release changes only sign to `0.1.1` and CLI to `0.1.4` | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current `ghcr.io/parth2412/attest:0.1.4`; reviewed `0.1.5` multi-platform Alpine manifest only after the complete candidate/performance gates; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable/promoted `v1.0.4`; bounded immutable `v1.0.5` only after its release gates; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| PyPI | Current core/collect/policy `0.1.0`, store/sign `0.1.1`, and CLI `0.1.4`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
+| GHCR | Current `ghcr.io/parth2412/attest:0.1.5` at manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.5`, and reviewed moving `v1`, all at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The performance-correction image records and pins the verified
@@ -395,6 +395,10 @@ calculation, attempt-1 rule, and automatic-plus-two-reviewed-dispatch sequence. 
 records both the strict 15-second engineering target and the strict 18-second release SLO for each
 run and for the combined 60 samples; only the SLO gates publication, and schema-1 summaries fail
 closed rather than being reinterpreted.
+`ADR-064` accepts the completed schema-2 sequence, immutable `0.1.5`/`v0.1.5`/`v1.0.5` release,
+public proof, fork denial, dogfood, and independently reviewed movement of `v1`. The three p95
+values were 15, 14, and 16 seconds and the combined 60-sample p95 was 16 seconds: all four passed
+the strict release SLO, while the retained evidence continues to expose engineering-target misses.
 
 ---
 

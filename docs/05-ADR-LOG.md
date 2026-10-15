@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.29.0` |
+| Version | `1.30.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-14 |
+| Last updated | 2026-10-15 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3862,3 +3862,88 @@ until all existing gates complete.
 Acceptance authorizes only this evidence-contract amendment and a fresh exact-commit performance
 sequence. It does not authorize an image rebuild, old-evidence reinterpretation, Python
 publication, release, or movement of `v1`.
+
+---
+
+## ADR-064 — Close F-11 on immutable v1.0.5 evidence
+
+**Status:** Accepted · **Date:** 2026-10-15 · **Affects:** `TECH-001`, `QA-001`, `BRD-INDEX`,
+`BRD-F11`, `CH-09`, `COMPAT-001`, `F-11` · **Amends:** `ADR-054`, `ADR-055`, `ADR-056`,
+`ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, `ADR-062`, `ADR-063`
+
+**Context.** Candidate run `38529646263`, attempt 1, established the complete source,
+two-platform, runtime, scan, SBOM, provenance, and identity-attestation boundary for manifest
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`. The fresh
+schema-2 performance sequence then measured exact release commit
+`203d2deb7dff946dc82c6efc6506bc34adbcd209` and that unchanged manifest. Automatic run
+`38709056956` and reviewed dispatches `38709259244` and `38709401770`, all attempt 1, retained 20
+successful samples each with nearest-rank p95 values of 15, 14, and 16 seconds. Their recomputed
+60-sample result retained p50 10 seconds and p95 16 seconds. All four results passed the strict
+release SLO below 18 seconds; the first, third, and combined results truthfully recorded that they
+did not meet the separate strict engineering target below 15 seconds.
+
+Release run `38709868210`, attempt 1, completed every preflight, exact-publication recovery,
+Python 3.12/3.13 clean-install, image-promotion, dogfood, asset-attestation, public-verification,
+and immutable-release job. It published only `attest-sign==0.1.1` and `attest-cli==0.1.4`, promoted
+the reviewed image without rebuilding as `ghcr.io/parth2412/attest:0.1.5`, and created source tag
+`v0.1.5` and Action tag `v1.0.5` at the exact release commit. The immutable GitHub Release retains
+the corresponding source, component evidence, SBOM, provenance, performance summaries, public
+package verification, dogfood Bundle, and verification records required by `REQ-F11-210` through
+`REQ-F11-280`.
+
+Public proof PR `Parth2412/attest-action-proof#8` was opened by `github-actions[bot]`, retained its
+no-review policy denial, received the project owner's independent approval for exact head
+`c4735f46225096ef95629ad5211a7be2f36b2597`, passed on run `38711403197` attempt 3, and merged as
+`604dab14ac52489255e8f792c5907eeb109f91c7`. Fork proof PR #9 retained the required failure on run
+`38735753424`, attempt 1, before repository-controlled content could execute. Protected promotion
+run `38738669979`, attempt 1, independently revalidated the release and proof evidence, received
+the required `action-major` environment approval, and moved only `v1` from
+`4e73dcaf888f15967da66826d48cca5ac6684fcb` to the exact `v1.0.5` release commit. Every immutable
+product and Action tag remains protected and unchanged.
+
+**Decision.** Accept the complete `ADR-054` through `ADR-063` correction evidence and mark F-11
+`Done`. Reconcile the normative F-11 Definition of Done, feature registry, release checklist,
+distribution matrix, compatibility matrix, challenge outcome, project status, public README, and
+changelog to the exact public versions and retained evidence above. The current published set is
+core, collect, and policy `0.1.0`; store `0.1.1`; sign `0.1.1`; CLI `0.1.4`; image `0.1.5` by the
+reviewed immutable manifest; source `v0.1.5`; immutable Action `v1.0.5`; and moving Action major
+`v1` at the same release commit. `attest-export` remains unpublished.
+
+This closure changes no artifact, tag, workflow, requirement, threshold, trust rule, public
+interface, or security boundary. It records observed outcomes only. The strict 15-second
+engineering target remains visible and unmet where the retained schema-2 evidence says so; the
+strict release SLO below 18 seconds remains the accepted operational gate.
+
+F-12 remains `Planned`. `CH-04` remains open and must close with practising-auditor evidence before
+F-12 begins under the repository's challenge gate. The external M2 product-validation challenges
+also remain open. F-11 completion therefore does not claim the complete product/v1 launch.
+
+**Rationale.** Every F-11 requirement and acceptance criterion is implemented, test-traced, and
+backed by immutable public evidence. Leaving F-11 `In progress` would make the authoritative
+registry contradict the completed release and would prevent the `Done` traceability gate from
+enforcing all 28 F-11 criteria. Recording the exact versions and negative as well as positive
+performance outcomes keeps the project status useful without converting an engineering target
+miss into a release failure after the accepted SLO was met.
+
+**Rejected alternatives.** Leaving F-11 open until F-12 or external adoption completes would mix
+separate feature and milestone gates. Describing the performance sequence as meeting the
+15-second target would contradict the retained evidence. Rebuilding, republishing, retagging, or
+editing immutable release assets would destroy the release's audit boundary. Starting F-12 before
+`CH-04` closes would violate the challenge gate. Calling this the complete v1 launch would conceal
+known pending product and auditor validation.
+
+**Consequences.** The machine-readable registry activates F-11 completeness enforcement. Public
+documentation points to `v0.1.5`, `v1.0.5`, the reviewed `v1`, image `0.1.5`, signer `0.1.1`, and
+CLI `0.1.4`. Historical release and failure evidence remains intact. The next permissible launch
+work is closing `CH-04` and the remaining external validation gates; implementation of F-12 stays
+blocked until its challenge prerequisite is satisfied.
+
+### ADR-064 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-010`–`REQ-F11-280` | Reconcile exact release, proof, performance, promotion, compatibility, and completion evidence; activate F-11 `Done` traceability without changing implementation or public artifacts | `BRD-F11`, `BRD-INDEX`, `QA-001`, `TECH-001`, `CH-09`, `COMPAT-001`, `PROJECT_SPECS.md`, `README.md`, `CHANGELOG.md`, Forge agent guide |
+
+Acceptance authorizes only this evidence reconciliation and F-11 lifecycle transition. It does
+not authorize F-12 implementation, closure of an empirical challenge without its required
+evidence, mutation of a public record, or a complete product/v1 launch claim.
