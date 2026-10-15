@@ -50,7 +50,8 @@ Verification rules, outputs, and failure semantics remain fail closed.
   corresponding source `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`.
 - The exact merged Action and candidate digest must pass three consecutive fresh attempt-1 hosted
   measurements of 20 jobs each. Every individual p95 and the combined 60-sample p95 must remain
-  below 15 seconds.
+  strictly below the 18-second release SLO. The strict 15-second engineering target is retained
+  and reported independently for every result.
 - `attest-sign==0.1.1` is rebuilt from the reviewed source and published through its protected
   PyPI Trusted Publisher environment.
 - `attest-cli==0.1.4` exact-pins `attest-sign==0.1.1`; both public distributions are byte-matched

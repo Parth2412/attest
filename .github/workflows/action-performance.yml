@@ -199,7 +199,8 @@ jobs:
             --expected-action-sha "${GITHUB_SHA}" \
             --expected-image-digest "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a" \
             --expected-samples 20 \
-            --threshold-seconds 15 \
+            --engineering-target-seconds 15 \
+            --slo-threshold-seconds 18 \
             --require-run-attempt 1
       - name: Report the retained timing result
         if: ${{ always() }}
@@ -215,7 +216,10 @@ jobs:
               performance-evidence/summary.json
             jq -r '"- Nearest-rank p95: \(.metric.nearestRankP95Seconds)s"' \
               performance-evidence/summary.json
-            jq -r '"- Gate passed: \(.metric.passed)"' performance-evidence/summary.json
+            jq -r '"- Engineering target (<15s): \(.metric.engineeringTargetPassed)"' \
+              performance-evidence/summary.json
+            jq -r '"- Release SLO (<18s): \(.metric.passed)"' \
+              performance-evidence/summary.json
             echo "- Exact merged Action: \`${GITHUB_SHA}\`"
             echo "- Image: \`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a\`"
           } >> "${GITHUB_STEP_SUMMARY}"

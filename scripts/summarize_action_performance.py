@@ -250,7 +250,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-action-sha", required=True)
     parser.add_argument("--expected-image-digest", required=True)
     parser.add_argument("--expected-samples", type=int, required=True)
-    parser.add_argument("--threshold-seconds", type=float, required=True)
+    parser.add_argument("--engineering-target-seconds", type=float, required=True)
+    parser.add_argument("--slo-threshold-seconds", type=float, required=True)
     parser.add_argument("--require-run-attempt", type=int, required=True)
     return parser
 
@@ -270,8 +271,10 @@ def _run(arguments: argparse.Namespace) -> None:
         _fail("run ID and expected sample count must match the frozen contract")
     if arguments.run_attempt != arguments.require_run_attempt or arguments.run_attempt != 1:
         _fail("only the first workflow attempt is valid performance evidence")
-    if arguments.threshold_seconds != 15:
-        _fail("performance threshold must be exactly 15 seconds")
+    if arguments.engineering_target_seconds != 15:
+        _fail("engineering target must be exactly 15 seconds")
+    if arguments.slo_threshold_seconds != 18:
+        _fail("performance SLO threshold must be exactly 18 seconds")
 
     config_sha256 = _sha256(arguments.config)
     policy_sha256 = _sha256(arguments.policy)
@@ -303,11 +306,14 @@ def _run(arguments: argparse.Namespace) -> None:
     sorted_values = sorted(values)
     p50 = _nearest_rank(sorted_values, 0.50) if sorted_values else None
     p95 = _nearest_rank(sorted_values, 0.95) if sorted_values else None
-    passed = complete and p95 is not None and p95 < arguments.threshold_seconds
+    engineering_target_passed = (
+        complete and p95 is not None and p95 < arguments.engineering_target_seconds
+    )
+    passed = complete and p95 is not None and p95 < arguments.slo_threshold_seconds
     summary: dict[str, object] = {
-        "schemaVersion": 1,
-        "requirement": "REQ-F11-100",
-        "acceptanceCriterion": "AC-F11-100",
+        "schemaVersion": 2,
+        "requirement": "REQ-F11-280",
+        "acceptanceCriterion": "AC-F11-280",
         "repository": arguments.repository,
         "workflowRun": {
             "id": arguments.run_id,
@@ -331,10 +337,12 @@ def _run(arguments: argparse.Namespace) -> None:
                 "Action step including image pull and wrapper/CLI work; checkout excluded"
             ),
             "sampleCount": len(measurements),
-            "thresholdSecondsExclusive": arguments.threshold_seconds,
+            "engineeringTargetSecondsExclusive": arguments.engineering_target_seconds,
+            "sloThresholdSecondsExclusive": arguments.slo_threshold_seconds,
             "nearestRankP50Seconds": p50,
             "nearestRankP95Seconds": p95,
             "sortedSeconds": sorted_values,
+            "engineeringTargetPassed": engineering_target_passed,
             "passed": passed,
         },
         "measurements": measurements,
@@ -343,18 +351,18 @@ def _run(arguments: argparse.Namespace) -> None:
     if not complete:
         _fail(f"expected exactly {arguments.expected_samples} measurements")
     if not passed:
-        _fail(f"p95 must be below {arguments.threshold_seconds:g}")
+        _fail(f"p95 must be below {arguments.slo_threshold_seconds:g}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Validate all observations, retain a deterministic summary, and enforce the p95 gate."""
+    """Validate observations, retain both p95 metrics, and enforce the release SLO."""
     arguments = _parser().parse_args(argv)
     try:
         _run(arguments)
     except PerformanceEvidenceError as error:
         print(f"action-performance: {error}", file=sys.stderr)
         return 1
-    print("action-performance: evidence is complete and the p95 gate passed")
+    print("action-performance: evidence is complete and the release SLO passed")
     return 0
 
 

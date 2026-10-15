@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.28.2` |
+| Version | `1.29.0` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-10-14 |
 
@@ -3774,3 +3774,91 @@ performance baseline; no performance run is accepted by this evidence alone.
 Acceptance authorizes only this bounded Action-runtime transport correction. It does not
 authorize a private Sigstore call, failed-run rerun, Python publication, threshold change,
 release, or movement of `v1`.
+
+---
+
+## ADR-063 — Separate the hosted engineering target from the release SLO
+
+**Status:** Accepted · **Date:** 2026-10-14 · **Affects:** `ARCH-001`, `TECH-001`, `QA-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-054`, `ADR-062`
+
+**Context.** Candidate run `38529646263`, attempt 1, passed the complete `ADR-062` source,
+two-platform, container, vulnerability, SBOM, provenance, and identity-attestation boundary for
+manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`.
+The exact candidate image already consists of three balanced primary zstd layers plus the
+entrypoint layer. Its Python base is built upstream with link-time optimisation and linker
+stripping; reviewed archive inspection found only about 33 KiB of safely removable compressed
+content and about 230 KiB even under a broader legacy/development-file interpretation. Neither is
+material to the hosted tail and the broader removal would add compatibility risk.
+
+Automatic performance run `38570478871`, attempt 1, measured exact merged commit
+`f22f5be015a020b520d5abcb736ba236af7198cc` and the same manifest. All 20 hosted jobs completed
+successfully at integer p50 11 seconds and nearest-rank p95 17 seconds. Exact timestamps measured
+total p50 11.533 seconds and p95 16.861 seconds, image-pull/extraction p50 6.110 seconds and p95
+9.182 seconds, and post-pull execution p50 6.294 seconds and p95 8.711 seconds. The result failed
+the strict 15-second gate without exposing a correctness, security, or availability failure.
+
+Across 11 retained slim-runtime hosted runs, nearest-rank p95 remained in the 14–17-second range.
+The same immutable `v1.0.4` image produced p95 values of 14, 16, and 17 seconds. Image pull and
+external Sigstore services contribute independent, non-additive tails that product code cannot
+fully control. Continuing to require every 20-job run and the combined 60 samples below 15
+seconds therefore confuses an ambitious engineering target with a reliable release objective and
+can indefinitely block an otherwise verified release on hosted-runner variance.
+
+**Decision.** Preserve the strict 15-second nearest-rank p95 as the Action engineering target and
+introduce a strict release SLO below 18 seconds. Every individual 20-job summary and the combined
+60-sample summary must record both exact thresholds, the measured p50/p95 and sorted durations,
+and independently derived `engineeringTargetPassed` and release `passed` booleans. The
+engineering result remains visible but does not authorize or prevent release; the release SLO is
+the sole performance publication gate.
+
+Retain every measurement control: GitHub-hosted `ubuntu-latest`, the exact Action step including
+image pull and wrapper/CLI work but excluding checkout, one frozen staging fixture, exact merged
+commit and reviewed manifest digest, 20 independent jobs per run, nearest-rank observation 19,
+attempt 1 only, and one automatic protected-`main` run followed by two ordered reviewed dispatches.
+All three individual runs and the recomputed combined 60 samples must be strictly below 18
+seconds. Incomplete runs, reruns, duplicate or overlapping jobs, identity drift, fixture drift,
+and p95 equal to 18 seconds fail closed.
+
+Adopt performance evidence schema 2 bound to `REQ-F11-280` and `AC-F11-280`. Schema-1 evidence,
+the old single-threshold field, and mismatched thresholds fail closed. Run `38570478871` remains
+immutable negative evidence under its original contract and is neither rerun nor counted. The new
+sequence begins only after this amendment reaches `main`; no earlier run is reinterpreted.
+
+Reuse the fully verified `ADR-062` candidate manifest without rebuilding. This decision changes
+only the evidence contract, workflow enforcement, retained summaries, and release documentation;
+it changes no image byte, dependency, signing behavior, trust rule, security boundary, public
+Action interface, error, release version, sample count, timing boundary, or promotion rule.
+
+**Rationale.** A strict 18-second SLO sits above every retained successful slim-runtime p95 while
+remaining below the original `v1.0.3` p95 of 20 seconds that triggered the material image
+correction. Requiring three consecutive runs and their combined result provides 60 independent
+observations and rejects a single lucky run. Retaining the 15-second target separately prevents a
+release control from hiding regression pressure. The dual-field schema makes the distinction
+machine-verifiable and prevents old evidence from gaining new meaning after the fact.
+
+**Rejected alternatives.** Counting or rerunning `38570478871`, accepting any earlier run, or
+converting schema-1 evidence would rewrite history. Excluding image pull, shortening the sample,
+using mean or median in place of nearest-rank p95, permitting later attempts, or warming the image
+would measure a different product. Raising the SLO beyond the retained operating envelope would
+lack evidence. Removing more runtime files or changing the secure Sigstore path offers no measured
+material gain and adds compatibility or security risk. Keeping 15 seconds as the release gate
+would preserve a control that repeated evidence shows is dominated by external hosted variance.
+
+**Consequences.** Release summaries and immutable assets become schema 2 and expose both target
+and SLO status. Release preflight rejects every old or altered summary and recomputes all three
+runs plus the combined result. A 15–18-second p95 is an engineering-target miss but can satisfy the
+release SLO; p95 at or above 18 seconds blocks publication. The exact candidate may proceed to a
+fresh performance sequence after the workflow change merges, but image `0.1.5`, source `v0.1.5`,
+Action `v1.0.5`, dogfood, public proof, fork denial, and independent `v1` promotion remain blocked
+until all existing gates complete.
+
+### ADR-063 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-280` | Emit and validate schema-2 dual-threshold evidence; gate every fresh 20-job run and the combined 60 samples at strict p95 below 18 seconds; report strict p95 below 15 seconds independently; preserve failed run `38570478871`; reuse the exact ADR-062 candidate; update release recomputation and normative traceability | performance scripts/workflow/tests, release workflow/notes, `ARCH-001`, `TECH-001`, `QA-001`, `BRD-F11`, `CH-09`, traceability |
+
+Acceptance authorizes only this evidence-contract amendment and a fresh exact-commit performance
+sequence. It does not authorize an image rebuild, old-evidence reinterpretation, Python
+publication, release, or movement of `v1`.

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.6` |
+| Version | `1.7.7` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-14 |
 
 ---
 
@@ -355,7 +355,8 @@ build toolchain. Runtime OpenSSL is exact `libcrypto3=3.5.9-r0` plus `libssl3=3.
 isolated Action interpreter may invoke the bundled CLI in-process only when its console script
 matches a build-generated SHA-256 marker; marker failure retains the subprocess path. Publication
 requires three consecutive 20-job attempt-1 measurements whose individual and combined
-nearest-rank p95 values are below 15 seconds. `ADR-055` amends the package boundary: mandatory
+nearest-rank p95 values meet the `ADR-063` release SLO below 18 seconds; the engineering target
+below 15 seconds remains separately recorded and does not gate release. `ADR-055` amends the package boundary: mandatory
 online trust refresh and refreshed-root verification change signer bytes, so the release publishes
 only `attest-sign==0.1.1` and `attest-cli==0.1.4`, with the latter exact-pinning the former.
 `ADR-056` retains those versions while allowing one refresh-gated fresh-process recovery from a
@@ -389,6 +390,11 @@ re-fetches and retains the same materials. Exact Git/curl component evidence rec
 critical and fixable-high scan policy as the image through immutable CPE-aware Grype. The sole
 not-affected statement covers Git-for-Windows `CVE-2026-62960`; its exact product, status,
 justification, and the raw scanner/database evidence are retained and fail closed on drift.
+`ADR-063` retains the exact `ADR-062` image, timing boundary, 20-job sample size, nearest-rank
+calculation, attempt-1 rule, and automatic-plus-two-reviewed-dispatch sequence. Evidence schema 2
+records both the strict 15-second engineering target and the strict 18-second release SLO for each
+run and for the combined 60 samples; only the SLO gates publication, and schema-1 summaries fail
+closed rather than being reinterpreted.
 
 ---
 

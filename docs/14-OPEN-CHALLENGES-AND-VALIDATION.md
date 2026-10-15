@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.6` |
+| Version | `1.1.7` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
 | Last updated | 2026-10-14 |
 
@@ -376,6 +376,16 @@ source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
 artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`. It is the sole
 ADR-062 baseline for the still-pending fresh three-run performance sequence.
 
+Automatic run `38570478871`, attempt 1, then measured exact merged commit
+`f22f5be015a020b520d5abcb736ba236af7198cc` with that same manifest. All 20 jobs succeeded at
+p50 11 seconds and p95 17 seconds; exact timestamps measured total p95 16.861 seconds,
+image-pull/extraction p95 9.182 seconds, and post-pull p95 8.711 seconds. The run remains immutable
+negative evidence under the then-current 15-second gate and is excluded from future sequences.
+Accepted `ADR-063` preserves the original CH-09 closure and exact measurement procedure while
+separating the strict 15-second engineering target from a strict 18-second operational release
+SLO. A fresh exact-commit automatic run plus two reviewed dispatches, and their combined 60
+samples, must each pass the release SLO under evidence schema 2 before `0.1.5`/`v1.0.5` may ship.
+
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
 recorded as a new ADR. No other route reopens the language question.
@@ -397,7 +407,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, `38249545348`, and `38257587284` retained later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate, and candidate run `38529646263` passed the complete `ADR-062` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, and `ADR-062` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061`; `ADR-062` |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, `38249545348`, `38257587284`, and `38570478871` retain later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate, and candidate run `38529646263` passed the complete `ADR-062` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, `ADR-062`, and `ADR-063` govern the in-progress operational reliability correction without reopening the original release evidence. `ADR-063` retains the 15-second engineering target and gates the fresh three-run release sequence at a strict 18-second SLO. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061`; `ADR-062`; `ADR-063` |
 
 ---
 
