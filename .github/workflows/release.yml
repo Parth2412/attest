@@ -1439,6 +1439,10 @@ jobs:
 
   promote-image:
     needs: [preflight, verify-published]
+    if: >-
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.verify-published.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -1505,6 +1509,10 @@ jobs:
 
   dogfood:
     needs: [promote-image, verify-published]
+    if: >-
+      always() &&
+      needs.promote-image.result == 'success' &&
+      needs.verify-published.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
