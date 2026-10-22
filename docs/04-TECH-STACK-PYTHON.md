@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.9` |
+| Version | `1.7.10` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
 | Last updated | 2026-10-22 |
 
@@ -127,6 +127,12 @@ corresponding `CH-01`/`CH-02` conformance is repeated.
 `python-discovery==1.6.4`. The latter two packages **MUST NOT** enter the Action runtime. The
 candidate gate proves the exact runtime certifi version in a real container and `pip-audit`
 rejects any remaining affected locked dependency.
+
+`ADR-066` adds Alpine's fixed `musl==1.2.5-r24` runtime and matching
+`musl-dev==1.2.5-r24` native-build baseline. The immutable Python base remains digest-pinned, so
+the runtime stage explicitly upgrades musl, proves the installed loader owner, and retains that
+exact revision after removing Alpine's package database. Both release architectures enforce the
+same record and reject affected `1.2.5-r23`.
 
 ### 3.1 Notes on specific choices
 
@@ -409,6 +415,9 @@ the strict release SLO, while the retained evidence continues to expose engineer
 affected runtime `certifi==2026.7.22`. It publishes no Python distribution, repeats every candidate
 and schema-2 performance gate, and forbids moving `v1` until the immutable release, dogfood,
 same-repository proof, fork denial, and independent protected promotion verify.
+`ADR-066` folds Alpine's `CVE-2026-107891` fix into that still-unreleased replacement by pinning
+matching `musl-dev==1.2.5-r24` build stages and `musl==1.2.5-r24` runtime bytes, retaining exact
+installed-version evidence, and changing no ADR-065 release or publication boundary.
 
 ---
 

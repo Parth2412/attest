@@ -4026,3 +4026,68 @@ Acceptance authorizes only this bounded security replacement and its exact evide
 does not authorize a package publication, dependency/API change beyond the three locked versions,
 existing-record mutation, relaxed scan or performance threshold, F-12 implementation, or a
 complete product/v1 launch claim.
+
+---
+
+## ADR-066 — Include the Alpine musl security rebuild in the Action patch
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-065`
+
+**Context.** After ADR-065 was accepted and before its branch could merge, Alpine published
+`musl==1.2.5-r24` for Alpine 3.23 to fix `CVE-2026-107891`, an integer-overflow and memory-safety
+defect in `regcomp`. Alpine's package record identifies `1.2.5-r24` as the current fixed package,
+and its source commit records the CVE patch:
+<https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/musl-dev> and
+<https://gitlab.alpinelinux.org/alpine/aports/-/commit/fd05fc094264bce4fb76efc6c7f61ba4abfcb609>.
+
+The immutable Python Alpine base accepted in ADR-053 contains `musl==1.2.5-r23`. Alpine's current
+repository consequently refuses the Action's exact `musl-dev==1.2.5-r23` build pin because the
+available development package is `r24` and requires matching `musl==1.2.5-r24`. Updating only the
+two build-stage pins makes compilation succeed but does not correct the final runtime: the final
+stage starts from the immutable `r23` base and its existing exact runtime-package installation does
+not request a musl upgrade. Both the released `v1.0.5` image and an otherwise-correct ADR-065
+candidate would therefore retain the affected runtime libc.
+
+**Decision.** Keep the accepted ADR-065 release identity, version sequence, performance
+sequence, evidence lifecycle, and no-PyPI-publication boundary unchanged. In the same
+`0.1.6-candidate`, update both build-only `musl-dev` pins to exactly `1.2.5-r24` and install exactly
+`musl==1.2.5-r24` in the runtime stage. Preserve the immutable Python base digest; upgrade only its
+musl package through Alpine's authenticated package repository before the image is minimized.
+
+Before removing Alpine's package database, generate and retain a deterministic runtime-package
+record under `/usr/share/attest` that proves the installed musl revision. Extend the Dockerfile
+pin contract and real-container contract to require `1.2.5-r24`, require the retained record, and
+reject `1.2.5-r23`. The candidate must still pass both-architecture runtime and native-component
+scans, the complete real-container suite, SBOM/provenance generation, and every unchanged ADR-065
+gate. No public artifact, immutable tag, old evidence record, Python dependency, API, or trust
+boundary may be changed outside the already-approved `0.1.6` replacement.
+
+**Rationale.** Reverting to an obsolete package or retaining `r23` would deliberately ship a
+known affected libc. Changing only `musl-dev` would repair CI while leaving the product vulnerable.
+Including the runtime rebuild now is the smallest safe correction because ADR-065 has not reached
+protected `dev`, no `0.1.6` candidate exists, and the complete security release lifecycle already
+must run from new bytes.
+
+**Rejected alternatives.** Fetching superseded `r23` development packages directly would bypass
+the supported repository and retain the CVE. Updating only the development stages would create
+false confidence while preserving the affected runtime. Moving to an unreviewed mutable base tag
+would change more bytes than necessary and weaken reproducibility. Starting a second release after
+`0.1.6` would expose users longer and duplicate the same evidence lifecycle without a safety
+benefit.
+
+**Consequences.** The final image's libc and manifest digest change in addition to certifi. Native
+extensions and the minimized runtime are built and executed against the same fixed musl revision.
+ADR-065's candidate label, patch versions, three-run performance gate, release proof, fork denial,
+and independently reviewed `v1` promotion remain unchanged. `v1.0.5` remains immutable historical
+evidence but is superseded for new use only after the complete `v1.0.6` lifecycle passes.
+
+### ADR-066 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-300` | Pin fixed musl in both build stages and the runtime; retain exact installed-version evidence; prove the version in the real container on both release architectures; keep every ADR-065 gate and publication boundary unchanged | Action Dockerfile and container contracts, candidate evidence checks, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and release records |
+
+Acceptance authorizes only the exact musl `r24` security rebuild inside ADR-065's existing `0.1.6`
+lifecycle. It does not authorize any other dependency, base-image, package-publication,
+API, requirement, threshold, trust, or release-process change.

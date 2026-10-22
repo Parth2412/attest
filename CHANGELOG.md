@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-066 and extended the unreleased Action security replacement with exact Alpine
+  `musl 1.2.5-r24` build/runtime pins plus retained installed-version evidence for
+  `CVE-2026-107891`; ADR-065's versions, no-PyPI boundary, and complete release gates are unchanged.
 - Accepted ADR-065 and reopened F-11 for an image-only security replacement: the workspace now
   locks corrected `certifi 2026.10.19`, development-only `virtualenv 21.14.12`, and
   `python-discovery 1.6.4`; a unique two-platform `0.1.6-candidate` must repeat every supply-chain,

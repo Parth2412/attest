@@ -5,7 +5,7 @@
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.5`,
   immutable Action `v1.0.5`, and reviewed moving Action major `v1`. F-01 through F-10 are Done;
-  F-11 is reopened for the `ADR-065` security replacement, and F-12 is Planned and unpublished.
+  F-11 is reopened for the `ADR-065`/`ADR-066` security replacement, and F-12 is Planned and unpublished.
 - **Last Updated**: 2026-10-22
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -28,8 +28,8 @@
 ## Current Project Status
 
 - **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-10 are complete. F-11
-  was completed under `ADR-064` and is temporarily reopened under `ADR-065` to replace the affected
-  CA bundle in the Action image. F-12 remains Planned and unpublished pending `CH-04`; the external
+  was completed under `ADR-064` and is temporarily reopened under `ADR-065`/`ADR-066` to replace
+  the affected CA bundle and musl libc in the Action image. F-12 remains Planned and unpublished pending `CH-04`; the external
   M2/M3 launch gates remain pending in `CHALLENGE-001` and `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
   across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
@@ -49,13 +49,15 @@
 - **Known Issues**:
   - Immutable Action `v1.0.5` vendors affected `certifi==2026.7.22`; `ADR-065` requires a complete
     image-only `v1.0.6` replacement before the public launch recommendation advances.
+  - The same image contains affected Alpine `musl==1.2.5-r23`; `ADR-066` requires exact fixed
+    `1.2.5-r24` build and runtime bytes inside that same unreleased replacement lifecycle.
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
   - The v1.0.5 sequence passed the strict release SLO below 18 seconds with individual p95 values
     of 15, 14, and 16 seconds and combined p95 16 seconds. The separate strict engineering target
     below 15 seconds remains unmet for the first, third, and combined results.
-- **Next Milestone**: Complete the `ADR-065` image-only security replacement and reviewed `v1`
+- **Next Milestone**: Complete the `ADR-065`/`ADR-066` image-only security replacement and reviewed `v1`
   promotion, then close `CH-04` with practising-auditor evidence and complete the remaining
   external M2 validation gates before F-12 implementation.
 
@@ -365,6 +367,9 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-22**: Accepted `ADR-066` after Alpine published `CVE-2026-107891` remediation while
+  ADR-065 was still unreleased. The same `0.1.6` lifecycle now pins matching fixed musl build and
+  runtime revisions and retains exact installed-version evidence without broadening publication.
 - **2026-10-22**: Accepted `ADR-065` and reopened F-11 after critical certifi advisory
   `GHSA-6q48-6c7w-9gw2` identified affected CA-bundle bytes in the immutable `v1.0.5` Action
   image. The bounded replacement updates the runtime lock, rebuilds and revalidates a unique

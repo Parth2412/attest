@@ -340,6 +340,26 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-300")
+def test_runtime_records_fixed_musl_revision() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "test -f /usr/share/attest/runtime-package-versions.txt && "
+        'test "$(/bin/busybox cat '
+        '/usr/share/attest/runtime-package-versions.txt)" = "musl-1.2.5-r24" && '
+        "! /bin/busybox grep -F 'musl-1.2.5-r23' "
+        "/usr/share/attest/runtime-package-versions.txt",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F07-040")
 @pytest.mark.ac("AC-F11-220")
 def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> None:

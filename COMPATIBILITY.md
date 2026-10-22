@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.17.1` |
+| Version | `1.17.2` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-10-22 |
 
@@ -44,7 +44,7 @@ storage is active in `attest-store`; and F-09 policy evaluation is active in `at
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
 F-11's published Action/image remain active historical releases, but F-11 is `In progress` while
-`ADR-065` replaces the affected `v1.0.5` runtime CA bundle. F-12 is Planned and `attest-export`
+`ADR-065`/`ADR-066` replace the affected `v1.0.5` runtime CA bundle and musl libc. F-12 is Planned and `attest-export`
 remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
@@ -173,7 +173,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | exact core/collect/policy 0.1.0 and sign/store 0.1.1 in published `0.1.4` metadata | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`, `ADR-066` |
 
 ---
 
@@ -238,6 +238,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-22**: Accepted `ADR-066` and added exact Alpine `musl==1.2.5-r24` runtime and matching
+  build-stage remediation to the existing `0.1.6` lifecycle without changing its versions,
+  publication boundary, evidence sequence, or immutable history.
 - **2026-10-22**: Accepted `ADR-065`, reopened F-11, and recorded the bounded image-only
   `0.1.6`/Action `v1.0.6` security replacement. Existing Python versions and every immutable
   `0.1.5` record remain unchanged while the complete candidate, performance, release, proof, and

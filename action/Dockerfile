@@ -6,7 +6,7 @@ RUN apk add --no-cache \
         binutils=2.45.1-r0 \
         gcc=15.2.0-r2 \
         make=4.4.1-r3 \
-        musl-dev=1.2.5-r23 \
+        musl-dev=1.2.5-r24 \
         openssl-dev=3.5.9-r0 \
         pkgconf=2.5.1-r0 \
         xz=5.8.4-r0 \
@@ -162,7 +162,7 @@ RUN apk add --no-cache \
         cargo=1.91.1-r2 \
         gcc=15.2.0-r2 \
         libffi-dev=3.5.2-r0 \
-        musl-dev=1.2.5-r23 \
+        musl-dev=1.2.5-r24 \
         openssl-dev=3.5.9-r0 \
         pkgconf=2.5.1-r0 \
         rust=1.91.1-r2 \
@@ -196,6 +196,12 @@ RUN apk add --no-cache \
         libcrypto3=3.5.9-r0 \
         libgcc=15.2.0-r2 \
         libssl3=3.5.9-r0 \
+        musl=1.2.5-r24 \
+    && musl_owner="$(apk info -W /lib/ld-musl-*.so.1)" \
+    && musl_version="${musl_owner##* is owned by }" \
+    && test "${musl_version}" = "musl-1.2.5-r24" \
+    && printf '%s\n' "${musl_version}" \
+        > /usr/share/attest/runtime-package-versions.txt \
     && cp /usr/share/zoneinfo/UTC /tmp/attest-UTC \
     && rm -rf \
         /etc/terminfo \
@@ -575,6 +581,7 @@ RUN destination=/split \
     && cp \
         /usr/share/attest/SOURCE-MANIFEST.json \
         /usr/share/attest/loader-dependencies.txt \
+        /usr/share/attest/runtime-package-versions.txt \
         /usr/share/attest/runtime-components.openvex.json \
         /usr/share/attest/runtime-components.spdx.json \
         "${destination}/usr/share/attest/" \
