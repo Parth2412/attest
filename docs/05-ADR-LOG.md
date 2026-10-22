@@ -3947,3 +3947,82 @@ blocked until its challenge prerequisite is satisfied.
 Acceptance authorizes only this evidence reconciliation and F-11 lifecycle transition. It does
 not authorize F-12 implementation, closure of an empirical challenge without its required
 evidence, mutation of a public record, or a complete product/v1 launch claim.
+
+---
+
+## ADR-065 — Replace the affected Action CA bundle through a complete patch release
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-064`
+
+**Context.** On 2026-10-20, certifi published critical advisory
+`GHSA-6q48-6c7w-9gw2`: releases before `2026.10.19` retain a root whose compromised intermediate
+CA keys can permit an on-path attacker to present valid-looking certificates. The advisory
+explicitly requires users to upgrade to `2026.10.19` or later and rebuild containers that vendor
+certifi. The immutable `v1.0.5` Action image contains locked `certifi==2026.7.22` in its runtime,
+so it is affected even though its release evidence was correct when produced. Fresh public
+`attest-cli==0.1.4` installation resolves `certifi==2026.10.19`; no published attest distribution
+contains an unsafe direct pin and no Python distribution byte needs replacement.
+
+The same audit found locked development-only `virtualenv==21.14.1` affected by seven 2026 GitHub
+advisories. The latest reviewed release is `21.14.12`; upgrading it also resolves its transitive
+`python-discovery` dependency to `1.6.4`. Neither package enters the Action runtime, but retaining
+an affected environment-creation tool in the repository lock would keep CI and contributor
+workstations exposed and would leave `pip-audit` red.
+
+**Decision.** Preserve every `0.1.5`, `v0.1.5`, `v1.0.5`, package, Bundle, and release-evidence
+record unchanged. Update the single committed lock to exactly `certifi==2026.10.19`,
+`virtualenv==21.14.12`, and the resolver-selected `python-discovery==1.6.4`. Add a contract that
+asserts those exact reviewed versions and a real-container contract that proves the new runtime
+contains `certifi==2026.10.19` and excludes `virtualenv`.
+
+Build a unique `0.1.6-candidate` from protected `dev` under every existing `REQ-F11-210` through
+`REQ-F11-280` control: enumerated context, hash-locked inputs, both target architectures, complete
+real-container suite, runtime and native-component scans, source correspondence, SBOM,
+provenance, and identity-bound GitHub attestations. A reviewed digest-pinning change must be the
+only path from that candidate into the Action manifest. The exact protected `main` commit and
+reviewed manifest must then complete a fresh automatic-plus-two-reviewed-dispatch sequence of
+three attempt-1 20-job measurements and the recomputed 60-sample gate under unchanged evidence
+schema 2, strict 15-second engineering target, and strict release SLO below 18 seconds.
+
+After every preflight passes, promote the exact candidate without rebuilding to image `0.1.6`,
+create immutable source `v0.1.6` and Action `v1.0.6`, retain complete release and dogfood evidence,
+and perform the same-repository and fork-denial public proofs. Only the separately reviewed
+protected promotion may move `v1` from `v1.0.5` to the exact `v1.0.6` release commit. The release
+publishes no Python distribution, and its clean Python 3.12/3.13 probes must verify the existing
+public package set resolves a non-affected certifi version.
+
+F-11 returns to `In progress` until the new candidate, performance sequence, immutable release,
+dogfood, public proof, fork denial, and independent `v1` promotion all pass. Closing the critical
+dependency alert requires the merged lock and a successful dependency audit; it must not be
+dismissed as accepted risk.
+
+**Rationale.** The vulnerable bytes are in the shipped container, so documentation alone cannot
+remediate the release. An image-only patch preserves PyPI immutability and avoids manufacturing new
+package files where public resolution already selects the corrected CA bundle. Reusing the
+existing two-phase path keeps the replacement subject to the same evidence and identity boundary
+as the release it supersedes.
+
+**Rejected alternatives.** Continuing to recommend `v1.0.5`, mutating an existing image or tag,
+or moving `v1` before the replacement proof would expose users or destroy release immutability.
+Republishing unchanged Python distributions would create different files under new versions
+without correcting a package constraint. Dismissing the advisory, relaxing the vulnerability
+gate, reusing old candidate or performance evidence, skipping an architecture, or rebuilding at
+promotion would weaken the accepted supply-chain contract.
+
+**Consequences.** The patch incurs a fresh multi-platform candidate, three-run performance
+sequence, protected release, public proof, and reviewed promotion. `v1.0.5` remains verifiable
+historical evidence but is superseded for new deployments after `v1.0.6` completes. Runtime bytes
+and their manifest digest change; predicate, CLI, package, signing, trust-refresh, storage, policy,
+and public Action input/output contracts do not.
+
+### ADR-065 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-290` | Lock the reviewed fixed runtime and development dependencies; prove exact runtime inclusion/exclusion; build and pin a unique two-platform candidate; repeat every existing candidate, performance, release, dogfood, public-proof, fork-denial, and reviewed-promotion gate; publish no Python distribution; reconcile lifecycle and public guidance only after exact evidence exists | `uv.lock`, candidate/performance/release/promotion workflows and tests, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+Acceptance authorizes only this bounded security replacement and its exact evidence lifecycle. It
+does not authorize a package publication, dependency/API change beyond the three locked versions,
+existing-record mutation, relaxed scan or performance threshold, F-12 implementation, or a
+complete product/v1 launch claim.

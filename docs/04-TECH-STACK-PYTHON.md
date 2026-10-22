@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.8` |
+| Version | `1.7.9` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-15 |
+| Last updated | 2026-10-22 |
 
 ---
 
@@ -121,6 +121,12 @@ The executed pre-bootstrap baselines are `pygit2==1.20.0`, `rfc8785==0.1.4`,
 `sigstore==4.5.0`, `pydantic==2.13.5`, and `jsonschema==4.26.0`. `BOOT-001 §4.1`
 requires the first `uv.lock` to resolve these versions exactly. They may move only after the
 corresponding `CH-01`/`CH-02` conformance is repeated.
+
+`ADR-065` sets the reviewed security-replacement lock baseline to runtime
+`certifi==2026.10.19`, development-only `virtualenv==21.14.12`, and its resolver-selected
+`python-discovery==1.6.4`. The latter two packages **MUST NOT** enter the Action runtime. The
+candidate gate proves the exact runtime certifi version in a real container and `pip-audit`
+rejects any remaining affected locked dependency.
 
 ### 3.1 Notes on specific choices
 
@@ -328,8 +334,8 @@ is by far the most persuasive demo you will have.
 | Channel | Artifact | Audience |
 |---|---|---|
 | PyPI | Current core/collect/policy `0.1.0`, store/sign `0.1.1`, and CLI `0.1.4`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current `ghcr.io/parth2412/attest:0.1.5` at manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.5`, and reviewed moving `v1`, all at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| GHCR | Current public `ghcr.io/parth2412/attest:0.1.5` at manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; `ADR-065` replacement `0.1.6` is required before new-deployment recommendation; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.5`, and reviewed moving `v1`, all at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; `ADR-065` replacement `v1.0.6` is in progress and earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The performance-correction image records and pins the verified
@@ -399,6 +405,10 @@ closed rather than being reinterpreted.
 public proof, fork denial, dogfood, and independently reviewed movement of `v1`. The three p95
 values were 15, 14, and 16 seconds and the combined 60-sample p95 was 16 seconds: all four passed
 the strict release SLO, while the retained evidence continues to expose engineering-target misses.
+`ADR-065` preserves those records but requires an image-only `0.1.6`/`v1.0.6` replacement for
+affected runtime `certifi==2026.7.22`. It publishes no Python distribution, repeats every candidate
+and schema-2 performance gate, and forbids moving `v1` until the immutable release, dogfood,
+same-repository proof, fork denial, and independent protected promotion verify.
 
 ---
 

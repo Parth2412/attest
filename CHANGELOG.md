@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-065 and reopened F-11 for an image-only security replacement: the workspace now
+  locks corrected `certifi 2026.10.19`, development-only `virtualenv 21.14.12`, and
+  `python-discovery 1.6.4`; a unique two-platform `0.1.6-candidate` must repeat every supply-chain,
+  performance, release, dogfood, public-proof, and reviewed-promotion gate without publishing a
+  Python distribution or mutating an earlier record.
 - Completed F-11 under ADR-064 on exact product release `v0.1.5` and Action `v1.0.5`: the three
   attempt-1 performance runs and combined 60 samples passed the strict release SLO, signer `0.1.1`
   and CLI `0.1.4` verified publicly, the reviewed image was promoted without rebuilding, dogfood

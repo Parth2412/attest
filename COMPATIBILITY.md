@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.17.0` |
+| Version | `1.17.1` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-10-15 |
+| Last updated | 2026-10-22 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -43,8 +43,9 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
-F-11's published Action/image and release supply chain are active and Done. F-12 is Planned and
-`attest-export` remains a development scaffold pending `CH-04`.
+F-11's published Action/image remain active historical releases, but F-11 is `In progress` while
+`ADR-065` replaces the affected `v1.0.5` runtime CA bundle. F-12 is Planned and `attest-export`
+remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -172,7 +173,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | exact core/collect/policy 0.1.0 and sign/store 0.1.1 in published `0.1.4` metadata | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1 | `REQ-F11-010`, `C-09`, `ADR-046`, `ADR-064` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065` |
 
 ---
 
@@ -196,8 +197,8 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | public `ghcr.io/parth2412/attest:0.1.5` for amd64/arm64 at immutable manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a` | **Primary** CI channel | `F-11` |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.5` and reviewed moving `v1` at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209` | Most users — generated workflows pin a commit | `F-11` |
+| GHCR | public `ghcr.io/parth2412/attest:0.1.5` for amd64/arm64 at immutable manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; affected CA-bundle replacement `0.1.6` is in progress | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.5` and reviewed moving `v1` at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; `v1.0.6` replacement is in progress | Most users — generated workflows pin a commit | `F-11` |
 | PyPI | core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4`; no export distribution | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
@@ -237,6 +238,10 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-22**: Accepted `ADR-065`, reopened F-11, and recorded the bounded image-only
+  `0.1.6`/Action `v1.0.6` security replacement. Existing Python versions and every immutable
+  `0.1.5` record remain unchanged while the complete candidate, performance, release, proof, and
+  independent promotion sequence is repeated.
 - **2026-10-15**: Accepted `ADR-064` and completed F-11 on immutable product/image `0.1.5`, source
   `v0.1.5`, Action `v1.0.5`, reviewed moving `v1`, signer `0.1.1`, and CLI `0.1.4` evidence. The
   schema-2 performance sequence, release dogfood, same-repository proof, safe fork denial, and

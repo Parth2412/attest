@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.6` |
+| Version | `1.4.7` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-22 |
 
 ---
 
@@ -181,6 +181,13 @@ DEFLATE level 9. Its sorted members, fixed timestamps and modes, checked-hash by
 set, and in-place import path remain mandatory; no repository-controlled member is added and no
 runtime extraction path is introduced. Both architectures must prove the complete archive and
 native runtime behavior before candidate acceptance.
+`ADR-065` treats an advisory affecting shipped runtime trust material as a release regression, not
+an accepted lockfile warning. Exact corrected certifi bytes must enter a unique two-platform
+candidate, pass the complete existing scan and supply-chain boundary, and reach users only through
+reviewed digest pinning and immutable patch release. Affected immutable images remain historical
+records rather than being mutated. Development-only virtualenv is updated in the same lock and is
+proved absent from the Action runtime; no Python distribution is republished because clean public
+installs already resolve the corrected transitive dependency.
 
 ---
 
