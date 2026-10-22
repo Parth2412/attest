@@ -204,6 +204,10 @@ class _GitObjects(Protocol):
     def create_ref(self, name: str, object_id: str) -> bool: ...
 
 
+class _RefLockContentionError(Exception):
+    """Signal a retryable create-only reference lock collision."""
+
+
 class _Pygit2Objects:
     def __init__(self, repository_path: Path) -> None:
         try:
@@ -271,11 +275,15 @@ class _Pygit2Objects:
 
         self._validate_repository()
         try:
-            self._repository.create_reference(name, pygit2.Oid(hex=object_id), force=False)
-        except pygit2.AlreadyExistsError:
-            return False
-        except OSError:
-            # libgit2 reports another process's transient ref lock as OSError.
+            with self._repository.transaction() as transaction:
+                try:
+                    transaction.lock_ref(name)
+                except (pygit2.GitError, OSError):
+                    raise _RefLockContentionError from None
+                if self._repository.references.get(name) is not None:
+                    return False
+                transaction.set_target(name, pygit2.Oid(hex=object_id))
+        except _RefLockContentionError:
             return False
         except Exception:
             raise store_error("ERR-STORE-404") from None
