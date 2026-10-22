@@ -4,13 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-066 and extended the unreleased Action security replacement with exact Alpine
+  `musl 1.2.5-r24` build/runtime pins plus retained installed-version evidence for
+  `CVE-2026-107891`; ADR-065's versions, no-PyPI boundary, and complete release gates are unchanged.
+- Accepted ADR-065 and reopened F-11 for an image-only security replacement: the workspace now
+  locks corrected `certifi 2026.10.19`, development-only `virtualenv 21.14.12`, and
+  `python-discovery 1.6.4`; a unique two-platform `0.1.6-candidate` must repeat every supply-chain,
+  performance, release, dogfood, public-proof, and reviewed-promotion gate without publishing a
+  Python distribution or mutating an earlier record.
+- Completed F-11 under ADR-064 on exact product release `v0.1.5` and Action `v1.0.5`: the three
+  attempt-1 performance runs and combined 60 samples passed the strict release SLO, signer `0.1.1`
+  and CLI `0.1.4` verified publicly, the reviewed image was promoted without rebuilding, dogfood
+  and same-repository/fork proofs completed, and protected reviewed promotion moved `v1` to the
+  immutable release commit.
 - Accepted and implemented ADR-062's source-verified minimal Git/HTTPS Action runtime after
   ADR-061 run `38257587284` retained 20 successful samples but failed closed at p95 17 seconds.
   The Action now builds hash-locked Git 2.52.0 and curl 8.22.0 with their minimal verified
   transport closure, publishes identity-attested corresponding source before the binary, scans
   exact CPE component evidence with immutable Grype and one exact Windows-only OpenVEX
-  not-affected statement, and retains both-platform layer/binary/loader and release evidence;
-  a new candidate and complete three-run performance sequence remain required.
+  not-affected statement, and retains both-platform layer/binary/loader and release evidence.
+  Candidate run `38529646263` passed the complete source, component, platform, scan, SBOM,
+  provenance, and attestation gates for image
+  `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; the complete
+  three-run performance sequence remains required.
 - Added ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, reducing the Action's
   applied filesystem footprint while retaining the closed bytecode set, fixed metadata, in-place
   imports, and every existing candidate and performance gate.

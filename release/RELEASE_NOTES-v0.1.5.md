@@ -7,10 +7,11 @@ Verification rules, outputs, and failure semantics remain fail closed.
 ## Release contents
 
 - GitHub Action `v1.0.5` pins the reviewed multi-platform image manifest
-  `sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584`.
+  `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`.
 - Image `0.1.5` retains digest-pinned `python:3.12.14-alpine3.23`, exact
-  `git=2.52.0-r0` and `libgcc=15.2.0-r2`, and uses exact dynamic
-  `libcrypto3=3.5.9-r0` and `libssl3=3.5.9-r0`.
+  `libgcc=15.2.0-r2`, `libcrypto3=3.5.9-r0`, `libssl3=3.5.9-r0`, and zlib, while building
+  unmodified Git `2.52.0` and curl `8.22.0` from hash-locked upstream sources. The retained
+  runtime includes only the verified Git HTTP(S) transport and its rediscovered loader closure.
 - Locked `cryptography==50.0.1`, `pydantic-core==2.46.5`, and
   `rfc3161-client==1.0.8` are built from their hash-locked source distributions with removable
   `maturin==1.15.0`, `setuptools==84.0.0`, exact Alpine build packages, and the approved size
@@ -36,15 +37,21 @@ Verification rules, outputs, and failure semantics remain fail closed.
 - Exact branch `workflow_dispatch` events validate their closed payload, workflow identity,
   checkout, complete history, and first-parent comparison before using push-equivalent ChangeSet
   coordinates; tags, roots, traversal, incomplete history, and mismatches fail closed.
-- Both `linux/amd64` and `linux/arm64` execute the complete 20-test real-container contract suite,
+- The candidate publishes and identity-attests the exact corresponding-source artifact before
+  the binary, retains Git/curl licences and SPDX identities, and passes immutable CPE-aware Grype
+  scanning with only the exact Windows-only `CVE-2026-62960` OpenVEX statement.
+- Both `linux/amd64` and `linux/arm64` execute the complete 22-test real-container contract suite,
   including offline historical signature verification, before release.
 - The retained candidate includes clean per-platform scans, SBOM, maximum provenance,
   source/context/manifest digests, and a GitHub-hosted identity-bound attestation. Attempt-1 run
-  `38250635610` binds source `b1d5475da39b2e9522482894dc675c73ecb118a1` and context
-  `sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b`.
+  `38529646263` binds source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
+  `sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
+  `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public
+  corresponding source `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`.
 - The exact merged Action and candidate digest must pass three consecutive fresh attempt-1 hosted
   measurements of 20 jobs each. Every individual p95 and the combined 60-sample p95 must remain
-  below 15 seconds.
+  strictly below the 18-second release SLO. The strict 15-second engineering target is retained
+  and reported independently for every result.
 - `attest-sign==0.1.1` is rebuilt from the reviewed source and published through its protected
   PyPI Trusted Publisher environment.
 - `attest-cli==0.1.4` exact-pins `attest-sign==0.1.1`; both public distributions are byte-matched

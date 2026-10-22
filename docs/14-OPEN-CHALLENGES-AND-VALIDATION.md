@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.5` |
+| Version | `1.1.8` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-15 |
 
 ---
 
@@ -368,6 +368,34 @@ p95 17 seconds and remains immutable negative evidence. Accepted `ADR-062` repla
 Action image's Git/curl transport closure with exact hash-locked minimal source builds, public
 corresponding source, component scanning, and both-platform loader/layer evidence before another
 unique candidate restarts every supply-chain and performance gate.
+Candidate run `38529646263`, attempt 1, then passed every source-correspondence, exact-component,
+two-platform, scan, SBOM, provenance, identity-attestation, and 22-test real-container gate for
+source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public source
+artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`. It is the sole
+ADR-062 baseline for the then-pending fresh three-run performance sequence.
+
+Automatic run `38570478871`, attempt 1, then measured exact merged commit
+`f22f5be015a020b520d5abcb736ba236af7198cc` with that same manifest. All 20 jobs succeeded at
+p50 11 seconds and p95 17 seconds; exact timestamps measured total p95 16.861 seconds,
+image-pull/extraction p95 9.182 seconds, and post-pull p95 8.711 seconds. The run remains immutable
+negative evidence under the then-current 15-second gate and is excluded from future sequences.
+Accepted `ADR-063` preserves the original CH-09 closure and exact measurement procedure while
+separating the strict 15-second engineering target from a strict 18-second operational release
+SLO. A fresh exact-commit automatic run plus two reviewed dispatches, and their combined 60
+samples, must each pass the release SLO under evidence schema 2 before `0.1.5`/`v1.0.5` may ship.
+
+That qualifying sequence completed on 2026-10-15 for exact release commit
+`203d2deb7dff946dc82c6efc6506bc34adbcd209` and the unchanged `ADR-062` manifest. Automatic run
+`38709056956` and reviewed dispatches `38709259244` and `38709401770`, all attempt 1, retained p95
+values of 15, 14, and 16 seconds; their combined 60-sample summary retained p50 10 seconds and p95
+16 seconds. All four results passed the strict release SLO below 18 seconds. Release run
+`38709868210` completed immutable image `0.1.5`, source `v0.1.5`, Action `v1.0.5`, dogfood, and
+public evidence. Public proof PR #8 and fork proof PR #9 established the required success and safe
+failure states, and protected promotion run `38738669979` moved `v1` only after independent review.
+`ADR-064` accepts this correction evidence and closes F-11 without claiming the separately retained
+15-second engineering target was met by every run.
 
 **If not met:** slim the image, defer imports, cache layers. If it remains unacceptable **and**
 design partners rank it their top complaint, `ADR-011`'s single trigger fires — verifier only,
@@ -390,7 +418,7 @@ is settled and what is not.
 | `CH-06` | OPEN | — | — | — |
 | `CH-07` | OPEN | — | — | — |
 | `CH-08` | CLOSED | 2026-09-11 | Both backends completed merged Kubernetes PR #26755 (3,556 `CSD-1` transitions) below 500 ms, an exact 1,000-transition real-tree case below 87 ms, and an 11,139-transition Linux case with identical digests and 43.86 MiB peak traced Python allocations. Validation used CPython 3.13.12, supported Git 2.47.3, pygit2 1.20.0, and libgit2 1.9.6. | — |
-| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers. Exact release run `36761068084`, attempt 1, measured p50 11 s and nearest-rank p95 14 s across 20 hosted jobs for release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb` and image `sha256:7415834d673915cf7935d43f867fd4b49f032984f4733f411eb88a787fe1f4df`; immutable release, dogfood, public proof, fork denial, and reviewed `v1` promotion completed. Runs `36872334911`, `36905961561`, `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38225190032`, `38249545348`, and `38257587284` retained later p95 regressions; candidate run `38250635610` passed the complete `ADR-061` supply-chain gate. Accepted `ADR-054`, `ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, and `ADR-062` govern the in-progress operational reliability correction without reopening the original release evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061`; `ADR-062` |
+| `CH-09` | CLOSED | 2026-10-01 | `ADR-053` halved the compressed runtime layers and exact release run `36761068084` passed the original gate at p95 14 s. Retained later runs exposed hosted variance and drove the bounded `ADR-054`–`ADR-063` reliability correction. Candidate run `38529646263` passed the complete source, component, platform, security, and supply-chain boundary for manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`. Exact attempt-1 runs `38709056956`, `38709259244`, and `38709401770` then measured p95 15, 14, and 16 s; their combined 60-sample p95 was 16 s. All four schema-2 results passed the strict release SLO below 18 s while reporting the separate 15 s engineering target honestly. Release run `38709868210`, public proof PRs #8/#9, and reviewed promotion run `38738669979` completed immutable `0.1.5`/`v0.1.5`/`v1.0.5` publication and movement of `v1`. `ADR-064` closes F-11 on that evidence. | `ADR-053`; `ADR-054`; `ADR-057`; `ADR-058`; `ADR-059`; `ADR-060`; `ADR-061`; `ADR-062`; `ADR-063`; `ADR-064` |
 
 ---
 

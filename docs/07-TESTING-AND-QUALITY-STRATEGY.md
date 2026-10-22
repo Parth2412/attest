@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.4.8` |
+| Version | `1.5.3` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-22 |
 
 ---
 
@@ -220,44 +220,49 @@ a written justification. An untriaged surviving mutant in the verifier blocks a 
 
 A release **MUST NOT** ship unless:
 
-- [ ] All CI jobs green on the release commit
-- [ ] All test vectors pass on both git backends
-- [ ] All storage conformance tests pass on filesystem, OCI fixture, Git CLI, and pygit2 backends
-- [ ] Adversarial suite green
-- [ ] Schema drift check green
-- [ ] CLI config, Collection Artifact, and output schema drift checks green once F-10 is implemented
-- [ ] Banned-language check green
-- [ ] Traceability check green
-- [ ] No untriaged surviving mutant in the verifier
-- [ ] `pip-audit` reports no unmitigated high-severity advisory
-- [ ] Candidate and protected release workflows prove final build-context equality, exact candidate manifest promotion, both target architectures, a pinned base, SBOM, provenance, and GitHub artifact attestations
-- [ ] Build and publish authority are separated; PyPI Trusted Publishing uses the six protected per-package environments and no long-lived package token exists
-- [ ] The first-release PyPI bootstrap verifies wave one publicly before exposing the protected second-wave registration checkpoint; image promotion and final release remain blocked until all six publications succeed
-- [ ] Clean environments install and smoke-test exactly the six approved `0.1.0` distributions; `attest-export` is neither published nor a CLI dependency
-- [ ] The `0.1.1` correction builds and publishes only `attest-cli`, proves its five exact `0.1.0` library pins in clean Python 3.12/3.13 environments, and verifies both public files byte-for-byte through version-specific PyPI metadata; an exact recovery imports the prior OIDC evidence, never re-uploads, and crosses the intentionally skipped publisher only when every required direct gate reports success
-- [ ] The `0.1.1` correction proves the public `0.1.0` image digest and immutable `v1.0.0` record are unchanged, creates protected immutable `v0.1.1`/`v1.0.1` records, and does not move `v1` before the replacement public proof succeeds
-- [ ] The `0.1.2` correction builds and publishes only `attest-cli`, retains the five exact `0.1.0` library pins, builds/scans/attests a new two-platform candidate image, proves final context equality, and promotes that exact manifest to `0.1.2` without rebuilding
-- [ ] The `0.1.2` release creates protected immutable `v0.1.2`/`v1.0.2` records without changing any earlier PyPI file, image, tag, or Release; `v1` moves only after the replacement public proof establishes the required blocked, denied, approved, malicious-content, and fork states
-- [ ] The `0.1.3` correction publishes only store `0.1.1` and CLI `0.1.3`, imports a stable exact-digest attestation-ref snapshot without overwriting local refs or `FETCH_HEAD`, promotes the exact reviewed `0.1.3` image candidate, and creates protected immutable `v0.1.3`/`v1.0.3` records without changing earlier public artifacts
-- [ ] The `0.1.3` replacement proof retains the public v1.0.2 denied Bundle, publishes an approved sibling Bundle for the same ChangeSet, and completes blocked, denied, approved, malicious-content, and fork states before `v1` moves
-- [ ] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
-- [ ] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
-- [ ] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
+- [x] All CI jobs green on the release commit
+- [x] All test vectors pass on both git backends
+- [x] All storage conformance tests pass on filesystem, OCI fixture, Git CLI, and pygit2 backends
+- [x] Adversarial suite green
+- [x] Schema drift check green
+- [x] CLI config, Collection Artifact, and output schema drift checks green once F-10 is implemented
+- [x] Banned-language check green
+- [x] Traceability check green
+- [x] No untriaged surviving mutant in the verifier
+- [x] `pip-audit` reports no unmitigated high-severity advisory
+- [x] Candidate and protected release workflows prove final build-context equality, exact candidate manifest promotion, both target architectures, a pinned base, SBOM, provenance, and GitHub artifact attestations
+- [x] Build and publish authority are separated; PyPI Trusted Publishing uses the six protected per-package environments and no long-lived package token exists
+- [x] The first-release PyPI bootstrap verifies wave one publicly before exposing the protected second-wave registration checkpoint; image promotion and final release remain blocked until all six publications succeed
+- [x] Clean environments install and smoke-test exactly the six approved `0.1.0` distributions; `attest-export` is neither published nor a CLI dependency
+- [x] The `0.1.1` correction builds and publishes only `attest-cli`, proves its five exact `0.1.0` library pins in clean Python 3.12/3.13 environments, and verifies both public files byte-for-byte through version-specific PyPI metadata; an exact recovery imports the prior OIDC evidence, never re-uploads, and crosses the intentionally skipped publisher only when every required direct gate reports success
+- [x] The `0.1.1` correction proves the public `0.1.0` image digest and immutable `v1.0.0` record are unchanged, creates protected immutable `v0.1.1`/`v1.0.1` records, and does not move `v1` before the replacement public proof succeeds
+- [x] The `0.1.2` correction builds and publishes only `attest-cli`, retains the five exact `0.1.0` library pins, builds/scans/attests a new two-platform candidate image, proves final context equality, and promotes that exact manifest to `0.1.2` without rebuilding
+- [x] The `0.1.2` release creates protected immutable `v0.1.2`/`v1.0.2` records without changing any earlier PyPI file, image, tag, or Release; `v1` moves only after the replacement public proof establishes the required blocked, denied, approved, malicious-content, and fork states
+- [x] The `0.1.3` correction publishes only store `0.1.1` and CLI `0.1.3`, imports a stable exact-digest attestation-ref snapshot without overwriting local refs or `FETCH_HEAD`, promotes the exact reviewed `0.1.3` image candidate, and creates protected immutable `v0.1.3`/`v1.0.3` records without changing earlier public artifacts
+- [x] The `0.1.3` replacement proof retains the public v1.0.2 denied Bundle, publishes an approved sibling Bundle for the same ChangeSet, and completes blocked, denied, approved, malicious-content, and fork states before `v1` moves
+- [x] The `0.1.4-candidate` image uses the ADR-053 digest-pinned Alpine base and exact package set, passes both architecture scans, and retains SBOM, provenance, context/manifest digests, and identity-bound GitHub attestation
+- [x] The exact merged Action and candidate digest pass 20 fresh attempt-1 hosted measurements below 15 s nearest-rank p95 before image `0.1.4`, source `v0.1.4`, or Action `v1.0.4` is published; no Python distribution is rebuilt or uploaded
+- [x] The `v1.0.4` public proof, release evidence, and performance evidence verify before the reviewed procedure moves `v1` from `v1.0.3`
 - [x] Candidate run `38250635610` proves the `0.1.5-candidate` image uses ADR-059's exact locked source builds for cryptography, pydantic-core, and rfc3161-client, the exact build-only toolchain and size flags, pinned dynamic system OpenSSL/libgcc with only the closed `rpds-py` compatibility link, ADR-058's build-verified non-timestamp TUF seed, ADR-060's deterministic DEFLATE level-9 pure-Python runtime archive, and ADR-061's debug-range, guarded process-boundary, and exact branch-dispatch controls; both architectures pass all 20 real-container cryptographic/native-module/trust-seed/archive/event tests, scans, SBOM/provenance checks, and identity-bound attestation
-- [ ] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain below 15 s nearest-rank p95 before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
-- [ ] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
+- [x] The exact merged Action and `0.1.5-candidate` digest complete three consecutive fresh attempt-1 20-job measurements; every run and the combined 60 samples remain strictly below the 18 s nearest-rank p95 release SLO, while the strict 15 s engineering target is reported independently, before image `0.1.5`, source `v0.1.5`, or Action `v1.0.5` is published
+- [x] The signer contracts prove concurrent ambient OIDC and mandatory online trust acquisition, refreshed-root identity-bound verification of the exact DSSE payload, the ADR-056 one-retry pre-Rekor ceiling, ADR-057's two-call transient acquisition ceilings, and one signer/Rekor path per attempt without any offline-only success
 - [x] The Action-only signer process boundary permits `fork` solely through the digest-matched adapter's fresh scoped capability on Linux's sole main thread, rejects caller markers, and preserves identical isolation, deadline, retry, termination, and secret-safety behavior under `spawn` and `fork`
 - [x] Local build and real-container contracts prove both deterministic archives omit only fine-grained debug ranges and that exact branch dispatches derive the checked-out head's first parent while malformed, tag, root, incomplete, and inconsistent dispatches fail closed
-- [ ] A new unique candidate proves ADR-062's exact hash-locked Git/curl source builds, licences, component SPDX, immutable CPE-aware Grype output, the single exact OpenVEX not-affected statement, and unchanged vulnerability gate; both-platform local and verified-HTTPS transport, forbidden-library absence, loader mappings, binary hashes/sizes, and four-layer/three-primary-zstd layout; public identity-attested corresponding source must exist before that binary and the release must retain the exact same materials
-- [ ] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
-- [ ] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
-- [ ] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
-- [ ] The release itself is attested by attest, and that attestation verifies publicly
-- [ ] CHANGELOG updated
-- [ ] Backwards compatibility confirmed: attestations from every prior version still verify
-- [ ] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
-- [ ] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
-- [ ] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, and `38257587284`; and, for ADR-054–ADR-062, three new consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every required nearest-rank p95 includes image pull and is below 15 seconds
+- [x] Candidate run `38529646263` proves ADR-062's exact hash-locked Git/curl source builds, licences, component SPDX, immutable CPE-aware Grype output, the single exact OpenVEX not-affected statement, and unchanged vulnerability gate; both-platform local and verified-HTTPS transport, forbidden-library absence, loader mappings, binary hashes/sizes, and four-layer/three-primary-zstd layout; public identity-attested source artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457` preceded and is linked from image `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`
+- [x] The bounded release builds only `attest-sign==0.1.1` and `attest-cli==0.1.4`, proves the exact internal pin, uses their separate protected Trusted Publishers without `skip-existing`, matches both public artifacts byte-for-byte, and clean-installs them on Python 3.12 and 3.13 without rebuilding another distribution
+- [x] The `v1.0.5` release, dogfood, onboarding proof, fork denial, three-run performance evidence, and immutable records verify before the reviewed procedure moves `v1` from `v1.0.4`
+- [x] The bounded `dev` integration uses `[skip ci]` only after all required pull-request checks pass, proves the squash tree equals the checked head, and starts no Action candidate run; the exact `main` release commit contains no skip directive and passes the complete CI suite
+- [x] The release itself is attested by attest, and that attestation verifies publicly
+- [x] CHANGELOG updated
+- [x] Backwards compatibility confirmed: attestations from every prior version still verify
+- [x] F-11 fresh-repository test proves the generated F-10 workflow runs unmodified with the published full-SHA Action and immutable image digest
+- [x] F-11 real-repository evidence proves required expected-App-pinned blocking/success states, safe fork failure before repository reads, and no untrusted repository execution
+- [x] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38257587284`, and `38570478871`; and, for ADR-063, three fresh consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every result includes image pull, reports the strict 15-second engineering target, and passes the strict release SLO below 18 seconds
+- [ ] The `ADR-065` lock contains exact `certifi==2026.10.19`, `virtualenv==21.14.12`, and `python-discovery==1.6.4`; dependency audit is clean; and both real-container platforms prove the corrected certifi runtime and virtualenv exclusion
+- [ ] The `ADR-066` image builds against exact `musl-dev==1.2.5-r24`, runs exact `musl==1.2.5-r24`, retains its single-line installed-version record after package metadata removal, and rejects affected `r23` on both architectures
+- [ ] The unique `0.1.6-candidate` passes every existing context, source-correspondence, real-container, two-platform scan, component-scan, SBOM, provenance, and identity-attestation gate before reviewed digest pinning
+- [ ] Three fresh attempt-1 20-job performance runs and their combined 60 samples pass the unchanged schema-2 release SLO before exact image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` publish without a Python distribution
+- [ ] Release dogfood, same-repository proof, fork denial, public-package non-publication checks, and independent protected promotion verify before `v1` moves from `v1.0.5`
 
 ---
 

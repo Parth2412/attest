@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.6` |
+| Version | `1.7.10` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-22 |
 
 ---
 
@@ -121,6 +121,18 @@ The executed pre-bootstrap baselines are `pygit2==1.20.0`, `rfc8785==0.1.4`,
 `sigstore==4.5.0`, `pydantic==2.13.5`, and `jsonschema==4.26.0`. `BOOT-001 §4.1`
 requires the first `uv.lock` to resolve these versions exactly. They may move only after the
 corresponding `CH-01`/`CH-02` conformance is repeated.
+
+`ADR-065` sets the reviewed security-replacement lock baseline to runtime
+`certifi==2026.10.19`, development-only `virtualenv==21.14.12`, and its resolver-selected
+`python-discovery==1.6.4`. The latter two packages **MUST NOT** enter the Action runtime. The
+candidate gate proves the exact runtime certifi version in a real container and `pip-audit`
+rejects any remaining affected locked dependency.
+
+`ADR-066` adds Alpine's fixed `musl==1.2.5-r24` runtime and matching
+`musl-dev==1.2.5-r24` native-build baseline. The immutable Python base remains digest-pinned, so
+the runtime stage explicitly upgrades musl, proves the installed loader owner, and retains that
+exact revision after removing Alpine's package database. Both release architectures enforce the
+same record and reject affected `1.2.5-r23`.
 
 ### 3.1 Notes on specific choices
 
@@ -327,9 +339,9 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | Current core/collect/sign/policy `0.1.0`, store `0.1.1`, and CLI `0.1.3`; the bounded `ADR-055` release changes only sign to `0.1.1` and CLI to `0.1.4` | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current `ghcr.io/parth2412/attest:0.1.4`; reviewed `0.1.5` multi-platform Alpine manifest only after the complete candidate/performance gates; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable/promoted `v1.0.4`; bounded immutable `v1.0.5` only after its release gates; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| PyPI | Current core/collect/policy `0.1.0`, store/sign `0.1.1`, and CLI `0.1.4`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
+| GHCR | Current public `ghcr.io/parth2412/attest:0.1.5` at manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; `ADR-065` replacement `0.1.6` is required before new-deployment recommendation; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.5`, and reviewed moving `v1`, all at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; `ADR-065` replacement `v1.0.6` is in progress and earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
 The performance-correction image records and pins the verified
@@ -355,7 +367,8 @@ build toolchain. Runtime OpenSSL is exact `libcrypto3=3.5.9-r0` plus `libssl3=3.
 isolated Action interpreter may invoke the bundled CLI in-process only when its console script
 matches a build-generated SHA-256 marker; marker failure retains the subprocess path. Publication
 requires three consecutive 20-job attempt-1 measurements whose individual and combined
-nearest-rank p95 values are below 15 seconds. `ADR-055` amends the package boundary: mandatory
+nearest-rank p95 values meet the `ADR-063` release SLO below 18 seconds; the engineering target
+below 15 seconds remains separately recorded and does not gate release. `ADR-055` amends the package boundary: mandatory
 online trust refresh and refreshed-root verification change signer bytes, so the release publishes
 only `attest-sign==0.1.1` and `attest-cli==0.1.4`, with the latter exact-pinning the former.
 `ADR-056` retains those versions while allowing one refresh-gated fresh-process recovery from a
@@ -389,6 +402,22 @@ re-fetches and retains the same materials. Exact Git/curl component evidence rec
 critical and fixable-high scan policy as the image through immutable CPE-aware Grype. The sole
 not-affected statement covers Git-for-Windows `CVE-2026-62960`; its exact product, status,
 justification, and the raw scanner/database evidence are retained and fail closed on drift.
+`ADR-063` retains the exact `ADR-062` image, timing boundary, 20-job sample size, nearest-rank
+calculation, attempt-1 rule, and automatic-plus-two-reviewed-dispatch sequence. Evidence schema 2
+records both the strict 15-second engineering target and the strict 18-second release SLO for each
+run and for the combined 60 samples; only the SLO gates publication, and schema-1 summaries fail
+closed rather than being reinterpreted.
+`ADR-064` accepts the completed schema-2 sequence, immutable `0.1.5`/`v0.1.5`/`v1.0.5` release,
+public proof, fork denial, dogfood, and independently reviewed movement of `v1`. The three p95
+values were 15, 14, and 16 seconds and the combined 60-sample p95 was 16 seconds: all four passed
+the strict release SLO, while the retained evidence continues to expose engineering-target misses.
+`ADR-065` preserves those records but requires an image-only `0.1.6`/`v1.0.6` replacement for
+affected runtime `certifi==2026.7.22`. It publishes no Python distribution, repeats every candidate
+and schema-2 performance gate, and forbids moving `v1` until the immutable release, dogfood,
+same-repository proof, fork denial, and independent protected promotion verify.
+`ADR-066` folds Alpine's `CVE-2026-107891` fix into that still-unreleased replacement by pinning
+matching `musl-dev==1.2.5-r24` build stages and `musl==1.2.5-r24` runtime bytes, retaining exact
+installed-version evidence, and changing no ADR-065 release or publication boundary.
 
 ---
 

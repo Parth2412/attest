@@ -1,0 +1,21 @@
+version: 1
+repository:
+  path: "."
+  backend: auto
+signing:
+  environment: production
+  timeoutSeconds: 120
+verification:
+  identity: "https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/*/merge"
+  issuer: "https://token.actions.githubusercontent.com"
+  environment: production
+  offline: true
+policy:
+  path: ".attest/policy.yaml"
+storage:
+  backend: git-ref
+  directory: ".attest/bundles"
+  fallbackDirectory: ".attest/fallback"
+  git:
+    remote: origin
+    timeoutSeconds: 120

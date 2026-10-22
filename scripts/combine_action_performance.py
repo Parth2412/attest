@@ -13,11 +13,37 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final, NoReturn
 
-IMAGE_DIGEST: Final[str] = "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
+IMAGE_DIGEST: Final[str] = "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
 OID: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{40}\Z")
 DIGEST: Final[re.Pattern[str]] = re.compile(r"sha256:[0-9a-f]{64}\Z")
 METRIC_DEFINITION: Final[str] = (
     "Action step including image pull and wrapper/CLI work; checkout excluded"
+)
+SUMMARY_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schemaVersion",
+        "requirement",
+        "acceptanceCriterion",
+        "repository",
+        "workflowRun",
+        "action",
+        "fixture",
+        "metric",
+        "measurements",
+    }
+)
+METRIC_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "definition",
+        "sampleCount",
+        "engineeringTargetSecondsExclusive",
+        "sloThresholdSecondsExclusive",
+        "nearestRankP50Seconds",
+        "nearestRankP95Seconds",
+        "sortedSeconds",
+        "engineeringTargetPassed",
+        "passed",
+    }
 )
 
 
@@ -106,13 +132,15 @@ def _validate_summary(
     image_digest: str,
     run_id: int,
     expected_samples: int,
-    threshold: float,
+    engineering_target: float,
+    slo_threshold: float,
 ) -> tuple[list[float], dict[str, object], set[int]]:
     summary = _json(path)
     if (
-        summary.get("schemaVersion") != 1
-        or summary.get("requirement") != "REQ-F11-100"
-        or summary.get("acceptanceCriterion") != "AC-F11-100"
+        set(summary) != SUMMARY_FIELDS
+        or summary.get("schemaVersion") != 2
+        or summary.get("requirement") != "REQ-F11-280"
+        or summary.get("acceptanceCriterion") != "AC-F11-280"
         or summary.get("repository") != repository
     ):
         _fail(f"run {run_id} summary identity is invalid")
@@ -135,10 +163,19 @@ def _validate_summary(
     metric = _object(summary.get("metric"), f"run {run_id} metric")
     expected_p50 = _nearest_rank(ordered, 0.50)
     expected_p95 = _nearest_rank(ordered, 0.95)
+    expected_engineering_target_passed = expected_p95 < engineering_target
+    expected_slo_passed = expected_p95 < slo_threshold
     if (
-        metric.get("definition") != METRIC_DEFINITION
+        set(metric) != METRIC_FIELDS
+        or metric.get("definition") != METRIC_DEFINITION
         or metric.get("sampleCount") != expected_samples
-        or _number(metric.get("thresholdSecondsExclusive"), "metric threshold") != threshold
+        or _number(
+            metric.get("engineeringTargetSecondsExclusive"),
+            "metric engineering target",
+        )
+        != engineering_target
+        or _number(metric.get("sloThresholdSecondsExclusive"), "metric SLO threshold")
+        != slo_threshold
         or _number(metric.get("nearestRankP50Seconds"), "metric p50") != expected_p50
         or _number(metric.get("nearestRankP95Seconds"), "metric p95") != expected_p95
         or [
@@ -146,10 +183,12 @@ def _validate_summary(
             for value in _list(metric.get("sortedSeconds"), "sorted durations")
         ]
         != ordered
+        or metric.get("engineeringTargetPassed") is not expected_engineering_target_passed
+        or metric.get("passed") is not expected_slo_passed
     ):
         _fail(f"run {run_id} metric does not match its measurements")
-    if metric.get("passed") is not True or expected_p95 >= threshold:
-        _fail("every individual run must pass below the threshold")
+    if metric.get("passed") is not True or expected_p95 >= slo_threshold:
+        _fail("every individual run must pass below the release SLO")
     fixture = _object(summary.get("fixture"), f"run {run_id} fixture")
     return durations, fixture, job_ids
 
@@ -175,7 +214,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-image-digest", required=True)
     parser.add_argument("--expected-runs", type=int, required=True)
     parser.add_argument("--expected-samples-per-run", type=int, required=True)
-    parser.add_argument("--threshold-seconds", type=float, required=True)
+    parser.add_argument("--engineering-target-seconds", type=float, required=True)
+    parser.add_argument("--slo-threshold-seconds", type=float, required=True)
     return parser
 
 
@@ -191,7 +231,8 @@ def _run(arguments: argparse.Namespace) -> None:
     if (
         arguments.expected_runs != 3
         or arguments.expected_samples_per_run != 20
-        or arguments.threshold_seconds != 15
+        or arguments.engineering_target_seconds != 15
+        or arguments.slo_threshold_seconds != 18
     ):
         _fail("combined performance dimensions do not match the frozen contract")
     summaries = list(arguments.summary)
@@ -213,7 +254,8 @@ def _run(arguments: argparse.Namespace) -> None:
             image_digest=arguments.expected_image_digest,
             run_id=run_id,
             expected_samples=arguments.expected_samples_per_run,
-            threshold=arguments.threshold_seconds,
+            engineering_target=arguments.engineering_target_seconds,
+            slo_threshold=arguments.slo_threshold_seconds,
         )
         if all_job_ids & job_ids:
             _fail("measurement job IDs overlap across runs")
@@ -230,11 +272,12 @@ def _run(arguments: argparse.Namespace) -> None:
         _fail(f"combined evidence must contain exactly {expected_total} measurements")
     p50 = _nearest_rank(ordered, 0.50)
     p95 = _nearest_rank(ordered, 0.95)
-    passed = p95 < arguments.threshold_seconds
+    engineering_target_passed = p95 < arguments.engineering_target_seconds
+    passed = p95 < arguments.slo_threshold_seconds
     document: dict[str, object] = {
-        "schemaVersion": 1,
-        "requirement": "REQ-F11-210",
-        "acceptanceCriterion": "AC-F11-210",
+        "schemaVersion": 2,
+        "requirement": "REQ-F11-280",
+        "acceptanceCriterion": "AC-F11-280",
         "repository": arguments.repository,
         "headSha": arguments.head_sha,
         "imageDigest": arguments.expected_image_digest,
@@ -244,27 +287,29 @@ def _run(arguments: argparse.Namespace) -> None:
         "metric": {
             "definition": "Combined Action step durations from three consecutive hosted runs",
             "sampleCount": len(ordered),
-            "thresholdSecondsExclusive": arguments.threshold_seconds,
+            "engineeringTargetSecondsExclusive": arguments.engineering_target_seconds,
+            "sloThresholdSecondsExclusive": arguments.slo_threshold_seconds,
             "nearestRankP50Seconds": p50,
             "nearestRankP95Seconds": p95,
             "sortedSeconds": ordered,
+            "engineeringTargetPassed": engineering_target_passed,
             "passed": passed,
         },
     }
     _write(arguments.output, document)
     if not passed:
-        _fail(f"combined p95 must be below {arguments.threshold_seconds:g}")
+        _fail(f"combined p95 must be below {arguments.slo_threshold_seconds:g}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Validate the three summaries, retain one deterministic summary, and enforce p95."""
+    """Validate three summaries, retain their metrics, and enforce the release SLO."""
     arguments = _parser().parse_args(argv)
     try:
         _run(arguments)
     except CombinedPerformanceEvidenceError as error:
         print(f"action-performance-combined: {error}", file=sys.stderr)
         return 1
-    print("action-performance-combined: all three runs and the 60-sample p95 passed")
+    print("action-performance-combined: all runs and the combined release SLO passed")
     return 0
 
 

@@ -21,9 +21,11 @@ PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.y
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
+IMAGE_DIGEST: Final[str] = "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
+ENGINEERING_TARGET_SECONDS: Final[float] = 15.0
+SLO_THRESHOLD_SECONDS: Final[float] = 18.0
 WORKFLOW_IDENTITY: Final[str] = (
     "https://github.com/Parth2412/attest/.github/workflows/action-performance.yml@refs/heads/main"
 )
@@ -70,6 +72,7 @@ def _step(job: dict[str, Any], name: str) -> dict[str, Any]:
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-280")
 def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     """REQ-F11-100: the immutable Action is measured in 20 hosted jobs on main."""
     workflow = _workflow()
@@ -159,6 +162,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
 
 
 @pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-280")
 def test_performance_fixture_is_frozen_to_staging_and_exact_identity() -> None:
     """REQ-F11-100: all observations use one closed staging fixture."""
     config = yaml.safe_load(PERFORMANCE_CONFIG.read_text(encoding="utf-8"))
@@ -213,7 +217,8 @@ def test_performance_fixture_is_frozen_to_staging_and_exact_identity() -> None:
     assert '--expected-action-sha "${GITHUB_SHA}"' in commands
     assert f'--expected-image-digest "{IMAGE_DIGEST}"' in commands
     assert "--expected-samples 20" in commands
-    assert "--threshold-seconds 15" in commands
+    assert "--engineering-target-seconds 15" in commands
+    assert "--slo-threshold-seconds 18" in commands
     assert "--require-run-attempt 1" in commands
     assert "action-performance-v1.0.5-${{ github.run_id }}" in PERFORMANCE_WORKFLOW.read_text(
         encoding="utf-8"
@@ -330,8 +335,10 @@ def _run_summarizer(
             IMAGE_DIGEST,
             "--expected-samples",
             "20",
-            "--threshold-seconds",
+            "--engineering-target-seconds",
             "15",
+            "--slo-threshold-seconds",
+            "18",
             "--require-run-attempt",
             "1",
         ],
@@ -343,22 +350,25 @@ def _run_summarizer(
 
 
 @pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-280")
 def test_summarizer_measures_the_action_step_and_excludes_checkout(tmp_path: Path) -> None:
     """REQ-F11-100: the Action step contains pull/runtime while checkout stays excluded."""
     result, output = _run_summarizer(tmp_path)
     assert result.returncode == 0, result.stderr
     summary = json.loads(output.read_text(encoding="utf-8"))
-    assert summary["schemaVersion"] == 1
-    assert summary["requirement"] == "REQ-F11-100"
-    assert summary["acceptanceCriterion"] == "AC-F11-100"
+    assert summary["schemaVersion"] == 2
+    assert summary["requirement"] == "REQ-F11-280"
+    assert summary["acceptanceCriterion"] == "AC-F11-280"
     assert summary["action"] == {"commit": ACTION_SHA, "imageDigest": IMAGE_DIGEST}
     assert summary["metric"] == {
         "definition": "Action step including image pull and wrapper/CLI work; checkout excluded",
         "sampleCount": 20,
-        "thresholdSecondsExclusive": 15.0,
+        "engineeringTargetSecondsExclusive": ENGINEERING_TARGET_SECONDS,
+        "sloThresholdSecondsExclusive": SLO_THRESHOLD_SECONDS,
         "nearestRankP50Seconds": 12.0,
         "nearestRankP95Seconds": 12.0,
         "sortedSeconds": [12.0] * 20,
+        "engineeringTargetPassed": True,
         "passed": True,
     }
     first = summary["measurements"][0]
@@ -373,9 +383,10 @@ def test_summarizer_measures_the_action_step_and_excludes_checkout(tmp_path: Pat
 
 
 @pytest.mark.ac("AC-F11-100")
+@pytest.mark.ac("AC-F11-280")
 @pytest.mark.parametrize(
     ("samples", "total_seconds", "message"),
-    [(19, 12.0, "expected exactly 20 measurements"), (20, 15.0, "p95 must be below 15")],
+    [(19, 12.0, "expected exactly 20 measurements"), (20, 18.0, "p95 must be below 18")],
 )
 def test_summarizer_fails_closed_on_incomplete_or_slow_evidence(
     tmp_path: Path, samples: int, total_seconds: float, message: str
@@ -389,14 +400,27 @@ def test_summarizer_fails_closed_on_incomplete_or_slow_evidence(
     assert summary["metric"]["passed"] is False
 
 
+@pytest.mark.ac("AC-F11-280")
+def test_summarizer_retains_a_missed_engineering_target_without_failing_slo(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-280: the 15-second target remains visible below the 18-second SLO."""
+    result, output = _run_summarizer(tmp_path, total_seconds=15.0)
+    assert result.returncode == 0, result.stderr
+    metric = json.loads(output.read_text(encoding="utf-8"))["metric"]
+    assert metric["nearestRankP95Seconds"] == ENGINEERING_TARGET_SECONDS
+    assert metric["engineeringTargetPassed"] is False
+    assert metric["passed"] is True
+
+
 def _write_summary(path: Path, *, run_id: int, durations: list[float]) -> None:
     ordered = sorted(durations)
     p50 = ordered[9]
     p95 = ordered[18]
     payload = {
-        "schemaVersion": 1,
-        "requirement": "REQ-F11-100",
-        "acceptanceCriterion": "AC-F11-100",
+        "schemaVersion": 2,
+        "requirement": "REQ-F11-280",
+        "acceptanceCriterion": "AC-F11-280",
         "repository": "Parth2412/attest",
         "workflowRun": {
             "id": run_id,
@@ -417,11 +441,13 @@ def _write_summary(path: Path, *, run_id: int, durations: list[float]) -> None:
                 "Action step including image pull and wrapper/CLI work; checkout excluded"
             ),
             "sampleCount": 20,
-            "thresholdSecondsExclusive": 15.0,
+            "engineeringTargetSecondsExclusive": ENGINEERING_TARGET_SECONDS,
+            "sloThresholdSecondsExclusive": SLO_THRESHOLD_SECONDS,
             "nearestRankP50Seconds": p50,
             "nearestRankP95Seconds": p95,
             "sortedSeconds": ordered,
-            "passed": p95 < 15,
+            "engineeringTargetPassed": p95 < ENGINEERING_TARGET_SECONDS,
+            "passed": p95 < SLO_THRESHOLD_SECONDS,
         },
         "measurements": [
             {
@@ -440,12 +466,21 @@ def _run_combiner(
     *,
     run_ids: tuple[int, int, int] = (40, 41, 42),
     durations: tuple[list[float], list[float], list[float]] | None = None,
+    first_summary_override: tuple[str, object] | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     observed = durations or ([10.0] * 20, [11.0] * 20, [12.0] * 20)
     summaries: list[Path] = []
     for index, (run_id, values) in enumerate(zip(run_ids, observed, strict=True), start=1):
         summary = tmp_path / f"summary-{index}.json"
         _write_summary(summary, run_id=run_id, durations=values)
+        if index == 1 and first_summary_override is not None:
+            field, value = first_summary_override
+            document = json.loads(summary.read_text(encoding="utf-8"))
+            if field == "schemaVersion":
+                document[field] = value
+            else:
+                document["metric"][field] = value
+            summary.write_text(json.dumps(document), encoding="utf-8")
         summaries.append(summary)
     output = tmp_path / "combined.json"
     command = [
@@ -463,8 +498,10 @@ def _run_combiner(
         "3",
         "--expected-samples-per-run",
         "20",
-        "--threshold-seconds",
+        "--engineering-target-seconds",
         "15",
+        "--slo-threshold-seconds",
+        "18",
     ]
     for run_id, summary in zip(run_ids, summaries, strict=True):
         command.extend(("--expected-run-id", str(run_id), "--summary", str(summary)))
@@ -475,35 +512,79 @@ def _run_combiner(
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-230")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-280")
 def test_combiner_enforces_three_runs_and_the_combined_sixty_sample_p95(tmp_path: Path) -> None:
     """REQ-F11-210/230/250: the unchanged three-run and 60-sample gates remain mandatory."""
     result, output = _run_combiner(tmp_path)
     assert result.returncode == 0, result.stderr
     combined = json.loads(output.read_text(encoding="utf-8"))
-    assert combined["requirement"] == "REQ-F11-210"
-    assert combined["acceptanceCriterion"] == "AC-F11-210"
+    assert combined["schemaVersion"] == 2
+    assert combined["requirement"] == "REQ-F11-280"
+    assert combined["acceptanceCriterion"] == "AC-F11-280"
     assert combined["performanceRunIds"] == [40, 41, 42]
     assert combined["individualNearestRankP95Seconds"] == [10.0, 11.0, 12.0]
     assert combined["metric"] == {
         "definition": "Combined Action step durations from three consecutive hosted runs",
         "sampleCount": 60,
-        "thresholdSecondsExclusive": 15.0,
+        "engineeringTargetSecondsExclusive": ENGINEERING_TARGET_SECONDS,
+        "sloThresholdSecondsExclusive": SLO_THRESHOLD_SECONDS,
         "nearestRankP50Seconds": 11.0,
         "nearestRankP95Seconds": 12.0,
         "sortedSeconds": [10.0] * 20 + [11.0] * 20 + [12.0] * 20,
+        "engineeringTargetPassed": True,
         "passed": True,
     }
 
 
+@pytest.mark.ac("AC-F11-280")
+def test_combiner_retains_a_missed_engineering_target_without_failing_slo(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-280: combined evidence reports the target independently of the SLO."""
+    result, output = _run_combiner(
+        tmp_path,
+        durations=([15.0] * 20, [15.0] * 20, [15.0] * 20),
+    )
+    assert result.returncode == 0, result.stderr
+    metric = json.loads(output.read_text(encoding="utf-8"))["metric"]
+    assert metric["nearestRankP95Seconds"] == ENGINEERING_TARGET_SECONDS
+    assert metric["engineeringTargetPassed"] is False
+    assert metric["passed"] is True
+
+
+@pytest.mark.ac("AC-F11-280")
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        (("schemaVersion", 1), "summary identity is invalid"),
+        (("thresholdSecondsExclusive", 15.0), "metric does not match"),
+        (("engineeringTargetSecondsExclusive", 14.0), "metric does not match"),
+        (("sloThresholdSecondsExclusive", 19.0), "metric does not match"),
+        (("engineeringTargetPassed", False), "metric does not match"),
+        (("passed", False), "metric does not match"),
+    ],
+)
+def test_combiner_rejects_old_or_altered_dual_threshold_evidence(
+    tmp_path: Path,
+    override: tuple[str, object],
+    message: str,
+) -> None:
+    """REQ-F11-280: old schemas and altered target/SLO results fail closed."""
+    result, _ = _run_combiner(tmp_path, first_summary_override=override)
+    assert result.returncode != 0
+    assert message in result.stderr
+
+
 @pytest.mark.ac("AC-F11-210")
+@pytest.mark.ac("AC-F11-280")
 @pytest.mark.parametrize(
     ("run_ids", "durations", "message"),
     [
         ((40, 40, 42), None, "run IDs must be unique and strictly increasing"),
         (
             (40, 41, 42),
-            ([10.0] * 20, [11.0] * 20, [15.0] * 20),
-            "every individual run must pass",
+            ([10.0] * 20, [11.0] * 20, [18.0] * 20),
+            "every individual run must pass below the release SLO",
         ),
     ],
 )

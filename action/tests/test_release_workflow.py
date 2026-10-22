@@ -17,11 +17,14 @@ REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
 RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.5.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
+IMAGE_DIGEST: Final[str] = "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:f6206c3597e520322a4acfc7b40037a7b5fdd5621220eb9015c2595ef1d8ea7b"
+    "sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b"
 )
-CANDIDATE_SHA: Final[str] = "b1d5475da39b2e9522482894dc675c73ecb118a1"
+CANDIDATE_SHA: Final[str] = "49139761393b1f18f28f6bc06dfc1ff37166aa1b"
+SOURCE_ARTIFACT_DIGEST: Final[str] = (
+    "sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457"
+)
 PRIOR_RELEASE_SHA: Final[str] = "4e73dcaf888f15967da66826d48cca5ac6684fcb"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
@@ -132,7 +135,7 @@ def test_release_is_closed_to_the_two_approved_python_patches() -> None:
         "PUBLIC_CLI_VERSION": "0.1.4",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 38250635610,
+        "REVIEWED_CANDIDATE_RUN_ID": 38529646263,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -283,12 +286,34 @@ def test_release_verifies_publishers_and_public_bytes_before_promotion() -> None
         assert fragment in commands
 
 
+@pytest.mark.ac("AC-F11-220")
+def test_release_recovery_crosses_only_successful_publisher_skips() -> None:
+    """REQ-F11-220: exact recovery continues only through successful direct gates."""
+    jobs = _workflow()["jobs"]
+    expected_conditions = {
+        "promote-image": (
+            "always() && "
+            "needs.preflight.result == 'success' && "
+            "needs.verify-published.result == 'success'"
+        ),
+        "dogfood": (
+            "always() && "
+            "needs.promote-image.result == 'success' && "
+            "needs.verify-published.result == 'success'"
+        ),
+    }
+    for job_name, expected in expected_conditions.items():
+        observed = " ".join(jobs[job_name]["if"].split())
+        assert observed == expected
+
+
 @pytest.mark.ac("AC-F11-100")
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-280")
 def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
-    """REQ-F11-210: publication requires three exact 20-job results and all 60 samples."""
+    """REQ-F11-280: publication requires three exact 20-job results and all 60 samples."""
     preflight = _workflow()["jobs"]["preflight"]
     validate = _step(preflight, "Validate the three consecutive performance runs")
     assert validate["env"] == {
@@ -329,7 +354,8 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
         "--expected-samples 20",
         "--expected-runs 3",
         "--expected-samples-per-run 20",
-        "--threshold-seconds 15",
+        "--engineering-target-seconds 15",
+        "--slo-threshold-seconds 18",
         "--require-run-attempt 1",
         "recomputed-performance-summary-${index}.json",
         "combined-performance-summary.json",
@@ -510,14 +536,16 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         IMAGE_DIGEST,
         CONTEXT_DIGEST,
         CANDIDATE_SHA,
-        "38250635610",
+        "38529646263",
+        SOURCE_ARTIFACT_DIGEST,
         "python:3.12.14-alpine3.23",
         "cryptography==50.0.1",
         "maturin==1.15.0",
         "setuptools==84.0.0",
         "libcrypto3=3.5.9-r0",
         "libssl3=3.5.9-r0",
-        "git=2.52.0-r0",
+        "Git `2.52.0`",
+        "curl `8.22.0`",
         "three consecutive",
         "60-sample",
         "attest-sign==0.1.1",
@@ -529,6 +557,7 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         "v1.0.4",
     ):
         assert fragment in notes
+    assert "git=2.52.0-r0" not in notes
 
 
 def _candidate_fixture(

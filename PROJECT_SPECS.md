@@ -3,11 +3,10 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.4`,
-  immutable Action `v1.0.4`, and moving Action major `v1`. F-01 through F-10 and the initial F-11
-  release are complete; the bounded `ADR-054`–`ADR-062` F-11 reliability correction is In
-  progress and F-12 is Planned.
-- **Last Updated**: 2026-10-14
+- **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.5`,
+  immutable Action `v1.0.5`, and reviewed moving Action major `v1`. F-01 through F-10 are Done;
+  F-11 is reopened for the `ADR-065`/`ADR-066` security replacement, and F-12 is Planned and unpublished.
+- **Last Updated**: 2026-10-22
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -28,13 +27,14 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Public pre-alpha.** BOOT-001, F-01 through F-10, and the initial F-11
-  release are complete. F-11 is In progress only for the bounded `ADR-054`–`ADR-062` reliability
-  correction; F-12 and the external M2/M3 launch gates remain pending in `BRD-INDEX §7.1` and
-  `ROADMAP-001`.
+- **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-10 are complete. F-11
+  was completed under `ADR-064` and is temporarily reopened under `ADR-065`/`ADR-066` to replace
+  the affected CA bundle and musl libc in the Action image. F-12 remains Planned and unpublished pending `CH-04`; the external
+  M2/M3 launch gates remain pending in `CHALLENGE-001` and `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
-  across Linux and macOS. The separate fail-closed Action performance monitor is currently red as
-  recorded below; every required gate remains enforced rather than bypassed.
+  across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
+  safe fork-denial, dogfood, and reviewed moving-major gates are green for exact release commit
+  `203d2deb7dff946dc82c6efc6506bc34adbcd209`.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
@@ -44,19 +44,22 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,259 tests with two
-  intentional environment-dependent skips and 17 explicitly deselected live/container tests.
+  entrypoint and startup contracts. The current reconciliation gate passes 1,310 tests with two
+  intentional environment-dependent skips and 22 explicitly deselected live/container tests.
 - **Known Issues**:
+  - Immutable Action `v1.0.5` vendors affected `certifi==2026.7.22`; `ADR-065` requires a complete
+    image-only `v1.0.6` replacement before the public launch recommendation advances.
+  - The same image contains affected Alpine `musl==1.2.5-r23`; `ADR-066` requires exact fixed
+    `1.2.5-r24` build and runtime bytes inside that same unreleased replacement lifecycle.
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
-  - Exact release performance passed at p95 14 s. Fail-closed runs `36872334911`, `36905961561`,
-    `37796984054`, `37899003696`, `37946041636`, `38056326479`, and `38257587284` retained later
-    p95 regressions. Accepted `ADR-054`–`ADR-062` govern the locked `0.1.5`/`v1.0.5` correction
-    and fresh three-run release soak without altering the accepted release evidence.
-- **Next Milestone**: Stabilise repeated Action cold-start measurements, enable and validate
-  production security automation, complete the remaining external M2 gates, close `CH-04` with
-  practising-auditor evidence, then implement F-12 and its clean-container export verification.
+  - The v1.0.5 sequence passed the strict release SLO below 18 seconds with individual p95 values
+    of 15, 14, and 16 seconds and combined p95 16 seconds. The separate strict engineering target
+    below 15 seconds remains unmet for the first, third, and combined results.
+- **Next Milestone**: Complete the `ADR-065`/`ADR-066` image-only security replacement and reviewed `v1`
+  promotion, then close `CH-04` with practising-auditor evidence and complete the remaining
+  external M2 validation gates before F-12 implementation.
 
 ---
 
@@ -151,7 +154,7 @@ out of order means inventing those contracts.
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
-| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ✓ done |
+| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ◐ in progress |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
 ### The two irreducible ideas (`MPD-001 §5.2`)
@@ -298,7 +301,7 @@ gate is worth nothing.
 | Operation | Target | Validated by |
 |---|---|---|
 | `CSD-1` on 1,000 changed files | < 500 ms | `CH-08`, week 2 |
-| Full Action step in CI | < 15 s nearest-rank p95 over 20 hosted jobs, including image pull | `REQ-F11-100`, `CH-09`, `ADR-046` |
+| Full Action step in CI | Engineering target < 15 s and release SLO < 18 s nearest-rank p95 for each 20-job run and the combined 60 samples, including image pull | `REQ-F11-280`, `CH-09`, `ADR-063` |
 | `attest verify` offline | < 2 s | `F-08` |
 | `attest --help` | < 300 ms | `AC-F10-080` — heavy imports deferred into subcommands |
 
@@ -364,6 +367,19 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-22**: Accepted `ADR-066` after Alpine published `CVE-2026-107891` remediation while
+  ADR-065 was still unreleased. The same `0.1.6` lifecycle now pins matching fixed musl build and
+  runtime revisions and retains exact installed-version evidence without broadening publication.
+- **2026-10-22**: Accepted `ADR-065` and reopened F-11 after critical certifi advisory
+  `GHSA-6q48-6c7w-9gw2` identified affected CA-bundle bytes in the immutable `v1.0.5` Action
+  image. The bounded replacement updates the runtime lock, rebuilds and revalidates a unique
+  two-platform candidate, publishes no Python distribution, and permits `v1` movement only after
+  a complete `v1.0.6` release and independent public proof.
+- **2026-10-15**: Accepted `ADR-064` and completed F-11. Exact release commit
+  `203d2deb7dff946dc82c6efc6506bc34adbcd209` passed the three-run/60-sample schema-2 performance
+  SLO, published signer `0.1.1`, CLI `0.1.4`, image/source `0.1.5`/`v0.1.5`, and Action `v1.0.5`,
+  completed dogfood and public/fork proofs, and received independent protected promotion of `v1`.
+  F-12 remains Planned and unpublished pending `CH-04`.
 - **2026-10-01**: Completed F-07, F-10, and F-11 after public v1.0.3 storage/CLI proof and the
   `ADR-053` image-only v1.0.4 correction. Exact release run `36761068084` passed the 20-job gate at
   p95 14 s; immutable release, production dogfood, same-repository and fork proofs, and protected

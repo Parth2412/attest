@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.28.1` |
+| Version | `1.30.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-15 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3745,6 +3745,26 @@ latency remain unverified until a candidate passes. Publication stays blocked un
 candidate, complete three-run sequence, exact release, dogfood, public proof, fork denial, and
 independent `v1` review all pass.
 
+**Implementation evidence.** Candidate run `38529646263`, attempt 1, passed for exact `dev`
+source `49139761393b1f18f28f6bc06dfc1ff37166aa1b`, enumerated context
+`sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, and multi-platform
+manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`.
+Before the binary build, the workflow published and identity-attested public corresponding-source
+artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`; both platform images
+carry that exact reference. Grype `0.107.0` with valid database build
+`2026-10-14T06:30:34Z` found only `CVE-2026-62960` against Git's exact CPE, and the gate accepted
+only the retained Linux/musl not-affected OpenVEX statement. Both platform image scans and all 22
+real-container contracts passed, including local and certificate-verified HTTPS Git transport,
+exact component and loader evidence, and forbidden-library absence.
+
+The retained amd64 image is 42,468,203 unpacked bytes; its three primary zstd layers are
+4,843,687, 6,578,935, and 6,894,366 bytes. The arm64 image is 43,549,181 unpacked bytes; its
+primary layers are 5,163,648, 6,614,703, and 6,907,497 bytes. Each image has exactly those three
+primary layers plus its entrypoint layer. The retained evidence binds each platform's exact Git,
+HTTP helper, and libcurl sizes and hashes, source and image manifests, SBOM, maximum provenance,
+component scan, loader mapping, and GitHub attestations. This candidate is the sole ADR-062
+performance baseline; no performance run is accepted by this evidence alone.
+
 ### ADR-062 accepted implementation plan
 
 | Requirement | Production work | Files |
@@ -3754,3 +3774,320 @@ independent `v1` review all pass.
 Acceptance authorizes only this bounded Action-runtime transport correction. It does not
 authorize a private Sigstore call, failed-run rerun, Python publication, threshold change,
 release, or movement of `v1`.
+
+---
+
+## ADR-063 — Separate the hosted engineering target from the release SLO
+
+**Status:** Accepted · **Date:** 2026-10-14 · **Affects:** `ARCH-001`, `TECH-001`, `QA-001`,
+`BRD-F11`, `CH-09`, `F-11` · **Amends:** `ADR-054`, `ADR-062`
+
+**Context.** Candidate run `38529646263`, attempt 1, passed the complete `ADR-062` source,
+two-platform, container, vulnerability, SBOM, provenance, and identity-attestation boundary for
+manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`.
+The exact candidate image already consists of three balanced primary zstd layers plus the
+entrypoint layer. Its Python base is built upstream with link-time optimisation and linker
+stripping; reviewed archive inspection found only about 33 KiB of safely removable compressed
+content and about 230 KiB even under a broader legacy/development-file interpretation. Neither is
+material to the hosted tail and the broader removal would add compatibility risk.
+
+Automatic performance run `38570478871`, attempt 1, measured exact merged commit
+`f22f5be015a020b520d5abcb736ba236af7198cc` and the same manifest. All 20 hosted jobs completed
+successfully at integer p50 11 seconds and nearest-rank p95 17 seconds. Exact timestamps measured
+total p50 11.533 seconds and p95 16.861 seconds, image-pull/extraction p50 6.110 seconds and p95
+9.182 seconds, and post-pull execution p50 6.294 seconds and p95 8.711 seconds. The result failed
+the strict 15-second gate without exposing a correctness, security, or availability failure.
+
+Across 11 retained slim-runtime hosted runs, nearest-rank p95 remained in the 14–17-second range.
+The same immutable `v1.0.4` image produced p95 values of 14, 16, and 17 seconds. Image pull and
+external Sigstore services contribute independent, non-additive tails that product code cannot
+fully control. Continuing to require every 20-job run and the combined 60 samples below 15
+seconds therefore confuses an ambitious engineering target with a reliable release objective and
+can indefinitely block an otherwise verified release on hosted-runner variance.
+
+**Decision.** Preserve the strict 15-second nearest-rank p95 as the Action engineering target and
+introduce a strict release SLO below 18 seconds. Every individual 20-job summary and the combined
+60-sample summary must record both exact thresholds, the measured p50/p95 and sorted durations,
+and independently derived `engineeringTargetPassed` and release `passed` booleans. The
+engineering result remains visible but does not authorize or prevent release; the release SLO is
+the sole performance publication gate.
+
+Retain every measurement control: GitHub-hosted `ubuntu-latest`, the exact Action step including
+image pull and wrapper/CLI work but excluding checkout, one frozen staging fixture, exact merged
+commit and reviewed manifest digest, 20 independent jobs per run, nearest-rank observation 19,
+attempt 1 only, and one automatic protected-`main` run followed by two ordered reviewed dispatches.
+All three individual runs and the recomputed combined 60 samples must be strictly below 18
+seconds. Incomplete runs, reruns, duplicate or overlapping jobs, identity drift, fixture drift,
+and p95 equal to 18 seconds fail closed.
+
+Adopt performance evidence schema 2 bound to `REQ-F11-280` and `AC-F11-280`. Schema-1 evidence,
+the old single-threshold field, and mismatched thresholds fail closed. Run `38570478871` remains
+immutable negative evidence under its original contract and is neither rerun nor counted. The new
+sequence begins only after this amendment reaches `main`; no earlier run is reinterpreted.
+
+Reuse the fully verified `ADR-062` candidate manifest without rebuilding. This decision changes
+only the evidence contract, workflow enforcement, retained summaries, and release documentation;
+it changes no image byte, dependency, signing behavior, trust rule, security boundary, public
+Action interface, error, release version, sample count, timing boundary, or promotion rule.
+
+**Rationale.** A strict 18-second SLO sits above every retained successful slim-runtime p95 while
+remaining below the original `v1.0.3` p95 of 20 seconds that triggered the material image
+correction. Requiring three consecutive runs and their combined result provides 60 independent
+observations and rejects a single lucky run. Retaining the 15-second target separately prevents a
+release control from hiding regression pressure. The dual-field schema makes the distinction
+machine-verifiable and prevents old evidence from gaining new meaning after the fact.
+
+**Rejected alternatives.** Counting or rerunning `38570478871`, accepting any earlier run, or
+converting schema-1 evidence would rewrite history. Excluding image pull, shortening the sample,
+using mean or median in place of nearest-rank p95, permitting later attempts, or warming the image
+would measure a different product. Raising the SLO beyond the retained operating envelope would
+lack evidence. Removing more runtime files or changing the secure Sigstore path offers no measured
+material gain and adds compatibility or security risk. Keeping 15 seconds as the release gate
+would preserve a control that repeated evidence shows is dominated by external hosted variance.
+
+**Consequences.** Release summaries and immutable assets become schema 2 and expose both target
+and SLO status. Release preflight rejects every old or altered summary and recomputes all three
+runs plus the combined result. A 15–18-second p95 is an engineering-target miss but can satisfy the
+release SLO; p95 at or above 18 seconds blocks publication. The exact candidate may proceed to a
+fresh performance sequence after the workflow change merges, but image `0.1.5`, source `v0.1.5`,
+Action `v1.0.5`, dogfood, public proof, fork denial, and independent `v1` promotion remain blocked
+until all existing gates complete.
+
+### ADR-063 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-280` | Emit and validate schema-2 dual-threshold evidence; gate every fresh 20-job run and the combined 60 samples at strict p95 below 18 seconds; report strict p95 below 15 seconds independently; preserve failed run `38570478871`; reuse the exact ADR-062 candidate; update release recomputation and normative traceability | performance scripts/workflow/tests, release workflow/notes, `ARCH-001`, `TECH-001`, `QA-001`, `BRD-F11`, `CH-09`, traceability |
+
+Acceptance authorizes only this evidence-contract amendment and a fresh exact-commit performance
+sequence. It does not authorize an image rebuild, old-evidence reinterpretation, Python
+publication, release, or movement of `v1`.
+
+---
+
+## ADR-064 — Close F-11 on immutable v1.0.5 evidence
+
+**Status:** Accepted · **Date:** 2026-10-15 · **Affects:** `TECH-001`, `QA-001`, `BRD-INDEX`,
+`BRD-F11`, `CH-09`, `COMPAT-001`, `F-11` · **Amends:** `ADR-054`, `ADR-055`, `ADR-056`,
+`ADR-057`, `ADR-058`, `ADR-059`, `ADR-060`, `ADR-061`, `ADR-062`, `ADR-063`
+
+**Context.** Candidate run `38529646263`, attempt 1, established the complete source,
+two-platform, runtime, scan, SBOM, provenance, and identity-attestation boundary for manifest
+`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`. The fresh
+schema-2 performance sequence then measured exact release commit
+`203d2deb7dff946dc82c6efc6506bc34adbcd209` and that unchanged manifest. Automatic run
+`38709056956` and reviewed dispatches `38709259244` and `38709401770`, all attempt 1, retained 20
+successful samples each with nearest-rank p95 values of 15, 14, and 16 seconds. Their recomputed
+60-sample result retained p50 10 seconds and p95 16 seconds. All four results passed the strict
+release SLO below 18 seconds; the first, third, and combined results truthfully recorded that they
+did not meet the separate strict engineering target below 15 seconds.
+
+Release run `38709868210`, attempt 1, completed every preflight, exact-publication recovery,
+Python 3.12/3.13 clean-install, image-promotion, dogfood, asset-attestation, public-verification,
+and immutable-release job. It published only `attest-sign==0.1.1` and `attest-cli==0.1.4`, promoted
+the reviewed image without rebuilding as `ghcr.io/parth2412/attest:0.1.5`, and created source tag
+`v0.1.5` and Action tag `v1.0.5` at the exact release commit. The immutable GitHub Release retains
+the corresponding source, component evidence, SBOM, provenance, performance summaries, public
+package verification, dogfood Bundle, and verification records required by `REQ-F11-210` through
+`REQ-F11-280`.
+
+Public proof PR `Parth2412/attest-action-proof#8` was opened by `github-actions[bot]`, retained its
+no-review policy denial, received the project owner's independent approval for exact head
+`c4735f46225096ef95629ad5211a7be2f36b2597`, passed on run `38711403197` attempt 3, and merged as
+`604dab14ac52489255e8f792c5907eeb109f91c7`. Fork proof PR #9 retained the required failure on run
+`38735753424`, attempt 1, before repository-controlled content could execute. Protected promotion
+run `38738669979`, attempt 1, independently revalidated the release and proof evidence, received
+the required `action-major` environment approval, and moved only `v1` from
+`4e73dcaf888f15967da66826d48cca5ac6684fcb` to the exact `v1.0.5` release commit. Every immutable
+product and Action tag remains protected and unchanged.
+
+**Decision.** Accept the complete `ADR-054` through `ADR-063` correction evidence and mark F-11
+`Done`. Reconcile the normative F-11 Definition of Done, feature registry, release checklist,
+distribution matrix, compatibility matrix, challenge outcome, project status, public README, and
+changelog to the exact public versions and retained evidence above. The current published set is
+core, collect, and policy `0.1.0`; store `0.1.1`; sign `0.1.1`; CLI `0.1.4`; image `0.1.5` by the
+reviewed immutable manifest; source `v0.1.5`; immutable Action `v1.0.5`; and moving Action major
+`v1` at the same release commit. `attest-export` remains unpublished.
+
+This closure changes no artifact, tag, workflow, requirement, threshold, trust rule, public
+interface, or security boundary. It records observed outcomes only. The strict 15-second
+engineering target remains visible and unmet where the retained schema-2 evidence says so; the
+strict release SLO below 18 seconds remains the accepted operational gate.
+
+F-12 remains `Planned`. `CH-04` remains open and must close with practising-auditor evidence before
+F-12 begins under the repository's challenge gate. The external M2 product-validation challenges
+also remain open. F-11 completion therefore does not claim the complete product/v1 launch.
+
+**Rationale.** Every F-11 requirement and acceptance criterion is implemented, test-traced, and
+backed by immutable public evidence. Leaving F-11 `In progress` would make the authoritative
+registry contradict the completed release and would prevent the `Done` traceability gate from
+enforcing all 28 F-11 criteria. Recording the exact versions and negative as well as positive
+performance outcomes keeps the project status useful without converting an engineering target
+miss into a release failure after the accepted SLO was met.
+
+**Rejected alternatives.** Leaving F-11 open until F-12 or external adoption completes would mix
+separate feature and milestone gates. Describing the performance sequence as meeting the
+15-second target would contradict the retained evidence. Rebuilding, republishing, retagging, or
+editing immutable release assets would destroy the release's audit boundary. Starting F-12 before
+`CH-04` closes would violate the challenge gate. Calling this the complete v1 launch would conceal
+known pending product and auditor validation.
+
+**Consequences.** The machine-readable registry activates F-11 completeness enforcement. Public
+documentation points to `v0.1.5`, `v1.0.5`, the reviewed `v1`, image `0.1.5`, signer `0.1.1`, and
+CLI `0.1.4`. Historical release and failure evidence remains intact. The next permissible launch
+work is closing `CH-04` and the remaining external validation gates; implementation of F-12 stays
+blocked until its challenge prerequisite is satisfied.
+
+### ADR-064 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-010`–`REQ-F11-280` | Reconcile exact release, proof, performance, promotion, compatibility, and completion evidence; activate F-11 `Done` traceability without changing implementation or public artifacts | `BRD-F11`, `BRD-INDEX`, `QA-001`, `TECH-001`, `CH-09`, `COMPAT-001`, `PROJECT_SPECS.md`, `README.md`, `CHANGELOG.md`, Forge agent guide |
+
+Acceptance authorizes only this evidence reconciliation and F-11 lifecycle transition. It does
+not authorize F-12 implementation, closure of an empirical challenge without its required
+evidence, mutation of a public record, or a complete product/v1 launch claim.
+
+---
+
+## ADR-065 — Replace the affected Action CA bundle through a complete patch release
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-064`
+
+**Context.** On 2026-10-20, certifi published critical advisory
+`GHSA-6q48-6c7w-9gw2`: releases before `2026.10.19` retain a root whose compromised intermediate
+CA keys can permit an on-path attacker to present valid-looking certificates. The advisory
+explicitly requires users to upgrade to `2026.10.19` or later and rebuild containers that vendor
+certifi. The immutable `v1.0.5` Action image contains locked `certifi==2026.7.22` in its runtime,
+so it is affected even though its release evidence was correct when produced. Fresh public
+`attest-cli==0.1.4` installation resolves `certifi==2026.10.19`; no published attest distribution
+contains an unsafe direct pin and no Python distribution byte needs replacement.
+
+The same audit found locked development-only `virtualenv==21.14.1` affected by seven 2026 GitHub
+advisories. The latest reviewed release is `21.14.12`; upgrading it also resolves its transitive
+`python-discovery` dependency to `1.6.4`. Neither package enters the Action runtime, but retaining
+an affected environment-creation tool in the repository lock would keep CI and contributor
+workstations exposed and would leave `pip-audit` red.
+
+**Decision.** Preserve every `0.1.5`, `v0.1.5`, `v1.0.5`, package, Bundle, and release-evidence
+record unchanged. Update the single committed lock to exactly `certifi==2026.10.19`,
+`virtualenv==21.14.12`, and the resolver-selected `python-discovery==1.6.4`. Add a contract that
+asserts those exact reviewed versions and a real-container contract that proves the new runtime
+contains `certifi==2026.10.19` and excludes `virtualenv`.
+
+Build a unique `0.1.6-candidate` from protected `dev` under every existing `REQ-F11-210` through
+`REQ-F11-280` control: enumerated context, hash-locked inputs, both target architectures, complete
+real-container suite, runtime and native-component scans, source correspondence, SBOM,
+provenance, and identity-bound GitHub attestations. A reviewed digest-pinning change must be the
+only path from that candidate into the Action manifest. The exact protected `main` commit and
+reviewed manifest must then complete a fresh automatic-plus-two-reviewed-dispatch sequence of
+three attempt-1 20-job measurements and the recomputed 60-sample gate under unchanged evidence
+schema 2, strict 15-second engineering target, and strict release SLO below 18 seconds.
+
+After every preflight passes, promote the exact candidate without rebuilding to image `0.1.6`,
+create immutable source `v0.1.6` and Action `v1.0.6`, retain complete release and dogfood evidence,
+and perform the same-repository and fork-denial public proofs. Only the separately reviewed
+protected promotion may move `v1` from `v1.0.5` to the exact `v1.0.6` release commit. The release
+publishes no Python distribution, and its clean Python 3.12/3.13 probes must verify the existing
+public package set resolves a non-affected certifi version.
+
+F-11 returns to `In progress` until the new candidate, performance sequence, immutable release,
+dogfood, public proof, fork denial, and independent `v1` promotion all pass. Closing the critical
+dependency alert requires the merged lock and a successful dependency audit; it must not be
+dismissed as accepted risk.
+
+**Rationale.** The vulnerable bytes are in the shipped container, so documentation alone cannot
+remediate the release. An image-only patch preserves PyPI immutability and avoids manufacturing new
+package files where public resolution already selects the corrected CA bundle. Reusing the
+existing two-phase path keeps the replacement subject to the same evidence and identity boundary
+as the release it supersedes.
+
+**Rejected alternatives.** Continuing to recommend `v1.0.5`, mutating an existing image or tag,
+or moving `v1` before the replacement proof would expose users or destroy release immutability.
+Republishing unchanged Python distributions would create different files under new versions
+without correcting a package constraint. Dismissing the advisory, relaxing the vulnerability
+gate, reusing old candidate or performance evidence, skipping an architecture, or rebuilding at
+promotion would weaken the accepted supply-chain contract.
+
+**Consequences.** The patch incurs a fresh multi-platform candidate, three-run performance
+sequence, protected release, public proof, and reviewed promotion. `v1.0.5` remains verifiable
+historical evidence but is superseded for new deployments after `v1.0.6` completes. Runtime bytes
+and their manifest digest change; predicate, CLI, package, signing, trust-refresh, storage, policy,
+and public Action input/output contracts do not.
+
+### ADR-065 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-290` | Lock the reviewed fixed runtime and development dependencies; prove exact runtime inclusion/exclusion; build and pin a unique two-platform candidate; repeat every existing candidate, performance, release, dogfood, public-proof, fork-denial, and reviewed-promotion gate; publish no Python distribution; reconcile lifecycle and public guidance only after exact evidence exists | `uv.lock`, candidate/performance/release/promotion workflows and tests, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+Acceptance authorizes only this bounded security replacement and its exact evidence lifecycle. It
+does not authorize a package publication, dependency/API change beyond the three locked versions,
+existing-record mutation, relaxed scan or performance threshold, F-12 implementation, or a
+complete product/v1 launch claim.
+
+---
+
+## ADR-066 — Include the Alpine musl security rebuild in the Action patch
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-065`
+
+**Context.** After ADR-065 was accepted and before its branch could merge, Alpine published
+`musl==1.2.5-r24` for Alpine 3.23 to fix `CVE-2026-107891`, an integer-overflow and memory-safety
+defect in `regcomp`. Alpine's package record identifies `1.2.5-r24` as the current fixed package,
+and its source commit records the CVE patch:
+<https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/musl-dev> and
+<https://gitlab.alpinelinux.org/alpine/aports/-/commit/fd05fc094264bce4fb76efc6c7f61ba4abfcb609>.
+
+The immutable Python Alpine base accepted in ADR-053 contains `musl==1.2.5-r23`. Alpine's current
+repository consequently refuses the Action's exact `musl-dev==1.2.5-r23` build pin because the
+available development package is `r24` and requires matching `musl==1.2.5-r24`. Updating only the
+two build-stage pins makes compilation succeed but does not correct the final runtime: the final
+stage starts from the immutable `r23` base and its existing exact runtime-package installation does
+not request a musl upgrade. Both the released `v1.0.5` image and an otherwise-correct ADR-065
+candidate would therefore retain the affected runtime libc.
+
+**Decision.** Keep the accepted ADR-065 release identity, version sequence, performance
+sequence, evidence lifecycle, and no-PyPI-publication boundary unchanged. In the same
+`0.1.6-candidate`, update both build-only `musl-dev` pins to exactly `1.2.5-r24` and install exactly
+`musl==1.2.5-r24` in the runtime stage. Preserve the immutable Python base digest; upgrade only its
+musl package through Alpine's authenticated package repository before the image is minimized.
+
+Before removing Alpine's package database, generate and retain a deterministic runtime-package
+record under `/usr/share/attest` that proves the installed musl revision. Extend the Dockerfile
+pin contract and real-container contract to require `1.2.5-r24`, require the retained record, and
+reject `1.2.5-r23`. The candidate must still pass both-architecture runtime and native-component
+scans, the complete real-container suite, SBOM/provenance generation, and every unchanged ADR-065
+gate. No public artifact, immutable tag, old evidence record, Python dependency, API, or trust
+boundary may be changed outside the already-approved `0.1.6` replacement.
+
+**Rationale.** Reverting to an obsolete package or retaining `r23` would deliberately ship a
+known affected libc. Changing only `musl-dev` would repair CI while leaving the product vulnerable.
+Including the runtime rebuild now is the smallest safe correction because ADR-065 has not reached
+protected `dev`, no `0.1.6` candidate exists, and the complete security release lifecycle already
+must run from new bytes.
+
+**Rejected alternatives.** Fetching superseded `r23` development packages directly would bypass
+the supported repository and retain the CVE. Updating only the development stages would create
+false confidence while preserving the affected runtime. Moving to an unreviewed mutable base tag
+would change more bytes than necessary and weaken reproducibility. Starting a second release after
+`0.1.6` would expose users longer and duplicate the same evidence lifecycle without a safety
+benefit.
+
+**Consequences.** The final image's libc and manifest digest change in addition to certifi. Native
+extensions and the minimized runtime are built and executed against the same fixed musl revision.
+ADR-065's candidate label, patch versions, three-run performance gate, release proof, fork denial,
+and independently reviewed `v1` promotion remain unchanged. `v1.0.5` remains immutable historical
+evidence but is superseded for new use only after the complete `v1.0.6` lifecycle passes.
+
+### ADR-066 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-300` | Pin fixed musl in both build stages and the runtime; retain exact installed-version evidence; prove the version in the real container on both release architectures; keep every ADR-065 gate and publication boundary unchanged | Action Dockerfile and container contracts, candidate evidence checks, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and release records |
+
+Acceptance authorizes only the exact musl `r24` security rebuild inside ADR-065's existing `0.1.6`
+lifecycle. It does not authorize any other dependency, base-image, package-publication,
+API, requirement, threshold, trust, or release-process change.

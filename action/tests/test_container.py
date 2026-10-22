@@ -340,6 +340,26 @@ def test_runtime_omits_build_and_nonproduct_facilities() -> None:
 
 
 @pytest.mark.container
+@pytest.mark.ac("AC-F11-300")
+def test_runtime_records_fixed_musl_revision() -> None:
+    result = _docker(
+        "run",
+        "--rm",
+        "--entrypoint",
+        "/bin/sh",
+        _image(),
+        "-c",
+        "test -f /usr/share/attest/runtime-package-versions.txt && "
+        'test "$(/bin/busybox cat '
+        '/usr/share/attest/runtime-package-versions.txt)" = "musl-1.2.5-r24" && '
+        "! /bin/busybox grep -F 'musl-1.2.5-r23' "
+        "/usr/share/attest/runtime-package-versions.txt",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.container
 @pytest.mark.ac("AC-F07-040")
 @pytest.mark.ac("AC-F11-220")
 def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> None:
@@ -517,6 +537,7 @@ def test_source_built_git_clones_over_verified_public_https() -> None:
 @pytest.mark.ac("AC-F11-210")
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-250")
+@pytest.mark.ac("AC-F11-290")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -579,6 +600,9 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert not id.__file__.startswith(runtime_path); "
         "assert callable(detect_github); "
         "assert importlib.metadata.version('attest-cli') == '0.1.4'; "
+        "assert importlib.metadata.version('certifi') == '2026.10.19'; "
+        "assert not any(distribution.metadata['Name'].lower() == 'virtualenv' "
+        "for distribution in importlib.metadata.distributions()); "
         "metadata_roots = list(pathlib.Path(root).glob('*.dist-info')); "
         "assert len(metadata_roots) == 51; "
         "assert all((metadata / 'METADATA').is_file() for metadata in metadata_roots); "

@@ -1,0 +1,158 @@
+{
+  "format": "ch04-mock-evidence",
+  "formatVersion": 1,
+  "status": "draft-unreviewed",
+  "generatedAt": "2026-10-16T08:50:23Z",
+  "assembly": {
+    "method": "hand-built validation experiment",
+    "attestCliVersion": "0.1.4",
+    "verificationImage": "ghcr.io/parth2412/attest@sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
+  },
+  "sample": {
+    "repository": "https://github.com/Parth2412/attest-action-proof",
+    "selection": "curated",
+    "exhaustive": false,
+    "bounds": {
+      "from": "2026-09-24T12:00:15Z",
+      "to": "2026-10-16T08:45:28Z"
+    }
+  },
+  "verificationConstraint": {
+    "issuer": "https://token.actions.githubusercontent.com",
+    "environment": "production",
+    "offline": true,
+    "identities": [
+      "https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/4/merge",
+      "https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/8/merge",
+      "https://github.com/Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/10/merge"
+    ]
+  },
+  "draftMappings": [
+    {
+      "path": "controls/change-management.md",
+      "framework": null,
+      "controlId": null,
+      "status": "draft-unreviewed",
+      "reviewedBy": null,
+      "reviewedAt": null
+    }
+  ],
+  "exceptions": {
+    "unattestedChangesEvaluated": false,
+    "verificationFailures": []
+  },
+  "manifestDigestPolicy": {
+    "algorithm": "sha256",
+    "selfIndexed": false,
+    "reason": "A manifest cannot contain its own stable byte digest without a circular definition. Every other included file is indexed."
+  },
+  "attestations": [
+    {
+      "path": "attestations/e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533.sigstore.json",
+      "bundleSha256": "e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533",
+      "changeSetDigest": "7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2",
+      "authorshipMode": "human-authored",
+      "reviewState": "none",
+      "runId": "35996154567",
+      "runAttempt": 2
+    },
+    {
+      "path": "attestations/e60df59e1a27fbe7c42b4d7ad484acadbbd8a0ff96937faeb9a371d7d7bde843.sigstore.json",
+      "bundleSha256": "e60df59e1a27fbe7c42b4d7ad484acadbbd8a0ff96937faeb9a371d7d7bde843",
+      "changeSetDigest": "7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2",
+      "authorshipMode": "human-authored",
+      "reviewState": "approved",
+      "runId": "35996154567",
+      "runAttempt": 3
+    },
+    {
+      "path": "attestations/1e43cd876d32233989e7561fb01a182b3d55ac847edc7c7433c07c4e72628654.sigstore.json",
+      "bundleSha256": "1e43cd876d32233989e7561fb01a182b3d55ac847edc7c7433c07c4e72628654",
+      "changeSetDigest": "ed8d845eebb48b1fe38e916e8767b65ea0103b82d8d8a1a7d32aa1d311974081",
+      "authorshipMode": "human-authored",
+      "reviewState": "approved",
+      "runId": "38711403197",
+      "runAttempt": 3
+    },
+    {
+      "path": "attestations/ef80b71e6031013075e669a593cdf8f5939a18213d2e4d76024b46f2099ae70d.sigstore.json",
+      "bundleSha256": "ef80b71e6031013075e669a593cdf8f5939a18213d2e4d76024b46f2099ae70d",
+      "changeSetDigest": "9b369576434dfecc2d65418479c997533f8926d5c64a58d144c338b3ceaadced",
+      "authorshipMode": "ai-authored",
+      "reviewState": "none",
+      "runId": "38869963939",
+      "runAttempt": 1
+    },
+    {
+      "path": "attestations/7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96.sigstore.json",
+      "bundleSha256": "7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96",
+      "changeSetDigest": "9b369576434dfecc2d65418479c997533f8926d5c64a58d144c338b3ceaadced",
+      "authorshipMode": "ai-authored",
+      "reviewState": "approved",
+      "runId": "38869963939",
+      "runAttempt": 2
+    }
+  ],
+  "files": [
+    {
+      "path": "summary.md",
+      "role": "summary",
+      "size": 4554,
+      "sha256": "a7acc3d4f96ff41eefc03aed6d434af65b0f77ee8520d57a928361246b99858f"
+    },
+    {
+      "path": "controls/change-management.md",
+      "role": "control-narrative",
+      "size": 2694,
+      "sha256": "73e266bb4aeb5cae344388c44d24ee56fb03b267248ba578c0c273bb558fc862"
+    },
+    {
+      "path": "feedback.md",
+      "role": "practitioner-feedback-template",
+      "size": 1548,
+      "sha256": "d463d11c0df2fcfd23d884e04b35bcc12f0c9830889bc461653f5564b2e9ca4b"
+    },
+    {
+      "path": "verification-config.yaml",
+      "role": "verification-config",
+      "size": 517,
+      "sha256": "a6463edd17fc24518e0893e4e1f50d37ed2c12cefbbf21b1f3b81cfed759b789"
+    },
+    {
+      "path": "verify.sh",
+      "role": "verification-script",
+      "size": 4554,
+      "sha256": "0bc26d824af444096592c2a470336550f9a59ceb28d73b19abd721a4844ce373"
+    },
+    {
+      "path": "attestations/e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533.sigstore.json",
+      "role": "sigstore-bundle",
+      "size": 13227,
+      "sha256": "e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533"
+    },
+    {
+      "path": "attestations/e60df59e1a27fbe7c42b4d7ad484acadbbd8a0ff96937faeb9a371d7d7bde843.sigstore.json",
+      "role": "sigstore-bundle",
+      "size": 13854,
+      "sha256": "e60df59e1a27fbe7c42b4d7ad484acadbbd8a0ff96937faeb9a371d7d7bde843"
+    },
+    {
+      "path": "attestations/1e43cd876d32233989e7561fb01a182b3d55ac847edc7c7433c07c4e72628654.sigstore.json",
+      "role": "sigstore-bundle",
+      "size": 13627,
+      "sha256": "1e43cd876d32233989e7561fb01a182b3d55ac847edc7c7433c07c4e72628654"
+    },
+    {
+      "path": "attestations/ef80b71e6031013075e669a593cdf8f5939a18213d2e4d76024b46f2099ae70d.sigstore.json",
+      "role": "sigstore-bundle",
+      "size": 13819,
+      "sha256": "ef80b71e6031013075e669a593cdf8f5939a18213d2e4d76024b46f2099ae70d"
+    },
+    {
+      "path": "attestations/7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96.sigstore.json",
+      "role": "sigstore-bundle",
+      "size": 14152,
+      "sha256": "7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96"
+    }
+  ]
+}

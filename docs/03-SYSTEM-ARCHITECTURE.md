@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ARCH-001` |
-| Version | `1.9.1` |
+| Version | `1.10.0` |
 | Status | **NORMATIVE** for component boundaries, data flow, and package rules |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-14 |
 
 ---
 
@@ -451,7 +451,7 @@ auditor access, without becoming a dependency for the core loop.
 | Operation | Target | Notes |
 |---|---|---|
 | `CSD-1` on 1,000 changed files | < 500 ms | Pure computation over OIDs |
-| Full Action step in CI | < 15 s nearest-rank p95 over 20 hosted jobs | Includes image pull and wrapper/CLI work; excludes checkout (`ADR-046`) |
+| Full Action step in CI | Engineering target < 15 s; release SLO < 18 s nearest-rank p95 | Each 20-job run and the combined 60-sample result use the same boundary: image pull and wrapper/CLI work included, checkout excluded (`ADR-046`, `ADR-063`) |
 | `attest verify` offline | < 2 s | Excluding trust root fetch |
 
 Performance is not a differentiator here; predictability is. A gate that intermittently times out

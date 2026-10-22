@@ -196,6 +196,66 @@ def test_git_corrupt_tag_fails_closed(
 
 
 @pytest.mark.ac("AC-F07-100")
+def test_pygit2_ref_creation_checks_absence_while_locked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Create-only pygit2 writes check absence under the exact ref lock."""
+    name = f"refs/attestations/{_DIGEST}"
+    original_target = "1" * 40
+    replacement_target = "2" * 40
+    events: list[str] = []
+    locked = [False]
+    target: list[str | None] = [original_target]
+
+    class FakeReferences:
+        def get(self, candidate: str) -> object | None:
+            assert candidate == name
+            assert locked[0]
+            events.append("lookup")
+            return object() if target[0] is not None else None
+
+    class FakeTransaction:
+        def __enter__(self) -> FakeTransaction:
+            events.append("enter")
+            return self
+
+        def __exit__(self, exception_type: object, exception: object, traceback: object) -> None:
+            locked[0] = False
+            events.append("exit")
+
+        def lock_ref(self, candidate: str) -> None:
+            assert candidate == name
+            locked[0] = True
+            events.append("lock")
+
+        def set_target(self, candidate: str, object_id: object) -> None:
+            assert candidate == name
+            target[0] = str(object_id)
+            events.append("set")
+
+    class FakeRepository:
+        references = FakeReferences()
+
+        def transaction(self) -> FakeTransaction:
+            events.append("transaction")
+            return FakeTransaction()
+
+        def create_reference(self, candidate: str, object_id: object, *, force: bool) -> None:
+            assert candidate == name
+            assert force is False
+            events.append("unsafe-create")
+            target[0] = str(object_id)
+
+    objects = object.__new__(gitref_module._Pygit2Objects)
+    monkeypatch.setattr(objects, "_validate_repository", lambda: None)
+    monkeypatch.setattr(objects, "_repository", FakeRepository(), raising=False)
+
+    assert objects.create_ref(name, replacement_target) is False
+    assert target == [original_target]
+    assert events == ["transaction", "enter", "lock", "lookup", "exit"]
+
+
+@pytest.mark.ac("AC-F07-100")
 @pytest.mark.parametrize("backend", _BACKENDS)
 def test_git_process_concurrency_is_create_only(tmp_path: Path, backend: GitBackend) -> None:
     """REQ-F07-100: parallel writers retain every distinct Bundle once."""

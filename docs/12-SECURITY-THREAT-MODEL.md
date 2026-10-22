@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.6` |
+| Version | `1.4.8` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-22 |
 
 ---
 
@@ -181,6 +181,18 @@ DEFLATE level 9. Its sorted members, fixed timestamps and modes, checked-hash by
 set, and in-place import path remain mandatory; no repository-controlled member is added and no
 runtime extraction path is introduced. Both architectures must prove the complete archive and
 native runtime behavior before candidate acceptance.
+`ADR-065` treats an advisory affecting shipped runtime trust material as a release regression, not
+an accepted lockfile warning. Exact corrected certifi bytes must enter a unique two-platform
+candidate, pass the complete existing scan and supply-chain boundary, and reach users only through
+reviewed digest pinning and immutable patch release. Affected immutable images remain historical
+records rather than being mutated. Development-only virtualenv is updated in the same lock and is
+proved absent from the Action runtime; no Python distribution is republished because clean public
+installs already resolve the corrected transitive dependency.
+`ADR-066` applies the same fail-closed treatment to Alpine `CVE-2026-107891`. Matching exact
+`musl-dev==1.2.5-r24` build stages prevent ABI drift, the final minimized image explicitly upgrades
+to exact `musl==1.2.5-r24`, and a retained loader-owner record proves the fixed revision after the
+package database is removed. Both architectures must reject `r23` and pass the unchanged native,
+runtime, scan, SBOM, provenance, and identity-attestation controls before digest review.
 
 ---
 

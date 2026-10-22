@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any, Final
 
@@ -20,6 +21,7 @@ CANDIDATE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/action-ca
 CI_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/ci.yml"
 ACTION_MANIFEST: Final[Path] = REPOSITORY_ROOT / "action/action.yml"
 JUSTFILE: Final[Path] = REPOSITORY_ROOT / "Justfile"
+LOCK_FILE: Final[Path] = REPOSITORY_ROOT / "uv.lock"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
@@ -35,7 +37,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:10dade4e41415b68735f784f32a5667496ee4c36d60dba1b805660af092da584"
+    "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
 )
 
 
@@ -291,6 +293,17 @@ def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
     assert '--file "${validation_root}/action-context/action/Dockerfile"' in recipe
 
 
+@pytest.mark.ac("AC-F11-290")
+def test_security_patch_lock_uses_reviewed_fixed_dependencies() -> None:
+    """REQ-F11-290: the release lock excludes every reviewed affected dependency version."""
+    lock = tomllib.loads(LOCK_FILE.read_text(encoding="utf-8"))
+    versions = {package["name"]: package["version"] for package in lock["package"]}
+
+    assert versions["certifi"] == "2026.10.19"
+    assert versions["python-discovery"] == "1.6.4"
+    assert versions["virtualenv"] == "21.14.12"
+
+
 @pytest.mark.ac("AC-F11-150")
 @pytest.mark.ac("AC-F11-180")
 @pytest.mark.ac("AC-F11-190")
@@ -302,6 +315,7 @@ def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-290")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -390,7 +404,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.4.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.5-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.6-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
     assert "env" not in image_tests
@@ -538,7 +552,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}",
         "org.opencontainers.image.revision=${{ github.sha }}",
         "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
-        "org.opencontainers.image.version=0.1.5-candidate",
+        "org.opencontainers.image.version=0.1.6-candidate",
     ]
     evidence_step = next(
         step

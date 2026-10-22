@@ -23,7 +23,7 @@ Forge is who pays it.
 
 ```bash
 grep -A 15 '^## 12. Outcome log' docs/14-OPEN-CHALLENGES-AND-VALIDATION.md
-# F-11 needs F-06, F-07, F-09, F-10 Done. Its DoD needs CH-09 (container cold start).
+# F-11 and CH-09 are Done. Read ADR-064 before changing the published Action or release pipeline.
 ```
 
 ---
@@ -85,16 +85,16 @@ the most persuasive demo available.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| GHCR | Public `ghcr.io/parth2412/attest:0.1.0` amd64/arm64 image plus immutable digest | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.0`, reviewed moving `v1` | Most users — generated workflows pin a commit |
-| PyPI | Six `0.1.0` distributions: core, collect, sign, store, policy, and CLI | Python-native teams; no export package until F-12 |
+| GHCR | Public `ghcr.io/parth2412/attest:0.1.5` amd64/arm64 image at immutable manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a` | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.5` and reviewed moving `v1` at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209` | Most users — generated workflows pin a commit |
+| PyPI | Core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4` | Python-native teams; no export package until F-12 |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
-Pin the verified `python:3.12-slim` base by digest. Multi-arch is `linux/amd64` and
-`linux/arm64`; publish SBOM, provenance, and GitHub artifact attestations with every image
-(`SEC-001 C-09`). PyPI uses six protected per-package environments and Trusted Publishing, never a
-long-lived token. Bootstrap the first release in the two ordered, hash-verified three-package waves
-defined by `ADR-048`.
+The current Action uses the reviewed `python:3.12.14-alpine3.23` base and source-built Git 2.52.0
+plus curl 8.22.0 under `ADR-062`. Multi-arch is `linux/amd64` and `linux/arm64`; publish SBOM,
+provenance, corresponding source, component evidence, and GitHub artifact attestations with every
+image (`SEC-001 C-09`). PyPI uses six protected per-package environments and Trusted Publishing,
+never a long-lived token. The first-release bootstrap remains retained under `ADR-048`.
 
 **There is no single static binary and none is planned.** Do not build one speculatively.
 `ADR-011` holds the only trigger that could reopen it — M2 exit gate, installation friction ranked
@@ -105,15 +105,14 @@ is not Forge's to trigger.
 
 ## `CH-09` — container cold start
 
-`REQ-F11-100` requires the full Action under 15 s p95. This is the one place the Python decision
-carries measurable risk, and Forge owns closing it.
+`CH-09` and F-11 are closed under `ADR-064`. `REQ-F11-280` retains a strict engineering target
+below 15 s p95 and a separate strict release SLO below 18 s p95.
 
-**Experiment:** 20 independent `ubuntu-latest` Action jobs with the frozen staging fixture. Time
-the Action step including image pull but excluding checkout; retain every run ID/duration and use
-nearest-rank observation 19 for p95.
-**Gate:** p95 under 15 s.
-**If missed:** slim the image, defer heavy imports, cache layers. Do not silently ship slower than
-`ARCH-001 §11` claims — amend the target by ADR or fix it.
+**Measurement:** one automatic and two reviewed attempt-1 runs, each with 20 independent
+`ubuntu-latest` Action jobs using the frozen staging fixture. Time the Action step including image
+pull but excluding checkout; retain every run ID/duration and use nearest-rank p95 for each run and
+the combined 60 samples. Report both thresholds independently; only p95 below 18 s authorizes a
+release. The v1.0.5 results were 15, 14, and 16 s, with combined p95 16 s.
 
 Related: `attest --help` under 300 ms (`AC-F10-080`) depends on lazy imports, which is a shared
 concern with Pixel.
@@ -127,12 +126,13 @@ Arbiter decides *whether* to release; Forge builds *what* gets released. The pip
 1. Build/test/scan a locked candidate image from the enumerated context and emit context/manifest
    digests, SBOM, provenance, and attestation after implementation lands on protected `dev`
 2. Land a second reviewed PR that pins that manifest in `action.yml`, outside the build context
-3. From protected `main`, verify context equality and build the six distributions once
-4. Publish and verify the first three packages, register and approve the second three publishers,
-   then publish the second wave through per-package Trusted Publishing authority
-5. Only after all six packages succeed, promote the exact public GHCR manifest
-6. Create immutable product Release/tag `v0.1.0` and Action tag `v1.0.0`, advance reviewed `v1`,
-   attest the release with attest, and verify the evidence publicly
+3. From protected `main`, verify context equality and build only the distributions authorized for
+   that release
+4. Publish through the exact protected per-package Trusted Publisher environments and verify every
+   public file byte-for-byte before continuing
+5. Only after all package and performance gates succeed, promote the exact public GHCR manifest
+6. Create immutable product and Action tags, attest the release with attest, verify all evidence
+   publicly, complete the same-repository and fork proofs, then advance reviewed `v1`
 
 A release that cannot attest itself does not ship. That is not a slogan — it is a release gate in
 `QA-001 §12`.
