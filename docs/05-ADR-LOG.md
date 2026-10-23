@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.30.0` |
+| Version | `1.30.1` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-15 |
+| Last updated | 2026-10-23 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -4169,6 +4169,18 @@ contain curl `8.23.0`, must reject `8.22.0`, and must continue to accept only th
 Git-for-Windows VEX statement. No Python package, public Action input/output, signing behavior,
 trust rule, policy, predicate, storage format, error, threshold, performance sampling rule, or
 promotion boundary changes.
+
+**Implementation evidence.** Protected `dev` candidate run `39906806331`, attempt 1, completed
+successfully for exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context
+`sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`,
+identity-attested corresponding-source artifact
+`sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and
+multi-platform candidate
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+Both architectures passed all 23 real-container contracts and zero-vulnerability image scans.
+The component scan found curl `8.23.0` clean and retained only the existing Git-for-Windows
+not-affected match. This evidence authorizes reviewed digest pinning and a fresh exact-commit
+performance sequence; it does not authorize release, public proof, or movement of `v1`.
 
 ### ADR-067 accepted implementation plan
 

@@ -509,6 +509,21 @@ gate remain unchanged. Run `39829765757`, its raw component scan, and source art
 remain immutable negative evidence and cannot be rerun or promoted. A new protected `dev` commit
 must publish new corresponding source and create a new unique two-platform candidate.
 
+### 4.1.17 Reviewed 0.1.6 candidate evidence
+
+Protected `dev` candidate run `39906806331`, attempt 1, completed successfully for exact source
+`ae456176d0faefb732b9d8d8a4526365ad559278`, context
+`sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`,
+identity-attested corresponding-source artifact
+`sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and
+multi-platform image
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+Its linux/amd64 and linux/arm64 images passed all 23 container contracts and zero-vulnerability
+image scans. The immutable component scan found curl `8.23.0` clean and retained only the exact
+approved Git-for-Windows not-affected result. Candidate success completes the digest-review
+prerequisite; the three-run performance sequence, immutable release, public proofs, and reviewed
+`v1` promotion remain pending.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -670,6 +685,7 @@ write authority.
 - [x] Candidate run `38038325243` satisfies the locked three-package source build, closed pinned system-library linkage, verified non-timestamp TUF seed, deterministic compressed pure-Python runtime archive, native runtime, two-platform, security, and supply-chain boundary in `ADR-054`–`ADR-060`
 - [x] Candidate run `38250635610` satisfies the `ADR-061` archive, guarded process-boundary, branch-dispatch, two-platform, security, and supply-chain contracts
 - [x] Candidate run `38529646263` satisfies `ADR-062` source correspondence, minimal Git/HTTPS transport, component scan, both-platform loader/layer evidence, and every prior supply-chain contract
+- [x] Candidate run `39906806331` satisfies `ADR-065`–`ADR-067` corrected certifi, musl, curl, source-correspondence, 23-test both-platform runtime, zero-vulnerability image-scan, component-scan, SBOM, provenance, and identity-attestation gates for the unique `0.1.6-candidate`
 - [x] Three fresh consecutive attempt-1 20-job runs and their combined 60-sample result each remain strictly below the 18-second nearest-rank p95 release SLO, with the strict 15-second engineering target recorded independently
 - [x] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 - [ ] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
@@ -707,6 +723,12 @@ Candidate run `38529646263`, attempt 1, passed all `ADR-062` supply-chain gates 
 `sha256:25e8aec09b88f9182e10e096cb4336ef0cc9fbd0ea6f5498ab6dcf61a2c6c78b`, manifest
 `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`, and public source
 artifact `sha256:0855c9c357f8764b18f288c6b13dd5a0859424f12264fa3140e08680637d0457`.
+
+Candidate run `39906806331`, attempt 1, passed all `ADR-065`–`ADR-067` supply-chain gates for
+exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context
+`sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`, manifest
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`, and public source
+artifact `sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`.
 
 The qualifying `ADR-063` sequence measured exact release commit
 `203d2deb7dff946dc82c6efc6506bc34adbcd209` and the unchanged candidate manifest. Automatic run

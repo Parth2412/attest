@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Protected candidate run `39906806331` passed every `ADR-065`–`ADR-067` two-platform source,
+  runtime, scan, SBOM, provenance, and identity gate for the unique `0.1.6-candidate`; the Action,
+  performance, and release workflows now pin its reviewed manifest for the image-only `v1.0.6`
+  lifecycle while explicitly publishing no Python distribution.
 - Accepted ADR-067 after protected candidate run `39829765757` rejected source-built curl 8.22.0
   for fixable High `CVE-2026-92392`. The Action now pins the signed upstream curl 8.23.0 archive
   and exact component identity without changing transport features, VEX policy, release versions,
