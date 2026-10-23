@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.10` |
+| Version | `1.7.11` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-22 |
+| Last updated | 2026-10-23 |
 
 ---
 
@@ -133,6 +133,11 @@ rejects any remaining affected locked dependency.
 the runtime stage explicitly upgrades musl, proves the installed loader owner, and retains that
 exact revision after removing Alpine's package database. Both release architectures enforce the
 same record and reject affected `1.2.5-r23`.
+
+`ADR-067` replaces only source-built curl `8.22.0`, rejected by protected candidate run
+`39829765757` for fixable High `CVE-2026-92392`, with signed and SHA-512-locked curl `8.23.0`.
+Git `2.52.0`, the pinned removable toolchain, HTTP/1.1-only feature set, sole Git-for-Windows VEX
+statement, and every candidate/release threshold remain unchanged.
 
 ### 3.1 Notes on specific choices
 
@@ -418,6 +423,9 @@ same-repository proof, fork denial, and independent protected promotion verify.
 `ADR-066` folds Alpine's `CVE-2026-107891` fix into that still-unreleased replacement by pinning
 matching `musl-dev==1.2.5-r24` build stages and `musl==1.2.5-r24` runtime bytes, retaining exact
 installed-version evidence, and changing no ADR-065 release or publication boundary.
+`ADR-067` further replaces only the rejected curl `8.22.0` archive with signed, hash-locked curl
+`8.23.0`. Failed run `39829765757`, its raw component scan, and its source artifact remain
+negative evidence; only a new unique protected-`dev` candidate may continue the lifecycle.
 
 ---
 

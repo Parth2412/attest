@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · `ADR-065`/`ADR-066` security replacement underway; immutable `v0.1.5` / `v1.0.5` evidence remains historical |
+| Status | **In progress** · `ADR-065`–`ADR-067` security replacement underway; immutable `v0.1.5` / `v1.0.5` evidence remains historical |
 
 ---
 
@@ -494,6 +494,21 @@ and preserves every existing minimized-runtime and native-execution contract. Th
 shares ADR-065's unique candidate, performance, release, proof, and promotion lifecycle and does
 not authorize another package, base-image, API, threshold, or publication change.
 
+### 4.1.16 Fixed curl source replacement
+
+`ADR-067` amends the still-unreleased replacement after protected candidate run `39829765757`
+passed the complete release gate, published identity-attested corresponding source, and then
+failed closed on fixable High `CVE-2026-92392` in curl `8.22.0`. The component gate stopped the
+run before a binary candidate, performance sequence, release, or moving tag existed.
+
+Only curl changes: the official signed, SHA-512-locked `8.23.0` archive replaces `8.22.0`. Git
+`2.52.0`, the pinned toolchain, HTTP/1.1-only feature set, loader restrictions, exact
+Git-for-Windows VEX statement, scan thresholds, release versions, and every ADR-065 lifecycle
+gate remain unchanged. Run `39829765757`, its raw component scan, and source artifact
+`sha256:5aef5c06c1989411d86c636c38dec652eec7747dccab739decc648ab560c23c4`
+remain immutable negative evidence and cannot be rerun or promoted. A new protected `dev` commit
+must publish new corresponding source and create a new unique two-platform candidate.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -550,6 +565,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-280` | The hosted-runner evidence contract **MUST** preserve the exact `ADR-062` candidate image, Action-step timing boundary, 20-job sample size, nearest-rank calculation, first-attempt-only rule, and automatic-push-plus-two-reviewed-dispatch order. Every individual run and the combined 60-sample result **MUST** record a strict engineering target below 15 seconds and independently enforce a strict release SLO below 18 seconds. Publication **MUST** require all four SLO results to pass. Evidence **MUST** use schema 2 bound to `REQ-F11-280`/`AC-F11-280` and fail closed on schema 1, mismatched thresholds, incomplete samples, overlapping jobs, or altered identity. Failed run `38570478871` and every earlier performance run **MUST NOT** be rerun, reinterpreted, or counted; only a fresh exact-commit three-run sequence may qualify. |
 | `REQ-F11-290` | The security replacement **MUST** preserve every earlier immutable record; lock exactly `certifi==2026.10.19`, `virtualenv==21.14.12`, and resolver-selected `python-discovery==1.6.4`; prove the Action runtime contains the corrected certifi and excludes virtualenv; build and review one unique two-platform `0.1.6-candidate`; repeat every existing candidate, schema-2 performance, release, dogfood, same-repository, and fork-denial gate; publish only image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` with no Python distribution; and move `v1` only after independent protected review. |
 | `REQ-F11-300` | The same security replacement **MUST** build against exact `musl-dev==1.2.5-r24`, upgrade the final Action runtime to exact `musl==1.2.5-r24`, retain deterministic installed-version evidence after Alpine package metadata is removed, and reject affected `r23` on both architectures; it **MUST NOT** change ADR-065's candidate identity, release versions, publication boundary, performance thresholds, evidence sequence, immutable history, or independent promotion requirement. |
+| `REQ-F11-310` | The same security replacement **MUST** replace only source-built curl `8.22.0` with the official signed, SHA-512-locked curl `8.23.0` archive; preserve Git `2.52.0`, the HTTP/1.1-only feature set, exact toolchain and loader closure, sole Git-for-Windows VEX statement, scan thresholds, release versions, and no-Python-publication boundary; reject `8.22.0` from source, component, runtime, candidate, and release evidence; retain failed run `39829765757`, its raw scan, and attested source artifact as immutable negative evidence; and require a new unique corresponding-source artifact and two-platform candidate before the unchanged ADR-065 lifecycle continues. |
 
 ## 6. Acceptance criteria
 
@@ -585,6 +601,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-280` | Workflow and evidence-parser tests prove schema 2 records both exact thresholds and independently derived booleans, accepts p95 at or above 15 seconds only while it remains strictly below 18 seconds, rejects p95 at or above 18 seconds, rejects old or altered evidence, and requires three ordered, non-overlapping, attempt-1 20-job results plus the recomputed combined 60-sample SLO before release. Retained evidence proves the fresh sequence uses one exact merged commit and the unchanged reviewed image. |
 | `AC-F11-290` | Lock and container contracts prove the three exact reviewed dependency versions, corrected certifi runtime, and virtualenv exclusion; retained candidate evidence proves both architectures, complete real-container behavior, clean runtime and component scans, source correspondence, SBOM, provenance, identity attestation, and exact reviewed digest pinning; three fresh attempt-1 performance runs and the combined 60 samples pass the unchanged release SLO; immutable `0.1.6`/`v0.1.6`/`v1.0.6`, dogfood, public proof, and fork-denial evidence verify before reviewed `v1` promotion; and public-package probes prove no new Python file was published. |
 | `AC-F11-300` | Dockerfile and both-platform real-container contracts prove the two exact `musl-dev==1.2.5-r24` build pins, exact final `musl==1.2.5-r24` installation, retained single-line `musl-1.2.5-r24` version record, absence of affected `r23`, and unchanged minimized-runtime/native behavior; the candidate's clean scans, SBOM, provenance, and identity evidence then feed the complete unchanged ADR-065 lifecycle. |
+| `AC-F11-310` | Source-preparation, Dockerfile, component-gate, candidate/release-validator, workflow, and both-platform real-container contracts prove curl `8.23.0`'s exact archive hash, source root, purl, CPE, licence, compiled version, unchanged protocols/features, loader closure, and clean fixable-High component result while rejecting `8.22.0`; retained evidence proves run `39829765757` stopped before a binary and a new protected-`dev` commit created distinct corresponding-source and candidate identities before any performance or release step. |
 
 ## 7. Evidence retention
 
@@ -627,6 +644,10 @@ fork proof, and the independently reviewed moving-major promotion.
 For `ADR-066` it additionally retains Alpine's advisory/package identity, affected and fixed musl
 revisions, exact Dockerfile pins, both-platform installed-version records, runtime and component
 scan outputs, and the unchanged ADR-065 candidate-through-promotion evidence.
+For `ADR-067` it additionally retains curl's advisory identity, affected/fixed versions, upstream
+signature fingerprint and exact archive hash, failed run `39829765757`, its raw component scan and
+source-artifact digest, evidence that no binary candidate was created, and the new source,
+component, both-platform runtime, candidate, and unchanged ADR-065 lifecycle evidence.
 
 ## 8. Out of scope
 

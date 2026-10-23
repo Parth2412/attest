@@ -90,8 +90,10 @@ the most persuasive demo available.
 | PyPI | Core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4` | Python-native teams; no export package until F-12 |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
-The current Action uses the reviewed `python:3.12.14-alpine3.23` base and source-built Git 2.52.0
-plus curl 8.22.0 under `ADR-062`. Multi-arch is `linux/amd64` and `linux/arm64`; publish SBOM,
+The published Action uses the reviewed `python:3.12.14-alpine3.23` base and source-built Git 2.52.0
+plus curl 8.22.0 under `ADR-062`; the unreleased `ADR-067` replacement keeps Git and the transport
+feature set unchanged while requiring signed, hash-locked curl 8.23.0. Multi-arch is
+`linux/amd64` and `linux/arm64`; publish SBOM,
 provenance, corresponding source, component evidence, and GitHub artifact attestations with every
 image (`SEC-001 C-09`). PyPI uses six protected per-package environments and Trusted Publishing,
 never a long-lived token. The first-release bootstrap remains retained under `ADR-048`.

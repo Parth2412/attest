@@ -412,7 +412,7 @@ jobs:
                   raise SystemExit(f"invalid {slug} runtime platform")
               if sizes["gitVersion"] != "git version 2.52.0":
                   raise SystemExit(f"invalid {slug} Git version")
-              if sizes["curlVersion"] != "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2":
+              if sizes["curlVersion"] != "libcurl/8.23.0 OpenSSL/3.5.9 zlib/1.3.2":
                   raise SystemExit(f"invalid {slug} curl version")
               for name in (
                   "imageBytes",

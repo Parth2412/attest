@@ -4091,3 +4091,92 @@ evidence but is superseded for new use only after the complete `v1.0.6` lifecycl
 Acceptance authorizes only the exact musl `r24` security rebuild inside ADR-065's existing `0.1.6`
 lifecycle. It does not authorize any other dependency, base-image, package-publication,
 API, requirement, threshold, trust, or release-process change.
+
+---
+
+## ADR-067 — Replace the affected curl source before the Action patch candidate
+
+**Status:** Accepted · **Date:** 2026-10-23 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-062`, `ADR-065`, `ADR-066`
+
+**Context.** Protected candidate run `39829765757` passed the complete release gate and published
+the exact corresponding-source artifact before its component security gate stopped the run. The
+immutable Grype evidence found one fixable High vulnerability in the retained source-built
+`curl==8.22.0`: `CVE-2026-92392`, an HTTP/2 upload use-after-free. The upstream curl advisory
+classifies versions `8.12.0` through `8.22.0` as affected, identifies `8.23.0` as fixed, and
+recommends upgrading to `8.23.0`. The upstream vulnerability record reports no published security
+problems for `8.23.0` as of this decision.
+
+The bounded Action build disables HTTP/2 and does not retain nghttp2, so the documented exploit
+path is not enabled in the produced runtime. That does not make a fixable affected source version
+an acceptable release input: ADR-062 deliberately permits only its exact Git-for-Windows
+not-affected VEX statement, and its unchanged component gate correctly rejects every other
+fixable High match. Adding a new VEX exception or weakening that gate would conceal replaceable
+affected code when an upstream fixed release is available.
+
+The official `curl-8.23.0.tar.xz` archive was downloaded from `curl.se`, verified against Daniel
+Stenberg's release signature with full fingerprint
+`27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2`, and independently measured at SHA-512
+`69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840`.
+Run `39829765757` published only the failed run's source artifact
+`sha256:5aef5c06c1989411d86c636c38dec652eec7747dccab739decc648ab560c23c4`;
+the component gate prevented any binary candidate, performance evidence, release, or moving Action
+tag from being created.
+
+**Decision.** Keep Git `2.52.0`, the fixed Alpine musl revision, certifi replacement, base image,
+toolchain, minimized transport feature set, exact Git-for-Windows OpenVEX statement, scan policy,
+release identity, and every ADR-065/066 gate unchanged. Replace only the Action transport's
+unmodified curl source from `8.22.0` to `8.23.0`. Pin the official archive URL, source root,
+package URL, CPE, and exact SHA-512 above in the declarative runtime-source manifest; update the
+Docker build, retained SPDX component identity, validators, and contracts to require `8.23.0` and
+reject `8.22.0`.
+
+Build curl with the same HTTP/1.1-only OpenSSL/zlib/IPv6/threaded-resolver configuration and the
+same disabled protocol and optional-library set accepted by ADR-062. Do not enable HTTP/2,
+HTTP/3, WebSockets, another protocol, cookie support, c-ares, IDN, PSL, zstd, Brotli, or a new
+runtime library. Prove the exact version, enabled protocols/features, verified HTTPS Git
+transport, forbidden-library absence, loader closure, licence, binary hashes and sizes, and
+four-layer layout on both release architectures.
+
+Preserve failed run `39829765757`, its raw component scan, and its identity-attested source
+artifact as immutable negative evidence; do not rerun it, count it, promote it, or describe it as
+a candidate. Merge the correction through protected review and require a new protected `dev`
+commit to create a new unique corresponding-source tag and a new unique two-platform candidate.
+That candidate must pass the complete release, component, image, container, SBOM, provenance,
+attestation, and source-correspondence gates before a digest-pinning change or performance run is
+allowed. ADR-065's image-only `0.1.6` / `v0.1.6` / `v1.0.6` sequence and prohibition on Python
+distribution publication remain unchanged.
+
+**Rationale.** Upgrading to the upstream fixed stable release removes the affected code and keeps
+the fail-closed scan policy truthful. The correction is bounded to a source input already owned by
+ADR-062 and happens before any binary candidate exists, so it avoids a second patch release while
+preserving the entire evidence lifecycle. Retaining the failed run establishes that the control
+worked instead of rewriting history.
+
+**Rejected alternatives.** A VEX not-affected statement based only on the disabled HTTP/2 build
+would expand ADR-062's sole-exception policy despite an available fixed release. Ignoring or
+downgrading the finding, changing the severity threshold, deleting raw scan evidence, or rerunning
+the failed workflow would weaken the release record. Backporting only the patch would create a
+locally modified source whose identity is harder to review than the signed stable release.
+Publishing `8.22.0` because no binary candidate was yet created would knowingly preserve an
+affected component. Changing Git, OpenSSL, zlib, the base, or transport features at the same time
+would enlarge the security change without evidence.
+
+**Consequences.** The corresponding-source artifact, context digest, curl/libcurl binaries,
+platform manifests, SBOM, provenance, and candidate digest will change. Native build time and
+image sizes may change and must be measured rather than assumed. The exact component scan must
+contain curl `8.23.0`, must reject `8.22.0`, and must continue to accept only the existing
+Git-for-Windows VEX statement. No Python package, public Action input/output, signing behavior,
+trust rule, policy, predicate, storage format, error, threshold, performance sampling rule, or
+promotion boundary changes.
+
+### ADR-067 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-310` | Replace only source-built curl `8.22.0` with signed, hash-locked `8.23.0`; prove exact source/component/runtime identity and the unchanged minimal transport on both architectures; preserve failed run `39829765757`; create a fresh unique candidate and continue the unchanged ADR-065 lifecycle | Runtime-source manifest and preparation, Action Dockerfile, component/candidate/release validators and contracts, normative `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and release records |
+
+Acceptance authorizes only this exact curl `8.23.0` source replacement within ADR-065's
+existing `0.1.6` lifecycle. It would not authorize a scan exception, another dependency or
+feature change, package publication, failed-run reuse, threshold change, API change, F-12 work,
+release, or movement of `v1`.

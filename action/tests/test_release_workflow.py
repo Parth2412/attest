@@ -370,6 +370,7 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
 @pytest.mark.ac("AC-F11-240")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     """REQ-F11-210: the reviewed context, scans, labels, and identity are rechecked."""
     preflight = _workflow()["jobs"]["preflight"]
@@ -416,7 +417,7 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     for fragment in (
         "gitVersion",
         "git version 2.52.0",
-        "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2",
+        "libcurl/8.23.0 OpenSSL/3.5.9 zlib/1.3.2",
         "loader-dependencies.txt",
         "candidate-image-layers-linux-amd64.json",
         "candidate-image-layers-linux-arm64.json",
@@ -653,7 +654,7 @@ def _candidate_fixture(
     runtime_sources.mkdir()
     source_files = {
         "Dockerfile": b"FROM source-build\n",
-        "curl-8.22.0.tar.xz": b"exact curl source",
+        "curl-8.23.0.tar.xz": b"exact curl source",
         "curl-COPYING": b"curl licence",
         "git-2.52.0.tar.xz": b"exact git source",
         "git-COPYING": b"git licence",
@@ -667,16 +668,16 @@ def _candidate_fixture(
         "packages": [
             {
                 "name": "curl",
-                "versionInfo": "8.22.0",
+                "versionInfo": "8.23.0",
                 "licenseDeclared": "curl",
                 "externalRefs": [
                     {
                         "referenceType": "purl",
-                        "referenceLocator": "pkg:generic/curl@8.22.0",
+                        "referenceLocator": "pkg:generic/curl@8.23.0",
                     },
                     {
                         "referenceType": "cpe23Type",
-                        "referenceLocator": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+                        "referenceLocator": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
                     },
                 ],
             },
@@ -825,6 +826,7 @@ def _validate_candidate(
 
 
 @pytest.mark.ac("AC-F11-150")
+@pytest.mark.ac("AC-F11-310")
 def test_release_candidate_validator_accepts_exact_reviewed_evidence(tmp_path: Path) -> None:
     result = _validate_candidate(*_candidate_fixture(tmp_path))
     assert result.returncode == 0, result.stderr
@@ -856,6 +858,7 @@ def test_release_candidate_validator_rejects_mismatched_evidence(
 
 
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 @pytest.mark.parametrize(
     ("target", "replacement", "message"),
     [

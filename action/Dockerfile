@@ -14,7 +14,7 @@ RUN apk add --no-cache \
 
 WORKDIR /build
 COPY action/runtime-sources/git-2.52.0.tar.xz ./git-2.52.0.tar.xz
-COPY action/runtime-sources/curl-8.22.0.tar.xz ./curl-8.22.0.tar.xz
+COPY action/runtime-sources/curl-8.23.0.tar.xz ./curl-8.23.0.tar.xz
 COPY action/runtime-sources/git-COPYING ./git-COPYING
 COPY action/runtime-sources/curl-COPYING ./curl-COPYING
 
@@ -23,15 +23,15 @@ RUN printf '%s  %s\n' \
         git-2.52.0.tar.xz \
         | sha256sum -c - \
     && printf '%s  %s\n' \
-        d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7 \
-        curl-8.22.0.tar.xz \
+        69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840 \
+        curl-8.23.0.tar.xz \
         | sha512sum -c - \
     && tar -xJf git-2.52.0.tar.xz \
-    && tar -xJf curl-8.22.0.tar.xz \
+    && tar -xJf curl-8.23.0.tar.xz \
     && cmp git-COPYING git-2.52.0/COPYING \
-    && cmp curl-COPYING curl-8.22.0/COPYING
+    && cmp curl-COPYING curl-8.23.0/COPYING
 
-RUN cd curl-8.22.0 \
+RUN cd curl-8.23.0 \
     && ./configure \
         --prefix=/usr \
         --disable-alt-svc \
@@ -77,7 +77,7 @@ RUN cd curl-8.22.0 \
         LDFLAGS="-Wl,--gc-sections -s" \
     && make -j2 \
     && make DESTDIR=/out install \
-    && test "$(/out/usr/bin/curl-config --version)" = "libcurl 8.22.0" \
+    && test "$(/out/usr/bin/curl-config --version)" = "libcurl 8.23.0" \
     && test "$(/out/usr/bin/curl-config --protocols | tr '\n' ' ')" = "HTTP HTTPS " \
     && /out/usr/bin/curl-config --features | grep -Fx IPv6 \
     && /out/usr/bin/curl-config --features | grep -Fx HTTPS-proxy \

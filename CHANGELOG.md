@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-067 after protected candidate run `39829765757` rejected source-built curl 8.22.0
+  for fixable High `CVE-2026-92392`. The Action now pins the signed upstream curl 8.23.0 archive
+  and exact component identity without changing transport features, VEX policy, release versions,
+  or the no-PyPI boundary; the failed source artifact and scan remain immutable negative evidence.
 - Accepted ADR-066 and extended the unreleased Action security replacement with exact Alpine
   `musl 1.2.5-r24` build/runtime pins plus retained installed-version evidence for
   `CVE-2026-107891`; ADR-065's versions, no-PyPI boundary, and complete release gates are unchanged.
