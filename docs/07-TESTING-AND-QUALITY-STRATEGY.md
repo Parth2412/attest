@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.5.3` |
+| Version | `1.5.4` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-22 |
+| Last updated | 2026-10-23 |
 
 ---
 
@@ -260,6 +260,7 @@ A release **MUST NOT** ship unless:
 - [x] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38257587284`, and `38570478871`; and, for ADR-063, three fresh consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every result includes image pull, reports the strict 15-second engineering target, and passes the strict release SLO below 18 seconds
 - [ ] The `ADR-065` lock contains exact `certifi==2026.10.19`, `virtualenv==21.14.12`, and `python-discovery==1.6.4`; dependency audit is clean; and both real-container platforms prove the corrected certifi runtime and virtualenv exclusion
 - [ ] The `ADR-066` image builds against exact `musl-dev==1.2.5-r24`, runs exact `musl==1.2.5-r24`, retains its single-line installed-version record after package metadata removal, and rejects affected `r23` on both architectures
+- [ ] The `ADR-067` source, Dockerfile, component, and release contracts require signed, SHA-512-locked curl `8.23.0`, reject `8.22.0`, preserve the HTTP/1.1-only transport and sole Git VEX statement, and retain failed run `39829765757` as negative evidence
 - [ ] The unique `0.1.6-candidate` passes every existing context, source-correspondence, real-container, two-platform scan, component-scan, SBOM, provenance, and identity-attestation gate before reviewed digest pinning
 - [ ] Three fresh attempt-1 20-job performance runs and their combined 60 samples pass the unchanged schema-2 release SLO before exact image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` publish without a Python distribution
 - [ ] Release dogfood, same-repository proof, fork denial, public-package non-publication checks, and independent protected promotion verify before `v1` moves from `v1.0.5`

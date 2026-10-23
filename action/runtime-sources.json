@@ -23,23 +23,23 @@
     },
     {
       "name": "curl",
-      "version": "8.22.0",
+      "version": "8.23.0",
       "archive": {
-        "filename": "curl-8.22.0.tar.xz",
-        "url": "https://curl.se/download/curl-8.22.0.tar.xz",
+        "filename": "curl-8.23.0.tar.xz",
+        "url": "https://curl.se/download/curl-8.23.0.tar.xz",
         "digest": {
           "algorithm": "sha512",
-          "value": "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+          "value": "69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840"
         }
       },
-      "sourceRoot": "curl-8.22.0",
+      "sourceRoot": "curl-8.23.0",
       "licence": {
         "archivePath": "COPYING",
         "spdx": "curl",
         "runtimePath": "/usr/share/licenses/curl/COPYING"
       },
-      "purl": "pkg:generic/curl@8.22.0",
-      "cpe": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*"
+      "purl": "pkg:generic/curl@8.23.0",
+      "cpe": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*"
     }
   ]
 }

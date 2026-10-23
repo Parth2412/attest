@@ -397,6 +397,7 @@ def test_runtime_supports_local_git_ref_transport(docker_mount_root: Path) -> No
 
 @pytest.mark.container
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 def test_source_built_git_https_runtime_has_exact_component_and_loader_evidence() -> None:
     script = """
 import ctypes
@@ -419,11 +420,11 @@ packages = {
 }
 assert packages == {
     "curl": (
-        "8.22.0",
+        "8.23.0",
         "curl",
         {
-            "purl": "pkg:generic/curl@8.22.0",
-            "cpe23Type": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+            "purl": "pkg:generic/curl@8.23.0",
+            "cpe23Type": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
         },
     ),
     "git": (
@@ -457,7 +458,7 @@ for component in ("curl", "git"):
 
 curl_version = ctypes.CDLL("/usr/lib/libcurl.so.4").curl_version
 curl_version.restype = ctypes.c_char_p
-assert curl_version().decode() == "libcurl/8.22.0 OpenSSL/3.5.9 zlib/1.3.2"
+assert curl_version().decode() == "libcurl/8.23.0 OpenSSL/3.5.9 zlib/1.3.2"
 
 mapping = (attest / "loader-dependencies.txt").read_text()
 assert "/usr/bin/git|" in mapping

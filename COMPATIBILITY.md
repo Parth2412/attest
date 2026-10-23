@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.17.2` |
+| Version | `1.17.3` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-10-22 |
+| Last updated | 2026-10-23 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -44,7 +44,8 @@ storage is active in `attest-store`; and F-09 policy evaluation is active in `at
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
 F-11's published Action/image remain active historical releases, but F-11 is `In progress` while
-`ADR-065`/`ADR-066` replace the affected `v1.0.5` runtime CA bundle and musl libc. F-12 is Planned and `attest-export`
+`ADR-065`–`ADR-067` replace the affected `v1.0.5` runtime CA bundle and musl libc and replace
+the rejected `8.22.0` curl source before a new candidate. F-12 is Planned and `attest-export`
 remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
@@ -173,7 +174,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | exact core/collect/policy 0.1.0 and sign/store 0.1.1 in published `0.1.4` metadata | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`, `ADR-066` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`, `ADR-066`, `ADR-067` |
 
 ---
 
@@ -204,7 +205,9 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 Multi-arch: `linux/amd64` and `linux/arm64`. The Action builds from the reviewed
 `python:3.12.14-alpine3.23` base, carries source-built Git 2.52.0 and curl 8.22.0, and pins the
-released runtime by the immutable manifest above (`ADR-062`, `ADR-064`).
+released runtime by the immutable manifest above (`ADR-062`, `ADR-064`). The unpublished
+`0.1.6` replacement uses curl 8.23.0 under `ADR-067`; failed run `39829765757` and its 8.22.0
+source artifact remain immutable negative evidence and are not a binary candidate.
 
 **There is no single static binary and none is planned.** `ADR-011` records the one bounded
 trigger that could reopen it — M2 exit gate, installation friction ranked top complaint by a
@@ -238,6 +241,9 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-23**: Accepted `ADR-067` and replaced only the rejected curl `8.22.0` source with
+  signed, hash-locked `8.23.0` inside the existing unreleased `0.1.6` lifecycle. Failed run
+  `39829765757` remains negative evidence; a new unique candidate must pass every existing gate.
 - **2026-10-22**: Accepted `ADR-066` and added exact Alpine `musl==1.2.5-r24` runtime and matching
   build-stage remediation to the existing `0.1.6` lifecycle without changing its versions,
   publication boundary, evidence sequence, or immutable history.

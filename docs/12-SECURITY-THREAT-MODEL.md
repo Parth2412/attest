@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.8` |
+| Version | `1.4.9` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-22 |
+| Last updated | 2026-10-23 |
 
 ---
 
@@ -193,6 +193,9 @@ installs already resolve the corrected transitive dependency.
 to exact `musl==1.2.5-r24`, and a retained loader-owner record proves the fixed revision after the
 package database is removed. Both architectures must reject `r23` and pass the unchanged native,
 runtime, scan, SBOM, provenance, and identity-attestation controls before digest review.
+`ADR-067` demonstrates the component control failing closed: protected run `39829765757` rejected
+curl `8.22.0` for fixable High `CVE-2026-92392` before any binary candidate existed. The correction
+uses signed, hash-locked curl `8.23.0`; it does not add a VEX exception or weaken the threshold.
 
 ---
 
@@ -315,7 +318,8 @@ licence obligations, unreported vulnerable components, or a larger native depend
 the reviewed design. A private or short-lived source attachment would also make the released
 binary unauditable.
 
-**C-17:** `ADR-062` permits only unmodified Git `2.52.0` and curl `8.22.0` from exact upstream
+**C-17:** `ADR-062`, as amended by `ADR-067`, permits only unmodified Git `2.52.0` and curl
+`8.23.0` from exact upstream
 URLs and digests verified before archive inspection or extraction, with an exact pinned removable
 toolchain and a closed feature set. CI publishes and identity-attests public digest-bound
 corresponding source before the binary, embeds exact licence/component/loader evidence, links the
@@ -325,7 +329,9 @@ Windows-only Git `CVE-2026-62960` may suppress a match; scanner/database/VEX dri
 also proves local and certificate-verified HTTPS behavior plus forbidden-library absence on both
 architectures. Release promotion independently re-fetches the source digest, verifies its manifest
 and attestation, reconstructs the candidate context, and retains and attests the exact archives,
-licences, hashes, and recipe (`REQ-F11-270`, `ADR-062`).
+licences, hashes, and recipe (`REQ-F11-270`, `REQ-F11-310`, `ADR-062`, `ADR-067`). Failed run
+`39829765757`, its raw scan, and its attested 8.22.0 source artifact are retained as negative
+evidence and cannot be rerun, promoted, or treated as a binary candidate.
 
 ---
 

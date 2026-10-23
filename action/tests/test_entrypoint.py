@@ -1307,6 +1307,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-270")
 @pytest.mark.ac("AC-F11-290")
 @pytest.mark.ac("AC-F11-300")
+@pytest.mark.ac("AC-F11-310")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1379,14 +1380,15 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     ):
         assert transport_build_package in dockerfile
     assert "COPY action/runtime-sources/git-2.52.0.tar.xz" in dockerfile
-    assert "COPY action/runtime-sources/curl-8.22.0.tar.xz" in dockerfile
+    assert "COPY action/runtime-sources/curl-8.23.0.tar.xz" in dockerfile
+    assert "8.22.0" not in dockerfile
     assert "3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5" in dockerfile
     assert (
-        "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+        "69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840"
         in dockerfile
     )
     assert dockerfile.index("sha256sum -c") < dockerfile.index("tar -xJf git-2.52.0.tar.xz")
-    assert dockerfile.index("sha512sum -c") < dockerfile.index("tar -xJf curl-8.22.0.tar.xz")
+    assert dockerfile.index("sha512sum -c") < dockerfile.index("tar -xJf curl-8.23.0.tar.xz")
     for curl_option in (
         "--disable-cookies",
         "--disable-websockets",
