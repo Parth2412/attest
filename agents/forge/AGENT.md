@@ -23,7 +23,7 @@ Forge is who pays it.
 
 ```bash
 grep -A 15 '^## 12. Outcome log' docs/14-OPEN-CHALLENGES-AND-VALIDATION.md
-# F-11 and CH-09 are Done. Read ADR-064 before changing the published Action or release pipeline.
+# F-11 and CH-09 are Done. Read ADR-064 through ADR-067 before changing the published Action or release pipeline.
 ```
 
 ---
@@ -85,14 +85,13 @@ the most persuasive demo available.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| GHCR | Public `ghcr.io/parth2412/attest:0.1.5` amd64/arm64 image at immutable manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a` | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.5` and reviewed moving `v1` at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209` | Most users — generated workflows pin a commit |
+| GHCR | Public `ghcr.io/parth2412/attest:0.1.6` amd64/arm64 image at immutable manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.6` and reviewed moving `v1` at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050` | Most users — generated workflows pin a commit |
 | PyPI | Core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4` | Python-native teams; no export package until F-12 |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
 The published Action uses the reviewed `python:3.12.14-alpine3.23` base and source-built Git 2.52.0
-plus curl 8.22.0 under `ADR-062`; the unreleased `ADR-067` replacement keeps Git and the transport
-feature set unchanged while requiring signed, hash-locked curl 8.23.0. Multi-arch is
+plus signed, hash-locked curl 8.23.0 under `ADR-062` as amended by `ADR-067`. Multi-arch is
 `linux/amd64` and `linux/arm64`; publish SBOM,
 provenance, corresponding source, component evidence, and GitHub artifact attestations with every
 image (`SEC-001 C-09`). PyPI uses six protected per-package environments and Trusted Publishing,
@@ -107,14 +106,15 @@ is not Forge's to trigger.
 
 ## `CH-09` — container cold start
 
-`CH-09` and F-11 are closed under `ADR-064`. `REQ-F11-280` retains a strict engineering target
+`CH-09` and F-11 are closed under `ADR-064` and the completed `ADR-065`–`ADR-067` replacement.
+`REQ-F11-280` retains a strict engineering target
 below 15 s p95 and a separate strict release SLO below 18 s p95.
 
 **Measurement:** one automatic and two reviewed attempt-1 runs, each with 20 independent
 `ubuntu-latest` Action jobs using the frozen staging fixture. Time the Action step including image
 pull but excluding checkout; retain every run ID/duration and use nearest-rank p95 for each run and
 the combined 60 samples. Report both thresholds independently; only p95 below 18 s authorizes a
-release. The v1.0.5 results were 15, 14, and 16 s, with combined p95 16 s.
+release. The v1.0.6 results were 16, 14, and 13 s, with combined p95 16 s.
 
 Related: `attest --help` under 300 ms (`AC-F10-080`) depends on lazy imports, which is a shared
 concern with Pixel.

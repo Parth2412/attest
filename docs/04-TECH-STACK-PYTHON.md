@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.11` |
+| Version | `1.7.12` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
 | Last updated | 2026-10-23 |
 
@@ -345,14 +345,14 @@ is by far the most persuasive demo you will have.
 | Channel | Artifact | Audience |
 |---|---|---|
 | PyPI | Current core/collect/policy `0.1.0`, store/sign `0.1.1`, and CLI `0.1.4`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current public `ghcr.io/parth2412/attest:0.1.5` at manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; `ADR-065` replacement `0.1.6` is required before new-deployment recommendation; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.5`, and reviewed moving `v1`, all at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; `ADR-065` replacement `v1.0.6` is in progress and earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| GHCR | Current public `ghcr.io/parth2412/attest:0.1.6` at manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.6`, and reviewed moving `v1`, all at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-The performance-correction image records and pins the verified
-`python:3.12.14-alpine3.23` base digest and, under `ADR-062`, builds unmodified Git `2.52.0` and
-curl `8.22.0` from their exact hash-locked upstream sources rather than retaining Alpine's broad
-Git/curl transport closure. Release builds from the committed lock with
+The current image records and pins the verified `python:3.12.14-alpine3.23` base digest and, under
+`ADR-062` as amended by `ADR-067`, builds unmodified Git `2.52.0` and curl `8.23.0` from their
+exact hash-locked upstream sources rather than retaining Alpine's broad Git/curl transport
+closure. Release builds from the committed lock with
 user-site/current-directory imports disabled. Multi-arch is
 `linux/amd64` and `linux/arm64`. Every published image has an SBOM, provenance, and a GitHub
 artifact attestation. PyPI publication uses per-package Trusted Publishing environments with build
@@ -425,7 +425,13 @@ matching `musl-dev==1.2.5-r24` build stages and `musl==1.2.5-r24` runtime bytes,
 installed-version evidence, and changing no ADR-065 release or publication boundary.
 `ADR-067` further replaces only the rejected curl `8.22.0` archive with signed, hash-locked curl
 `8.23.0`. Failed run `39829765757`, its raw component scan, and its source artifact remain
-negative evidence; only a new unique protected-`dev` candidate may continue the lifecycle.
+negative evidence. Candidate run `39906806331` produced the reviewed manifest above. Exact release
+commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050` then passed three attempt-1 performance runs at
+p95 16, 14, and 13 seconds plus a combined 60-sample p95 of 16 seconds, all below the strict
+18-second release SLO. Release run `39988130356` promoted that manifest without rebuilding,
+published no Python distribution, completed dogfood and immutable `v0.1.6`/`v1.0.6` records, and
+verified the public package set. Same-repository and fork-denial proofs completed before protected
+promotion run `39994508140` moved reviewed `v1` to the exact release commit.
 
 ---
 

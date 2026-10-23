@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.17.3` |
+| Version | `1.17.4` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-10-23 |
 
@@ -33,8 +33,8 @@
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.4 | Python 3.12+ | `F-10` | active |
-| GitHub Action | `Parth2412/attest/action` | — | v1.0.5 / v1 | Container | `F-11` | active |
-| Container image | `ghcr.io/parth2412/attest` | — | 0.1.5 | multi-platform Alpine manifest | `F-11` | active |
+| GitHub Action | `Parth2412/attest/action` | — | v1.0.6 / v1 | Container | `F-11` | active |
+| Container image | `ghcr.io/parth2412/attest` | — | 0.1.6 | multi-platform Alpine manifest | `F-11` | active |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
@@ -43,10 +43,10 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
-F-11's published Action/image remain active historical releases, but F-11 is `In progress` while
-`ADR-065`–`ADR-067` replace the affected `v1.0.5` runtime CA bundle and musl libc and replace
-the rejected `8.22.0` curl source before a new candidate. F-12 is Planned and `attest-export`
-remains a development scaffold pending `CH-04`.
+F-11's published Action/image are active and F-11 is `Done`. `ADR-065`–`ADR-067` completed the
+`v1.0.6` replacement of the affected `v1.0.5` runtime CA bundle and musl libc plus the rejected
+`8.22.0` curl source; every earlier release remains immutable historical evidence. F-12 is
+Planned and `attest-export` remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -174,7 +174,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | exact core/collect/policy 0.1.0 and sign/store 0.1.1 in published `0.1.4` metadata | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.5; Action v1.0.5/v1; security replacement 0.1.6/v1.0.6 in progress | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`, `ADR-066`, `ADR-067` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | image 0.1.6; Action v1.0.6/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`, `ADR-066`, `ADR-067` |
 
 ---
 
@@ -198,16 +198,16 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | public `ghcr.io/parth2412/attest:0.1.5` for amd64/arm64 at immutable manifest `sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; affected CA-bundle replacement `0.1.6` is in progress | **Primary** CI channel | `F-11` |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.5` and reviewed moving `v1` at release commit `203d2deb7dff946dc82c6efc6506bc34adbcd209`; `v1.0.6` replacement is in progress | Most users — generated workflows pin a commit | `F-11` |
+| GHCR | public `ghcr.io/parth2412/attest:0.1.6` for amd64/arm64 at immutable manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.6` and reviewed moving `v1` at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050` | Most users — generated workflows pin a commit | `F-11` |
 | PyPI | core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4`; no export distribution | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
 Multi-arch: `linux/amd64` and `linux/arm64`. The Action builds from the reviewed
-`python:3.12.14-alpine3.23` base, carries source-built Git 2.52.0 and curl 8.22.0, and pins the
-released runtime by the immutable manifest above (`ADR-062`, `ADR-064`). The unpublished
-`0.1.6` replacement uses curl 8.23.0 under `ADR-067`; failed run `39829765757` and its 8.22.0
-source artifact remain immutable negative evidence and are not a binary candidate.
+`python:3.12.14-alpine3.23` base, carries source-built Git 2.52.0 and curl 8.23.0, and pins the
+released runtime by the immutable manifest above (`ADR-062`, `ADR-064`, `ADR-067`). Failed run
+`39829765757` and its 8.22.0 source artifact remain immutable negative evidence and are not a
+binary candidate.
 
 **There is no single static binary and none is planned.** `ADR-011` records the one bounded
 trigger that could reopen it — M2 exit gate, installation friction ranked top complaint by a
@@ -241,6 +241,12 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-23**: Completed the `ADR-065`–`ADR-067` replacement on image `0.1.6`, immutable
+  product `v0.1.6`, immutable Action `v1.0.6`, and reviewed moving `v1`, all at release commit
+  `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and manifest
+  `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`. No Python
+  distribution changed; candidate, performance, release, dogfood, public proof, fork denial, and
+  protected promotion evidence all completed.
 - **2026-10-23**: Accepted `ADR-067` and replaced only the rejected curl `8.22.0` source with
   signed, hash-locked `8.23.0` inside the existing unreleased `0.1.6` lifecycle. Failed run
   `39829765757` remains negative evidence; a new unique candidate must pass every existing gate.

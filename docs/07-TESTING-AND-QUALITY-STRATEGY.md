@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.5.5` |
+| Version | `1.5.6` |
 | Status | **NORMATIVE** for test obligations |
 | Last updated | 2026-10-23 |
 
@@ -262,8 +262,8 @@ A release **MUST NOT** ship unless:
 - [x] The `ADR-066` image builds against exact `musl-dev==1.2.5-r24`, runs exact `musl==1.2.5-r24`, retains its single-line installed-version record after package metadata removal, and rejects affected `r23` on both architectures
 - [x] The `ADR-067` source, Dockerfile, component, and release contracts require signed, SHA-512-locked curl `8.23.0`, reject `8.22.0`, preserve the HTTP/1.1-only transport and sole Git VEX statement, and retain failed run `39829765757` as negative evidence
 - [x] Candidate run `39906806331`, attempt 1, proves exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context `sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`, corresponding source `sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and multi-platform candidate `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` pass every existing source-correspondence, 23-test real-container, two-platform scan, component-scan, SBOM, provenance, and identity-attestation gate before reviewed digest pinning
-- [ ] Three fresh attempt-1 20-job performance runs and their combined 60 samples pass the unchanged schema-2 release SLO before exact image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` publish without a Python distribution
-- [ ] Release dogfood, same-repository proof, fork denial, public-package non-publication checks, and independent protected promotion verify before `v1` moves from `v1.0.5`
+- [x] Performance runs `39987447085`, `39987667038`, and `39987819708`, all attempt 1, record p95 values of 16, 14, and 13 seconds and a recomputed 60-sample p95 of 16 seconds; every result passes the unchanged schema-2 release SLO before exact image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` publish without a Python distribution
+- [x] Release run `39988130356`, same-repository proof PR #11, fork-denial PR #12/run `39989723943`, public-package non-publication checks, and protected promotion run `39994508140` verify before `v1` moves from `v1.0.5` to exact release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050`
 
 ---
 
