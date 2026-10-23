@@ -3,9 +3,9 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.5`,
-  immutable Action `v1.0.5`, and reviewed moving Action major `v1`. F-01 through F-10 are Done;
-  F-11 is reopened for the `ADR-065`–`ADR-067` security replacement, and F-12 is Planned and unpublished.
+- **Version**: 0.0.0 workspace; six published Python distributions, product/image `0.1.6`,
+  immutable Action `v1.0.6`, and reviewed moving Action major `v1`. F-01 through F-11 are Done;
+  F-12 is Planned and unpublished.
 - **Last Updated**: 2026-10-23
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
@@ -27,14 +27,15 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-10 are complete. F-11
-  was completed under `ADR-064` and is temporarily reopened under `ADR-065`–`ADR-067` to replace
-  the affected CA bundle, musl libc, and curl source in the Action image. F-12 remains Planned and unpublished pending `CH-04`; the external
-  M2/M3 launch gates remain pending in `CHALLENGE-001` and `ROADMAP-001`.
+- **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-11 are complete. The
+  `ADR-065`–`ADR-067` security replacement is public as image/product `0.1.6`, immutable Action
+  `v1.0.6`, and reviewed moving major `v1`. F-12 remains Planned and unpublished pending `CH-04`;
+  the external M2/M3 launch gates remain pending in `CHALLENGE-001` and `ROADMAP-001`.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
   across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
   safe fork-denial, dogfood, and reviewed moving-major gates are green for exact release commit
-  `203d2deb7dff946dc82c6efc6506bc34adbcd209`.
+  `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image manifest
+  `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
@@ -44,24 +45,19 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,310 tests with two
-  intentional environment-dependent skips and 22 explicitly deselected live/container tests.
+  entrypoint and startup contracts. The current reconciliation gate passes 1,313 tests with two
+  intentional environment-dependent skips and 23 explicitly deselected live/container tests.
 - **Known Issues**:
-  - Immutable Action `v1.0.5` vendors affected `certifi==2026.7.22`; `ADR-065` requires a complete
-    image-only `v1.0.6` replacement before the public launch recommendation advances.
-  - The same image contains affected Alpine `musl==1.2.5-r23`; `ADR-066` requires exact fixed
-    `1.2.5-r24` build and runtime bytes inside that same unreleased replacement lifecycle.
-  - Protected candidate run `39829765757` correctly stopped before the binary build after finding
-    `CVE-2026-92392` in source-built curl `8.22.0`; `ADR-067` requires signed, hash-locked curl
-    `8.23.0` and a new unique candidate while retaining the failed run as negative evidence.
+  - Immutable `v1.0.5` remains historical and contains the certifi/musl/curl versions superseded by
+    `v1.0.6`; new deployments should use `v1.0.6`, reviewed `v1`, or preferably the full release
+    commit.
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
-  - The v1.0.5 sequence passed the strict release SLO below 18 seconds with individual p95 values
-    of 15, 14, and 16 seconds and combined p95 16 seconds. The separate strict engineering target
-    below 15 seconds remains unmet for the first, third, and combined results.
-- **Next Milestone**: Complete the `ADR-065`–`ADR-067` image-only security replacement and reviewed `v1`
-  promotion, then close `CH-04` with practising-auditor evidence and complete the remaining
+  - The v1.0.6 sequence passed the strict release SLO below 18 seconds with individual p95 values
+    of 16, 14, and 13 seconds and combined p95 16 seconds. The separate strict engineering target
+    below 15 seconds remains unmet for the first and combined results.
+- **Next Milestone**: Close `CH-04` with practising-auditor evidence and complete the remaining
   external M2 validation gates before F-12 implementation.
 
 ---
@@ -157,7 +153,7 @@ out of order means inventing those contracts.
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
-| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ◐ in progress |
+| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ✓ done |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
 ### The two irreducible ideas (`MPD-001 §5.2`)
@@ -370,6 +366,14 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-23**: Completed the `ADR-065`–`ADR-067` security replacement. Exact release commit
+  `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image
+  `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` passed three
+  attempt-1 performance runs and the combined 60-sample SLO; release run `39988130356` published
+  immutable `v0.1.6`/`v1.0.6` without a Python distribution and completed dogfood. Public proof
+  PR #11, fork-denial PR #12, and protected promotion run `39994508140` then completed before
+  reviewed `v1` moved to the exact release commit. F-11 is Done again; F-12 remains Planned and
+  unpublished pending `CH-04`.
 - **2026-10-23**: Accepted `ADR-067` after protected candidate run `39829765757` rejected
   source-built curl `8.22.0` for fixable High `CVE-2026-92392`. The same unreleased `0.1.6`
   lifecycle now uses signed, hash-locked curl `8.23.0`, preserves the failed source artifact and
