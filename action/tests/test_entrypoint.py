@@ -1305,6 +1305,9 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-260")
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-290")
+@pytest.mark.ac("AC-F11-300")
+@pytest.mark.ac("AC-F11-310")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1322,7 +1325,7 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
         "cargo=1.91.1-r2",
         "gcc=15.2.0-r2",
         "libffi-dev=3.5.2-r0",
-        "musl-dev=1.2.5-r23",
+        "musl-dev=1.2.5-r24",
         "openssl-dev=3.5.9-r0",
         "pkgconf=2.5.1-r0",
         "rust=1.91.1-r2",
@@ -1353,14 +1356,23 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "COPY --from=build /build/action/trust /opt/attest/trust" in dockerfile
     assert 'pathlib.Path("/opt/attest/attest-console-script.sha256")' in dockerfile
     assert "hashlib.sha256(console_script.read_bytes()).hexdigest()" in dockerfile
-    for runtime_package in ("libcrypto3=3.5.9-r0", "libgcc=15.2.0-r2", "libssl3=3.5.9-r0"):
+    for runtime_package in (
+        "libcrypto3=3.5.9-r0",
+        "libgcc=15.2.0-r2",
+        "libssl3=3.5.9-r0",
+        "musl=1.2.5-r24",
+    ):
         assert runtime_package in dockerfile
+    assert 'musl_owner="$(apk info -W /lib/ld-musl-*.so.1)"' in dockerfile
+    assert 'musl_version="${musl_owner##* is owned by }"' in dockerfile
+    assert 'test "${musl_version}" = "musl-1.2.5-r24"' in dockerfile
+    assert "> /usr/share/attest/runtime-package-versions.txt" in dockerfile
     assert "git=2.52.0-r0" not in dockerfile
     for transport_build_package in (
         "binutils=2.45.1-r0",
         "gcc=15.2.0-r2",
         "make=4.4.1-r3",
-        "musl-dev=1.2.5-r23",
+        "musl-dev=1.2.5-r24",
         "openssl-dev=3.5.9-r0",
         "pkgconf=2.5.1-r0",
         "xz=5.8.4-r0",
@@ -1368,14 +1380,15 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     ):
         assert transport_build_package in dockerfile
     assert "COPY action/runtime-sources/git-2.52.0.tar.xz" in dockerfile
-    assert "COPY action/runtime-sources/curl-8.22.0.tar.xz" in dockerfile
+    assert "COPY action/runtime-sources/curl-8.23.0.tar.xz" in dockerfile
+    assert "8.22.0" not in dockerfile
     assert "3cd8fee86f69a949cb610fee8cd9264e6873d07fa58411f6060b3d62729ed7c5" in dockerfile
     assert (
-        "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebeaa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+        "69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840"
         in dockerfile
     )
     assert dockerfile.index("sha256sum -c") < dockerfile.index("tar -xJf git-2.52.0.tar.xz")
-    assert dockerfile.index("sha512sum -c") < dockerfile.index("tar -xJf curl-8.22.0.tar.xz")
+    assert dockerfile.index("sha512sum -c") < dockerfile.index("tar -xJf curl-8.23.0.tar.xz")
     for curl_option in (
         "--disable-cookies",
         "--disable-websockets",

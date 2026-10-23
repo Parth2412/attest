@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.30.0` |
+| Version | `1.30.1` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-15 |
+| Last updated | 2026-10-23 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -3947,3 +3947,248 @@ blocked until its challenge prerequisite is satisfied.
 Acceptance authorizes only this evidence reconciliation and F-11 lifecycle transition. It does
 not authorize F-12 implementation, closure of an empirical challenge without its required
 evidence, mutation of a public record, or a complete product/v1 launch claim.
+
+---
+
+## ADR-065 — Replace the affected Action CA bundle through a complete patch release
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-064`
+
+**Context.** On 2026-10-20, certifi published critical advisory
+`GHSA-6q48-6c7w-9gw2`: releases before `2026.10.19` retain a root whose compromised intermediate
+CA keys can permit an on-path attacker to present valid-looking certificates. The advisory
+explicitly requires users to upgrade to `2026.10.19` or later and rebuild containers that vendor
+certifi. The immutable `v1.0.5` Action image contains locked `certifi==2026.7.22` in its runtime,
+so it is affected even though its release evidence was correct when produced. Fresh public
+`attest-cli==0.1.4` installation resolves `certifi==2026.10.19`; no published attest distribution
+contains an unsafe direct pin and no Python distribution byte needs replacement.
+
+The same audit found locked development-only `virtualenv==21.14.1` affected by seven 2026 GitHub
+advisories. The latest reviewed release is `21.14.12`; upgrading it also resolves its transitive
+`python-discovery` dependency to `1.6.4`. Neither package enters the Action runtime, but retaining
+an affected environment-creation tool in the repository lock would keep CI and contributor
+workstations exposed and would leave `pip-audit` red.
+
+**Decision.** Preserve every `0.1.5`, `v0.1.5`, `v1.0.5`, package, Bundle, and release-evidence
+record unchanged. Update the single committed lock to exactly `certifi==2026.10.19`,
+`virtualenv==21.14.12`, and the resolver-selected `python-discovery==1.6.4`. Add a contract that
+asserts those exact reviewed versions and a real-container contract that proves the new runtime
+contains `certifi==2026.10.19` and excludes `virtualenv`.
+
+Build a unique `0.1.6-candidate` from protected `dev` under every existing `REQ-F11-210` through
+`REQ-F11-280` control: enumerated context, hash-locked inputs, both target architectures, complete
+real-container suite, runtime and native-component scans, source correspondence, SBOM,
+provenance, and identity-bound GitHub attestations. A reviewed digest-pinning change must be the
+only path from that candidate into the Action manifest. The exact protected `main` commit and
+reviewed manifest must then complete a fresh automatic-plus-two-reviewed-dispatch sequence of
+three attempt-1 20-job measurements and the recomputed 60-sample gate under unchanged evidence
+schema 2, strict 15-second engineering target, and strict release SLO below 18 seconds.
+
+After every preflight passes, promote the exact candidate without rebuilding to image `0.1.6`,
+create immutable source `v0.1.6` and Action `v1.0.6`, retain complete release and dogfood evidence,
+and perform the same-repository and fork-denial public proofs. Only the separately reviewed
+protected promotion may move `v1` from `v1.0.5` to the exact `v1.0.6` release commit. The release
+publishes no Python distribution, and its clean Python 3.12/3.13 probes must verify the existing
+public package set resolves a non-affected certifi version.
+
+F-11 returns to `In progress` until the new candidate, performance sequence, immutable release,
+dogfood, public proof, fork denial, and independent `v1` promotion all pass. Closing the critical
+dependency alert requires the merged lock and a successful dependency audit; it must not be
+dismissed as accepted risk.
+
+**Rationale.** The vulnerable bytes are in the shipped container, so documentation alone cannot
+remediate the release. An image-only patch preserves PyPI immutability and avoids manufacturing new
+package files where public resolution already selects the corrected CA bundle. Reusing the
+existing two-phase path keeps the replacement subject to the same evidence and identity boundary
+as the release it supersedes.
+
+**Rejected alternatives.** Continuing to recommend `v1.0.5`, mutating an existing image or tag,
+or moving `v1` before the replacement proof would expose users or destroy release immutability.
+Republishing unchanged Python distributions would create different files under new versions
+without correcting a package constraint. Dismissing the advisory, relaxing the vulnerability
+gate, reusing old candidate or performance evidence, skipping an architecture, or rebuilding at
+promotion would weaken the accepted supply-chain contract.
+
+**Consequences.** The patch incurs a fresh multi-platform candidate, three-run performance
+sequence, protected release, public proof, and reviewed promotion. `v1.0.5` remains verifiable
+historical evidence but is superseded for new deployments after `v1.0.6` completes. Runtime bytes
+and their manifest digest change; predicate, CLI, package, signing, trust-refresh, storage, policy,
+and public Action input/output contracts do not.
+
+### ADR-065 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-290` | Lock the reviewed fixed runtime and development dependencies; prove exact runtime inclusion/exclusion; build and pin a unique two-platform candidate; repeat every existing candidate, performance, release, dogfood, public-proof, fork-denial, and reviewed-promotion gate; publish no Python distribution; reconcile lifecycle and public guidance only after exact evidence exists | `uv.lock`, candidate/performance/release/promotion workflows and tests, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+Acceptance authorizes only this bounded security replacement and its exact evidence lifecycle. It
+does not authorize a package publication, dependency/API change beyond the three locked versions,
+existing-record mutation, relaxed scan or performance threshold, F-12 implementation, or a
+complete product/v1 launch claim.
+
+---
+
+## ADR-066 — Include the Alpine musl security rebuild in the Action patch
+
+**Status:** Accepted · **Date:** 2026-10-22 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-065`
+
+**Context.** After ADR-065 was accepted and before its branch could merge, Alpine published
+`musl==1.2.5-r24` for Alpine 3.23 to fix `CVE-2026-107891`, an integer-overflow and memory-safety
+defect in `regcomp`. Alpine's package record identifies `1.2.5-r24` as the current fixed package,
+and its source commit records the CVE patch:
+<https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/musl-dev> and
+<https://gitlab.alpinelinux.org/alpine/aports/-/commit/fd05fc094264bce4fb76efc6c7f61ba4abfcb609>.
+
+The immutable Python Alpine base accepted in ADR-053 contains `musl==1.2.5-r23`. Alpine's current
+repository consequently refuses the Action's exact `musl-dev==1.2.5-r23` build pin because the
+available development package is `r24` and requires matching `musl==1.2.5-r24`. Updating only the
+two build-stage pins makes compilation succeed but does not correct the final runtime: the final
+stage starts from the immutable `r23` base and its existing exact runtime-package installation does
+not request a musl upgrade. Both the released `v1.0.5` image and an otherwise-correct ADR-065
+candidate would therefore retain the affected runtime libc.
+
+**Decision.** Keep the accepted ADR-065 release identity, version sequence, performance
+sequence, evidence lifecycle, and no-PyPI-publication boundary unchanged. In the same
+`0.1.6-candidate`, update both build-only `musl-dev` pins to exactly `1.2.5-r24` and install exactly
+`musl==1.2.5-r24` in the runtime stage. Preserve the immutable Python base digest; upgrade only its
+musl package through Alpine's authenticated package repository before the image is minimized.
+
+Before removing Alpine's package database, generate and retain a deterministic runtime-package
+record under `/usr/share/attest` that proves the installed musl revision. Extend the Dockerfile
+pin contract and real-container contract to require `1.2.5-r24`, require the retained record, and
+reject `1.2.5-r23`. The candidate must still pass both-architecture runtime and native-component
+scans, the complete real-container suite, SBOM/provenance generation, and every unchanged ADR-065
+gate. No public artifact, immutable tag, old evidence record, Python dependency, API, or trust
+boundary may be changed outside the already-approved `0.1.6` replacement.
+
+**Rationale.** Reverting to an obsolete package or retaining `r23` would deliberately ship a
+known affected libc. Changing only `musl-dev` would repair CI while leaving the product vulnerable.
+Including the runtime rebuild now is the smallest safe correction because ADR-065 has not reached
+protected `dev`, no `0.1.6` candidate exists, and the complete security release lifecycle already
+must run from new bytes.
+
+**Rejected alternatives.** Fetching superseded `r23` development packages directly would bypass
+the supported repository and retain the CVE. Updating only the development stages would create
+false confidence while preserving the affected runtime. Moving to an unreviewed mutable base tag
+would change more bytes than necessary and weaken reproducibility. Starting a second release after
+`0.1.6` would expose users longer and duplicate the same evidence lifecycle without a safety
+benefit.
+
+**Consequences.** The final image's libc and manifest digest change in addition to certifi. Native
+extensions and the minimized runtime are built and executed against the same fixed musl revision.
+ADR-065's candidate label, patch versions, three-run performance gate, release proof, fork denial,
+and independently reviewed `v1` promotion remain unchanged. `v1.0.5` remains immutable historical
+evidence but is superseded for new use only after the complete `v1.0.6` lifecycle passes.
+
+### ADR-066 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-300` | Pin fixed musl in both build stages and the runtime; retain exact installed-version evidence; prove the version in the real container on both release architectures; keep every ADR-065 gate and publication boundary unchanged | Action Dockerfile and container contracts, candidate evidence checks, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and release records |
+
+Acceptance authorizes only the exact musl `r24` security rebuild inside ADR-065's existing `0.1.6`
+lifecycle. It does not authorize any other dependency, base-image, package-publication,
+API, requirement, threshold, trust, or release-process change.
+
+---
+
+## ADR-067 — Replace the affected curl source before the Action patch candidate
+
+**Status:** Accepted · **Date:** 2026-10-23 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-062`, `ADR-065`, `ADR-066`
+
+**Context.** Protected candidate run `39829765757` passed the complete release gate and published
+the exact corresponding-source artifact before its component security gate stopped the run. The
+immutable Grype evidence found one fixable High vulnerability in the retained source-built
+`curl==8.22.0`: `CVE-2026-92392`, an HTTP/2 upload use-after-free. The upstream curl advisory
+classifies versions `8.12.0` through `8.22.0` as affected, identifies `8.23.0` as fixed, and
+recommends upgrading to `8.23.0`. The upstream vulnerability record reports no published security
+problems for `8.23.0` as of this decision.
+
+The bounded Action build disables HTTP/2 and does not retain nghttp2, so the documented exploit
+path is not enabled in the produced runtime. That does not make a fixable affected source version
+an acceptable release input: ADR-062 deliberately permits only its exact Git-for-Windows
+not-affected VEX statement, and its unchanged component gate correctly rejects every other
+fixable High match. Adding a new VEX exception or weakening that gate would conceal replaceable
+affected code when an upstream fixed release is available.
+
+The official `curl-8.23.0.tar.xz` archive was downloaded from `curl.se`, verified against Daniel
+Stenberg's release signature with full fingerprint
+`27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2`, and independently measured at SHA-512
+`69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840`.
+Run `39829765757` published only the failed run's source artifact
+`sha256:5aef5c06c1989411d86c636c38dec652eec7747dccab739decc648ab560c23c4`;
+the component gate prevented any binary candidate, performance evidence, release, or moving Action
+tag from being created.
+
+**Decision.** Keep Git `2.52.0`, the fixed Alpine musl revision, certifi replacement, base image,
+toolchain, minimized transport feature set, exact Git-for-Windows OpenVEX statement, scan policy,
+release identity, and every ADR-065/066 gate unchanged. Replace only the Action transport's
+unmodified curl source from `8.22.0` to `8.23.0`. Pin the official archive URL, source root,
+package URL, CPE, and exact SHA-512 above in the declarative runtime-source manifest; update the
+Docker build, retained SPDX component identity, validators, and contracts to require `8.23.0` and
+reject `8.22.0`.
+
+Build curl with the same HTTP/1.1-only OpenSSL/zlib/IPv6/threaded-resolver configuration and the
+same disabled protocol and optional-library set accepted by ADR-062. Do not enable HTTP/2,
+HTTP/3, WebSockets, another protocol, cookie support, c-ares, IDN, PSL, zstd, Brotli, or a new
+runtime library. Prove the exact version, enabled protocols/features, verified HTTPS Git
+transport, forbidden-library absence, loader closure, licence, binary hashes and sizes, and
+four-layer layout on both release architectures.
+
+Preserve failed run `39829765757`, its raw component scan, and its identity-attested source
+artifact as immutable negative evidence; do not rerun it, count it, promote it, or describe it as
+a candidate. Merge the correction through protected review and require a new protected `dev`
+commit to create a new unique corresponding-source tag and a new unique two-platform candidate.
+That candidate must pass the complete release, component, image, container, SBOM, provenance,
+attestation, and source-correspondence gates before a digest-pinning change or performance run is
+allowed. ADR-065's image-only `0.1.6` / `v0.1.6` / `v1.0.6` sequence and prohibition on Python
+distribution publication remain unchanged.
+
+**Rationale.** Upgrading to the upstream fixed stable release removes the affected code and keeps
+the fail-closed scan policy truthful. The correction is bounded to a source input already owned by
+ADR-062 and happens before any binary candidate exists, so it avoids a second patch release while
+preserving the entire evidence lifecycle. Retaining the failed run establishes that the control
+worked instead of rewriting history.
+
+**Rejected alternatives.** A VEX not-affected statement based only on the disabled HTTP/2 build
+would expand ADR-062's sole-exception policy despite an available fixed release. Ignoring or
+downgrading the finding, changing the severity threshold, deleting raw scan evidence, or rerunning
+the failed workflow would weaken the release record. Backporting only the patch would create a
+locally modified source whose identity is harder to review than the signed stable release.
+Publishing `8.22.0` because no binary candidate was yet created would knowingly preserve an
+affected component. Changing Git, OpenSSL, zlib, the base, or transport features at the same time
+would enlarge the security change without evidence.
+
+**Consequences.** The corresponding-source artifact, context digest, curl/libcurl binaries,
+platform manifests, SBOM, provenance, and candidate digest will change. Native build time and
+image sizes may change and must be measured rather than assumed. The exact component scan must
+contain curl `8.23.0`, must reject `8.22.0`, and must continue to accept only the existing
+Git-for-Windows VEX statement. No Python package, public Action input/output, signing behavior,
+trust rule, policy, predicate, storage format, error, threshold, performance sampling rule, or
+promotion boundary changes.
+
+**Implementation evidence.** Protected `dev` candidate run `39906806331`, attempt 1, completed
+successfully for exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context
+`sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`,
+identity-attested corresponding-source artifact
+`sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and
+multi-platform candidate
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+Both architectures passed all 23 real-container contracts and zero-vulnerability image scans.
+The component scan found curl `8.23.0` clean and retained only the existing Git-for-Windows
+not-affected match. This evidence authorizes reviewed digest pinning and a fresh exact-commit
+performance sequence; it does not authorize release, public proof, or movement of `v1`.
+
+### ADR-067 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-310` | Replace only source-built curl `8.22.0` with signed, hash-locked `8.23.0`; prove exact source/component/runtime identity and the unchanged minimal transport on both architectures; preserve failed run `39829765757`; create a fresh unique candidate and continue the unchanged ADR-065 lifecycle | Runtime-source manifest and preparation, Action Dockerfile, component/candidate/release validators and contracts, normative `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and release records |
+
+Acceptance authorizes only this exact curl `8.23.0` source replacement within ADR-065's
+existing `0.1.6` lifecycle. It would not authorize a scan exception, another dependency or
+feature change, package publication, failed-run reuse, threshold change, API change, F-12 work,
+release, or movement of `v1`.

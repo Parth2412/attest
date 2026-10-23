@@ -365,7 +365,7 @@ jobs:
             io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=0.1.5-candidate
+            org.opencontainers.image.version=0.1.6-candidate
           sbom: true
           provenance: mode=max
       - name: Retain and validate the manifests, SBOM, and provenance

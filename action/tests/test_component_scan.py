@@ -1,4 +1,4 @@
-"""REQ-F11-270 upstream component vulnerability-gate contracts."""
+"""REQ-F11-270/REQ-F11-310 upstream component vulnerability-gate contracts."""
 
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ def _sbom(path: Path) -> None:
                 "packages": [
                     {
                         "name": "curl",
-                        "versionInfo": "8.22.0",
+                        "versionInfo": "8.23.0",
                         "externalRefs": [
                             {
                                 "referenceType": "purl",
-                                "referenceLocator": "pkg:generic/curl@8.22.0",
+                                "referenceLocator": "pkg:generic/curl@8.23.0",
                             },
                             {
                                 "referenceType": "cpe23Type",
-                                "referenceLocator": ("cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*"),
+                                "referenceLocator": ("cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*"),
                             },
                         ],
                     },
@@ -121,6 +121,7 @@ def _run(report: Path, sbom: Path, vex: Path = VEX) -> subprocess.CompletedProce
 
 
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 def test_component_gate_applies_exact_vex_and_allows_unfixed_high(tmp_path: Path) -> None:
     sbom = tmp_path / "components.spdx.json"
     report = tmp_path / "grype.json"
@@ -140,7 +141,7 @@ def test_component_gate_applies_exact_vex_and_allows_unfixed_high(tmp_path: Path
                 "CVE-UNFIXED-HIGH",
                 "High",
                 "curl",
-                "pkg:generic/curl@8.22.0",
+                "pkg:generic/curl@8.23.0",
                 fix_state="not-fixed",
                 fix_versions=[],
             ),
@@ -154,12 +155,32 @@ def test_component_gate_applies_exact_vex_and_allows_unfixed_high(tmp_path: Path
     assert "unfixed high=1" in completed.stdout
 
 
+@pytest.mark.ac("AC-F11-310")
+def test_component_gate_rejects_affected_curl_identity(tmp_path: Path) -> None:
+    sbom = tmp_path / "components.spdx.json"
+    report = tmp_path / "grype.json"
+    _sbom(sbom)
+    document = json.loads(sbom.read_text(encoding="utf-8"))
+    curl = document["packages"][0]
+    curl["versionInfo"] = "8.22.0"
+    curl["externalRefs"][0]["referenceLocator"] = "pkg:generic/curl@8.22.0"
+    curl["externalRefs"][1]["referenceLocator"] = "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*"
+    sbom.write_text(json.dumps(document), encoding="utf-8")
+    _report(report, [])
+
+    completed = _run(report, sbom)
+
+    assert completed.returncode == 2
+    assert "invalid component SBOM" in completed.stderr
+
+
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 @pytest.mark.parametrize(
     ("severity", "fix_state", "fix_versions", "message"),
     [
         ("Critical", "not-fixed", [], "critical=1"),
-        ("High", "fixed", ["8.22.1"], "fixable high=1"),
+        ("High", "fixed", ["8.23.1"], "fixable high=1"),
     ],
 )
 def test_component_gate_rejects_actionable_findings(
@@ -179,7 +200,7 @@ def test_component_gate_rejects_actionable_findings(
                 "CVE-ACTIONABLE",
                 severity,
                 "curl",
-                "pkg:generic/curl@8.22.0",
+                "pkg:generic/curl@8.23.0",
                 fix_state=fix_state,
                 fix_versions=fix_versions,
             )

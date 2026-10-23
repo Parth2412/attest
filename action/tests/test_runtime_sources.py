@@ -1,4 +1,4 @@
-"""REQ-F11-270 corresponding-source preparation contracts."""
+"""REQ-F11-270/REQ-F11-310 corresponding-source preparation contracts."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PREPARE = REPOSITORY_ROOT / "scripts/prepare_action_runtime_sources.py"
 VEX = REPOSITORY_ROOT / "action/runtime-components.openvex.json"
+RUNTIME_SOURCES = REPOSITORY_ROOT / "action/runtime-sources.json"
 
 
 def _archive(path: Path, root: str, licence: bytes, *, unsafe: bool = False) -> None:
@@ -34,7 +35,7 @@ def _manifest(tmp_path: Path, *, unsafe: bool = False) -> Path:
     git = tmp_path / "git.tar.xz"
     curl = tmp_path / "curl.tar.xz"
     _archive(git, "git-2.52.0", b"git licence\n", unsafe=unsafe)
-    _archive(curl, "curl-8.22.0", b"curl licence\n")
+    _archive(curl, "curl-8.23.0", b"curl licence\n")
     document: dict[str, Any] = {
         "schemaVersion": 1,
         "components": [
@@ -57,20 +58,20 @@ def _manifest(tmp_path: Path, *, unsafe: bool = False) -> Path:
             },
             {
                 "name": "curl",
-                "version": "8.22.0",
+                "version": "8.23.0",
                 "archive": {
-                    "filename": "curl-8.22.0.tar.xz",
+                    "filename": "curl-8.23.0.tar.xz",
                     "url": curl.as_uri(),
                     "digest": {"algorithm": "sha512", "value": _digest(curl, "sha512")},
                 },
-                "sourceRoot": "curl-8.22.0",
+                "sourceRoot": "curl-8.23.0",
                 "licence": {
                     "archivePath": "COPYING",
                     "spdx": "curl",
                     "runtimePath": "/usr/share/licenses/curl/COPYING",
                 },
-                "purl": "pkg:generic/curl@8.22.0",
-                "cpe": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+                "purl": "pkg:generic/curl@8.23.0",
+                "cpe": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
             },
         ],
     }
@@ -99,7 +100,40 @@ def _run(manifest: Path, recipe: Path, destination: Path) -> subprocess.Complete
     )
 
 
+@pytest.mark.ac("AC-F11-310")
+def test_repository_manifest_pins_only_the_fixed_curl_source() -> None:
+    encoded = RUNTIME_SOURCES.read_text(encoding="utf-8")
+    manifest = json.loads(encoded)
+    curl = next(component for component in manifest["components"] if component["name"] == "curl")
+
+    assert curl == {
+        "name": "curl",
+        "version": "8.23.0",
+        "archive": {
+            "filename": "curl-8.23.0.tar.xz",
+            "url": "https://curl.se/download/curl-8.23.0.tar.xz",
+            "digest": {
+                "algorithm": "sha512",
+                "value": (
+                    "69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342"
+                    "fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840"
+                ),
+            },
+        },
+        "sourceRoot": "curl-8.23.0",
+        "licence": {
+            "archivePath": "COPYING",
+            "spdx": "curl",
+            "runtimePath": "/usr/share/licenses/curl/COPYING",
+        },
+        "purl": "pkg:generic/curl@8.23.0",
+        "cpe": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
+    }
+    assert "8.22.0" not in encoded
+
+
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-310")
 def test_runtime_sources_are_hash_locked_complete_and_deterministic(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path)
     recipe = tmp_path / "Dockerfile"
@@ -115,7 +149,7 @@ def test_runtime_sources_are_hash_locked_complete_and_deterministic(tmp_path: Pa
     expected = {
         "Dockerfile",
         "SOURCE-MANIFEST.json",
-        "curl-8.22.0.tar.xz",
+        "curl-8.23.0.tar.xz",
         "curl-COPYING",
         "git-2.52.0.tar.xz",
         "git-COPYING",
@@ -140,7 +174,7 @@ def test_runtime_sources_are_hash_locked_complete_and_deterministic(tmp_path: Pa
         (package["name"], package["versionInfo"], package["licenseConcluded"])
         for package in sbom["packages"]
     } == {
-        ("curl", "8.22.0", "curl"),
+        ("curl", "8.23.0", "curl"),
         ("git", "2.52.0", "GPL-2.0-only"),
     }
     assert all(len(package["externalRefs"]) == 2 for package in sbom["packages"])

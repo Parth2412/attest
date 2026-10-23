@@ -53,7 +53,7 @@ EXPECTED_RUNTIME_SOURCE_FILES: Final[frozenset[str]] = frozenset(
     {
         "Dockerfile",
         "SOURCE-MANIFEST.json",
-        "curl-8.22.0.tar.xz",
+        "curl-8.23.0.tar.xz",
         "curl-COPYING",
         "git-2.52.0.tar.xz",
         "git-COPYING",
@@ -64,15 +64,15 @@ EXPECTED_RUNTIME_SOURCE_FILES: Final[frozenset[str]] = frozenset(
 )
 EXPECTED_COMPONENTS: Final[dict[str, dict[str, str]]] = {
     "curl": {
-        "version": "8.22.0",
+        "version": "8.23.0",
         "license": "curl",
-        "purl": "pkg:generic/curl@8.22.0",
-        "cpe": "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
-        "archive": "curl-8.22.0.tar.xz",
+        "purl": "pkg:generic/curl@8.23.0",
+        "cpe": "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
+        "archive": "curl-8.23.0.tar.xz",
         "algorithm": "sha512",
         "digest": (
-            "d6badf794e7a72760a353db73adb8b671804ce41619b401265b22dc8f6770ebe"
-            "aa5adb3c4d1312722082c56013612a382884e025cca49397a8ab47577dd659f7"
+            "69cf0feafdc79fbad007cf2fc977b777ce6ccb05d01afd17b5a42f8bedbfcc342"
+            "fc3a48193faa7f3eafe6800cd7d07948916e8733db1b9de60287ed06219b840"
         ),
     },
     "git": {

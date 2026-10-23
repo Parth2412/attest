@@ -14,10 +14,10 @@ from typing import Final, NoReturn
 
 MAX_FILE_BYTES: Final[int] = 32 * 1024 * 1024
 EXPECTED_COMPONENTS: Final[dict[str, tuple[str, str, str]]] = {
-    "pkg:generic/curl@8.22.0": (
+    "pkg:generic/curl@8.23.0": (
         "curl",
-        "8.22.0",
-        "cpe:2.3:a:haxx:curl:8.22.0:*:*:*:*:*:*:*",
+        "8.23.0",
+        "cpe:2.3:a:haxx:curl:8.23.0:*:*:*:*:*:*:*",
     ),
     "pkg:generic/git@2.52.0": (
         "git",

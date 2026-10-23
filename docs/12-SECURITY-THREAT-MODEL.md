@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.6` |
+| Version | `1.4.9` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-12 |
+| Last updated | 2026-10-23 |
 
 ---
 
@@ -181,6 +181,21 @@ DEFLATE level 9. Its sorted members, fixed timestamps and modes, checked-hash by
 set, and in-place import path remain mandatory; no repository-controlled member is added and no
 runtime extraction path is introduced. Both architectures must prove the complete archive and
 native runtime behavior before candidate acceptance.
+`ADR-065` treats an advisory affecting shipped runtime trust material as a release regression, not
+an accepted lockfile warning. Exact corrected certifi bytes must enter a unique two-platform
+candidate, pass the complete existing scan and supply-chain boundary, and reach users only through
+reviewed digest pinning and immutable patch release. Affected immutable images remain historical
+records rather than being mutated. Development-only virtualenv is updated in the same lock and is
+proved absent from the Action runtime; no Python distribution is republished because clean public
+installs already resolve the corrected transitive dependency.
+`ADR-066` applies the same fail-closed treatment to Alpine `CVE-2026-107891`. Matching exact
+`musl-dev==1.2.5-r24` build stages prevent ABI drift, the final minimized image explicitly upgrades
+to exact `musl==1.2.5-r24`, and a retained loader-owner record proves the fixed revision after the
+package database is removed. Both architectures must reject `r23` and pass the unchanged native,
+runtime, scan, SBOM, provenance, and identity-attestation controls before digest review.
+`ADR-067` demonstrates the component control failing closed: protected run `39829765757` rejected
+curl `8.22.0` for fixable High `CVE-2026-92392` before any binary candidate existed. The correction
+uses signed, hash-locked curl `8.23.0`; it does not add a VEX exception or weaken the threshold.
 
 ---
 
@@ -303,7 +318,8 @@ licence obligations, unreported vulnerable components, or a larger native depend
 the reviewed design. A private or short-lived source attachment would also make the released
 binary unauditable.
 
-**C-17:** `ADR-062` permits only unmodified Git `2.52.0` and curl `8.22.0` from exact upstream
+**C-17:** `ADR-062`, as amended by `ADR-067`, permits only unmodified Git `2.52.0` and curl
+`8.23.0` from exact upstream
 URLs and digests verified before archive inspection or extraction, with an exact pinned removable
 toolchain and a closed feature set. CI publishes and identity-attests public digest-bound
 corresponding source before the binary, embeds exact licence/component/loader evidence, links the
@@ -313,7 +329,9 @@ Windows-only Git `CVE-2026-62960` may suppress a match; scanner/database/VEX dri
 also proves local and certificate-verified HTTPS behavior plus forbidden-library absence on both
 architectures. Release promotion independently re-fetches the source digest, verifies its manifest
 and attestation, reconstructs the candidate context, and retains and attests the exact archives,
-licences, hashes, and recipe (`REQ-F11-270`, `ADR-062`).
+licences, hashes, and recipe (`REQ-F11-270`, `REQ-F11-310`, `ADR-062`, `ADR-067`). Failed run
+`39829765757`, its raw scan, and its attested 8.22.0 source artifact are retained as negative
+evidence and cannot be rerun, promoted, or treated as a binary candidate.
 
 ---
 

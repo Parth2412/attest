@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Protected candidate run `39906806331` passed every `ADR-065`–`ADR-067` two-platform source,
+  runtime, scan, SBOM, provenance, and identity gate for the unique `0.1.6-candidate`; the Action,
+  performance, and release workflows now pin its reviewed manifest for the image-only `v1.0.6`
+  lifecycle while explicitly publishing no Python distribution.
+- Accepted ADR-067 after protected candidate run `39829765757` rejected source-built curl 8.22.0
+  for fixable High `CVE-2026-92392`. The Action now pins the signed upstream curl 8.23.0 archive
+  and exact component identity without changing transport features, VEX policy, release versions,
+  or the no-PyPI boundary; the failed source artifact and scan remain immutable negative evidence.
+- Accepted ADR-066 and extended the unreleased Action security replacement with exact Alpine
+  `musl 1.2.5-r24` build/runtime pins plus retained installed-version evidence for
+  `CVE-2026-107891`; ADR-065's versions, no-PyPI boundary, and complete release gates are unchanged.
+- Accepted ADR-065 and reopened F-11 for an image-only security replacement: the workspace now
+  locks corrected `certifi 2026.10.19`, development-only `virtualenv 21.14.12`, and
+  `python-discovery 1.6.4`; a unique two-platform `0.1.6-candidate` must repeat every supply-chain,
+  performance, release, dogfood, public-proof, and reviewed-promotion gate without publishing a
+  Python distribution or mutating an earlier record.
 - Completed F-11 under ADR-064 on exact product release `v0.1.5` and Action `v1.0.5`: the three
   attempt-1 performance runs and combined 60 samples passed the strict release SLO, signer `0.1.1`
   and CLI `0.1.4` verified publicly, the reviewed image was promoted without rebuilding, dogfood
