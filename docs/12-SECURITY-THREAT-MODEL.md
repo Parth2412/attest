@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.9` |
+| Version | `1.4.10` |
 | Status | **NORMATIVE** for threats and controls |
 | Last updated | 2026-10-23 |
 
@@ -196,6 +196,13 @@ runtime, scan, SBOM, provenance, and identity-attestation controls before digest
 `ADR-067` demonstrates the component control failing closed: protected run `39829765757` rejected
 curl `8.22.0` for fixable High `CVE-2026-92392` before any binary candidate existed. The correction
 uses signed, hash-locked curl `8.23.0`; it does not add a VEX exception or weaken the threshold.
+Candidate run `39906806331` then proved the corrected certifi, musl, and curl runtime on both
+architectures with clean image and component scans, retained corresponding source, SBOM,
+provenance, and identity attestations. Release run `39988130356` promoted that exact manifest
+without rebuilding or publishing a Python distribution. Same-repository and fork-denial proofs
+completed before protected promotion run `39994508140` moved `v1` to immutable `v1.0.6`; the
+affected `v1.0.5` image remains immutable historical evidence and is no longer recommended for new
+deployments.
 
 ---
 
