@@ -6,7 +6,7 @@ records, binds them to a deterministic ChangeSet digest, and signs the resulting
 Statement with a CI workload identity.
 
 > **Development status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed.
-> Six Python distributions, the multi-platform `0.1.5` image, immutable Action `v1.0.5`, and the
+> Six Python distributions, the multi-platform `0.1.6` image, immutable Action `v1.0.6`, and the
 > reviewed moving `v1` tag are public. Evidence export (F-12) remains Planned and unpublished
 > pending real-auditor validation (`CH-04`); the external M2/M3 adoption gates also remain open, so
 > this is not yet the complete product/v1 launch.
@@ -14,11 +14,11 @@ Statement with a CI workload identity.
 ## Public release
 
 The current immutable release is
-[`v0.1.5`](https://github.com/Parth2412/attest/releases/tag/v0.1.5), and the current immutable
-Action is `Parth2412/attest/action@v1.0.5`. The reviewed moving-major alias
+[`v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6), and the current immutable
+Action is `Parth2412/attest/action@v1.0.6`. The reviewed moving-major alias
 `Parth2412/attest/action@v1` resolves to the same release commit,
-`203d2deb7dff946dc82c6efc6506bc34adbcd209`. The Action pins the reviewed multi-platform image at
-`sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a`; no mutable image tag is
+`e693e6b60afdf9c667a913faa4f9652bfd6dc050`. The Action pins the reviewed multi-platform image at
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`; no mutable image tag is
 used at runtime.
 
 The public Python package set is `attest-core==0.1.0`, `attest-collect==0.1.0`,
@@ -44,7 +44,7 @@ status are recorded in [PROJECT_SPECS.md](PROJECT_SPECS.md).
   change.
 - A compromised CI environment can sign malicious content with a genuine workload identity.
 - Predicate identifiers remain unstable throughout the `v0.x` series.
-- The v1.0.5 release sequence measured three attempt-1 hosted p95 values of 15, 14, and 16 seconds
+- The v1.0.6 release sequence measured three attempt-1 hosted p95 values of 16, 14, and 13 seconds
   and a combined 60-sample p95 of 16 seconds. All passed the strict release SLO below 18 seconds;
   the stricter engineering target below 15 seconds remains visible and was not met consistently.
 

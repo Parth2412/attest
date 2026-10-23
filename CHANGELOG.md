@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Completed the `ADR-065`–`ADR-067` security replacement on exact release commit
+  `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and multi-platform manifest
+  `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`. Three
+  attempt-1 performance runs and their combined 60 samples passed the unchanged release SLO;
+  protected release run `39988130356` published immutable product `v0.1.6`, image `0.1.6`, and
+  Action `v1.0.6` without publishing a Python distribution. Same-repository proof PR #11,
+  fork-denial PR #12, and protected promotion run `39994508140` completed before reviewed `v1`
+  moved to the exact release commit, returning F-11 to Done.
 - Protected candidate run `39906806331` passed every `ADR-065`–`ADR-067` two-platform source,
   runtime, scan, SBOM, provenance, and identity gate for the unique `0.1.6-candidate`; the Action,
   performance, and release workflows now pin its reviewed manifest for the image-only `v1.0.6`

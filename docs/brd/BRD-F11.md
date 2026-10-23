@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · `ADR-065`–`ADR-067` security replacement underway; immutable `v0.1.5` / `v1.0.5` evidence remains historical |
+| Status | **Done** · `ADR-065`–`ADR-067` security replacement completed as immutable `v0.1.6` / `v1.0.6`; every earlier release remains historical and immutable |
 
 ---
 
@@ -521,8 +521,34 @@ multi-platform image
 Its linux/amd64 and linux/arm64 images passed all 23 container contracts and zero-vulnerability
 image scans. The immutable component scan found curl `8.23.0` clean and retained only the exact
 approved Git-for-Windows not-affected result. Candidate success completes the digest-review
-prerequisite; the three-run performance sequence, immutable release, public proofs, and reviewed
-`v1` promotion remain pending.
+prerequisite.
+
+### 4.1.18 Completed 0.1.6 release and promotion evidence
+
+Exact release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and unchanged candidate
+manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`
+completed attempt-1 performance runs `39987447085`, `39987667038`, and `39987819708` with
+nearest-rank p95 values of 16, 14, and 13 seconds. Their recomputed 60-sample p95 was 16 seconds.
+Every individual and combined result passed the strict release SLO below 18 seconds; the first and
+combined results truthfully record that the separate strict engineering target below 15 seconds
+was not met.
+
+Protected release run `39988130356`, attempt 1, promoted the reviewed image without rebuilding,
+published no Python distribution, verified the unchanged six-package public set on Python 3.12
+and 3.13, completed production dogfood, and created immutable product `v0.1.6` and Action
+`v1.0.6` at that exact release commit. Its immutable Release retains corresponding source, both
+platform manifests, scans, SBOM, provenance, performance evidence, public-package probes, release
+attestations, and dogfood verification.
+
+Same-repository proof PR `Parth2412/attest-action-proof#11` retained its blocked-before-check and
+no-review denial states, received the project owner's approval for exact head
+`65d56307b056a6ec9789d1984758cde9a0a29218`, passed on run `39989199325` attempt 3, and merged as
+`a13dbf8d29cd54ea6de59b1fdd56bf7f57496147`. Fork proof PR #12 failed safely on run
+`39989723943`, attempt 1, with `ERR-SIGN-301` before repository-controlled content could execute,
+and closed unmerged. Protected promotion run `39994508140`, attempt 1, independently revalidated
+the release and both proofs, received the required `action-major` environment review, and moved
+only `v1` from `203d2deb7dff946dc82c6efc6506bc34adbcd209` to the exact `v1.0.6` release commit.
+The preflight and final promotion evidence are retained as separate run artifacts.
 
 ### 4.2 Two-phase supply chain
 
@@ -672,7 +698,7 @@ write authority.
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
+- [x] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
 - [x] The exact F-10-generated and copy-pasteable README workflows run unmodified on a fresh repository
 - [x] The six packages and multi-platform image are publicly installable by immutable version/digest
 - [x] Dogfood release evidence verifies publicly
@@ -688,7 +714,7 @@ write authority.
 - [x] Candidate run `39906806331` satisfies `ADR-065`–`ADR-067` corrected certifi, musl, curl, source-correspondence, 23-test both-platform runtime, zero-vulnerability image-scan, component-scan, SBOM, provenance, and identity-attestation gates for the unique `0.1.6-candidate`
 - [x] Three fresh consecutive attempt-1 20-job runs and their combined 60-sample result each remain strictly below the 18-second nearest-rank p95 release SLO, with the strict 15-second engineering target recorded independently
 - [x] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
-- [ ] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
+- [x] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run
