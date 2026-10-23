@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final, NoReturn
 
-IMAGE_DIGEST: Final[str] = "sha256:6e1656ab5da1d5abc43c0ec36e6f3010f1f52c2528ff0e868eb2f62b5754906a"
+IMAGE_DIGEST: Final[str] = "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe"
 OID: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{40}\Z")
 DIGEST: Final[re.Pattern[str]] = re.compile(r"sha256:[0-9a-f]{64}\Z")
 METRIC_DEFINITION: Final[str] = (
