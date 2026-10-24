@@ -45,7 +45,7 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,313 tests with two
+  entrypoint and startup contracts. The current reconciliation gate passes 1,314 tests with two
   intentional environment-dependent skips and 23 explicitly deselected live/container tests.
 - **Known Issues**:
   - Immutable `v1.0.5` remains historical and contains the certifi/musl/curl versions superseded by

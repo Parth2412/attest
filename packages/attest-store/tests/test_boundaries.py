@@ -116,6 +116,37 @@ def test_filesystem_orphans_lock_and_replacement_fail_closed(
     assert outside.read_bytes() == b"unchanged"
 
 
+def test_filesystem_lock_creation_uses_atomic_create_or_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock_path = tmp_path / ".attest-store.lock"
+    lock_path.write_bytes(b"")
+    store = FilesystemStore(tmp_path)
+    original_open = os.open
+    lock_flags: list[int] = []
+
+    def tracked_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        if path == ".attest-store.lock":
+            lock_flags.append(flags)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", tracked_open)
+    store.put(_DIGEST, b"bundle")
+
+    assert len(lock_flags) == 2
+    assert lock_flags[0] & os.O_CREAT
+    assert lock_flags[0] & os.O_EXCL
+    assert lock_flags[0] & os.O_NOFOLLOW
+    assert not lock_flags[1] & os.O_CREAT
+    assert lock_flags[1] & os.O_NOFOLLOW
+
+
 def test_filesystem_detects_configured_directory_replacement(tmp_path: Path) -> None:
     configured = tmp_path / "store"
     configured.mkdir()

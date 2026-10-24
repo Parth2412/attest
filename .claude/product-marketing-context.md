@@ -190,7 +190,7 @@ trust boundary in plain language. Prefer exact versions, identities, and links o
   p95 was 16 seconds, below the strict 18-second release SLO.
 - Public proof PR #11 passed after independent review; fork proof PR #12 failed before receiving
   signing or write authority.
-- The full local release-closure suite passed with 1,313 tests, two skips, and 23 deselections.
+- The full local release-closure suite passed with 1,314 tests, two skips, and 23 deselections.
 
 **Customers:** No customer or design-partner logo is validated for public use.
 
