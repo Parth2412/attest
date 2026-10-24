@@ -25,13 +25,23 @@ import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from attest_store import FilesystemStore
+from attest_store import FilesystemStore, StoreError
 
 store = FilesystemStore(
     Path(sys.argv[1]),
     clock=lambda: datetime(2026, 9, 14, 12, 0, 0, tzinfo=UTC),
 )
-reference = store.put(sys.argv[2], bytes.fromhex(sys.argv[3]))
+try:
+    reference = store.put(sys.argv[2], bytes.fromhex(sys.argv[3]))
+except StoreError as error:
+    context = error.__context__
+    if isinstance(context, OSError):
+        print(
+            f"store error context: operation failed with "
+            f"{type(context).__name__}(errno={context.errno})",
+            file=sys.stderr,
+        )
+    raise
 print(json.dumps([reference.location, reference.bundle_digest]))
 """
     result = subprocess.run(
