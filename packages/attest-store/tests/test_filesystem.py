@@ -17,7 +17,7 @@ from attest_store import FilesystemStore, StoreError
 
 _DIGEST = "1" * 64
 _OTHER_DIGEST = "2" * 64
-_PROCESS_CONCURRENCY_ROUNDS = 10
+_PROCESS_CONCURRENCY_ROUNDS = 100
 
 
 def _put_from_process(directory: str, digest: str, bundle: bytes) -> tuple[str, str]:
