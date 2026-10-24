@@ -1,67 +1,261 @@
 # attest
 
-attest is an open specification and toolchain for producing cryptographically signed provenance
-attestations for code changes. It records declared AI-authorship claims and forge-sourced review
-records, binds them to a deterministic ChangeSet digest, and signs the resulting in-toto
-Statement with a CI workload identity.
+[![CI](https://github.com/Parth2412/attest/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Parth2412/attest/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Parth2412/attest?label=release)](https://github.com/Parth2412/attest/releases/latest)
+[![License](https://img.shields.io/badge/code-Apache--2.0-blue)](LICENSE)
 
-> **Development status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed.
-> Six Python distributions, the multi-platform `0.1.6` image, immutable Action `v1.0.6`, and the
-> reviewed moving `v1` tag are public. Evidence export (F-12) remains Planned and unpublished
-> pending real-auditor validation (`CH-04`); the external M2/M3 adoption gates also remain open, so
-> this is not yet the complete product/v1 launch.
+attest is an open-source, CI-native provenance toolchain for code changes. It binds declared
+AI-authorship claims and forge-sourced Review Records to a deterministic ChangeSet, signs the
+result with a CI workload identity, verifies that identity, and evaluates a merge policy.
 
-## Public release
+It answers a deliberately narrow question:
 
-The current immutable release is
-[`v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6), and the current immutable
-Action is `Parth2412/attest/action@v1.0.6`. The reviewed moving-major alias
-`Parth2412/attest/action@v1` resolves to the same release commit,
-`e693e6b60afdf9c667a913faa4f9652bfd6dc050`. The Action pins the reviewed multi-platform image at
-`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`; no mutable image tag is
-used at runtime.
+> Which claims and review evidence were present for this exact ChangeSet, and which trusted
+> workflow signed that record?
 
-The public Python package set is `attest-core==0.1.0`, `attest-collect==0.1.0`,
-`attest-sign==0.1.1`, `attest-store==0.1.1`, `attest-policy==0.1.0`, and
-`attest-cli==0.1.4`. `attest-export` is intentionally unpublished until F-12 is complete.
+attest records chain of custody. It does not infer who wrote a line of code, assess code quality,
+or decide whether an organisation satisfies a compliance framework.
 
-## What attest establishes
+> **Status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed. Six Python
+> distributions, multi-platform image `0.1.6`, immutable Action `v1.0.6`, and reviewed moving tag
+> `v1` are public. Evidence export (F-12) remains planned and unpublished pending practising-auditor
+> validation (`CH-04`). The external adoption gates for the complete product/v1 launch remain open.
 
-Given an attestation, a verifier will be able to establish that a stated set of claims and review
-records was signed by an expected workload identity for a specific deterministic code change.
-The normative wire contract is [SPEC-001](spec/SPEC-001.md); the implementation plan and current
-status are recorded in [PROJECT_SPECS.md](PROJECT_SPECS.md).
+## Why attest exists
 
-## Current limitations
+Git records commits. A forge records pull-request reviews. AI coding tools may emit their own
+metadata. These signals are useful, but on their own they do not create one durable record binding:
 
-- AI use that is not declared is invisible to the claim model.
-- Claude Code and Codex hook examples are experimental and cover only documented edit events;
-  the real-world claim-emission validation gate remains open.
-- A policy gate has no effect unless a repository administrator configures it as a required check.
-- A public transparency log can expose repository and workflow metadata; organisations with
-  stricter disclosure requirements will need a private deployment.
-- A review record establishes that an approval occurred, not that the reviewer understood every
-  change.
-- A compromised CI environment can sign malicious content with a genuine workload identity.
-- Predicate identifiers remain unstable throughout the `v0.x` series.
-- The v1.0.6 release sequence measured three attempt-1 hosted p95 values of 16, 14, and 13 seconds
-  and a combined 60-sample p95 of 16 seconds. All passed the strict release SLO below 18 seconds;
-  the stricter engineering target below 15 seconds remains visible and was not met consistently.
+```text
+ChangeSet  <->  Authorship Claims  <->  Review Record  <->  Signing Identity
+ what changed      what was declared     what the forge saw     which CI job signed
+```
 
-## Development setup
+attest turns those inputs into a versioned in-toto Statement, a keyless Sigstore signature, and a
+Bundle with transparency-log verification material. A later verifier checks both the cryptography
+and the expected workload identity before policy evaluation.
 
-Prerequisites: Python 3.12 or 3.13, [uv](https://docs.astral.sh/uv/), Git 2.40+, and
-[just](https://just.systems/).
+Use attest when you need to:
+
+- preserve declared AI contribution and human-review evidence for an exact code change;
+- enforce review and provenance requirements as a required CI check;
+- re-verify signed evidence without trusting a mutable dashboard or the original runner; or
+- complement build provenance with an authoring-and-review record created before the build.
+
+## Five-minute GitHub setup
+
+Prerequisites: a cloned GitHub repository, Python 3.12 or 3.13, Git 2.40+, and
+[`uv`](https://docs.astral.sh/uv/). The repository should have an `origin` remote and
+`origin/HEAD` configured.
+
+From the repository root, run the released initializer. Both Actions are pinned to reviewed commit
+SHAs; do not replace them with mutable branch names.
 
 ```bash
-uv sync --all-packages
+uvx --from attest-cli==0.1.4 attest init \
+  --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
+  --action-ref Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+```
+
+This creates exactly three files and refuses to overwrite an existing target:
+
+```text
+.attest/config.yaml
+.attest/policy.yaml
+.github/workflows/attest.yml
+```
+
+Review the generated identity and policy, commit the files, and open a pull request. The default
+policy requires one independent human Review Record, so the first run is expected to deny an
+unreviewed ChangeSet. After the review is submitted, rerun the job. Once the workflow behaves as
+intended, configure the `attest` job as a required status check in the repository's branch
+protection.
+
+If repository or default-branch discovery is unavailable, provide both explicitly:
+
+```bash
+attest init \
+  --github-repository OWNER/REPOSITORY \
+  --default-branch main \
+  --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
+  --action-ref Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+```
+
+The generated workflow grants only the permissions required for a publishing `run`: repository
+contents, OIDC identity, pull-request records, and check records. Fork pull requests receive no
+signing or write authority and fail before repository-controlled content is read. Never replace
+this boundary with `pull_request_target`.
+
+## GitHub Action
+
+The initializer is the recommended setup path. The generated Action step is equivalent to:
+
+```yaml
+- uses: Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+  with:
+    mode: run
+    policy: .attest/policy.yaml
+    push-attestation: "true"
+    fail-on-violation: "true"
+```
+
+Available modes are closed and intentionally small:
+
+| Mode | Behaviour | Signs | Writes storage |
+|---|---|---:|---:|
+| `run` | collect -> build -> sign -> store -> verify -> gate | yes | configurable |
+| `verify` | verify a supplied Bundle and expected Signing Identity | no | no |
+| `gate` | verify a supplied Bundle, then evaluate policy | no | no |
+
+Successful runs expose the ChangeSet Digest, stored Bundle reference, policy Decision, and Rekor
+log index. Configuration, signature, identity, storage, and network failures remain fatal even when
+policy violations are configured as non-blocking.
+
+The released Action is also available as immutable `v1.0.6` and reviewed moving tag `v1`. For a
+reproducible workflow, pin the full release commit shown above. The Action itself consumes the
+reviewed multi-platform image only by digest—never by a mutable image tag.
+
+## CLI
+
+Install the released command in an isolated environment:
+
+```bash
+uv tool install attest-cli==0.1.4
+attest version
+attest doctor
+```
+
+The CLI exposes the complete pipeline and its individual stages:
+
+```text
+init     create config, policy, and a pinned GitHub workflow
+collect  collect one exact ChangeSet and its evidence
+build    build the canonical in-toto Statement
+sign     sign with the ambient keyless Sigstore identity
+push     store exact Bundle bytes
+verify   verify the Bundle against mandatory identity and issuer constraints
+gate     verify, then evaluate policy
+run      execute collect through gate in order
+inspect  parse without verifying identity or signature
+doctor   diagnose local capabilities; network probes are explicit
+```
+
+`verify` always requires both identity and issuer constraints. `inspect` is parse-only and reports
+an unverified-identity outcome; it must not be used as a security decision. Use `--json` for the
+closed machine-readable report schema and stable semantic exit codes:
+
+| Exit | Meaning |
+|---:|---|
+| `0` | success |
+| `1` | unexpected internal failure |
+| `2` | usage or configuration failure |
+| `3` | policy denied the ChangeSet |
+| `4` | verification failed |
+| `5` | required attestation was not found |
+| `6` | transient network failure; safe to retry |
+
+## What is signed
+
+The normative wire contract is [SPEC-001](spec/SPEC-001.md). At a high level, each Statement binds:
+
+- the deterministic `CSD-1` ChangeSet Digest computed from Git object identities;
+- self-reported Authorship Claims collected from supported repository signals;
+- a forge-sourced Review Record and relevant check information;
+- collection context and the exact subject; and
+- the Signing Identity encoded in the Sigstore verification material.
+
+Raw prompts are not stored. Authorship Claims are unverified by nature: the signature establishes
+that a claim was present in the signed Statement, not that the claim is forensic truth.
+
+## Storage and policy
+
+attest supports filesystem, Git-ref, and OCI storage backends with a filesystem fallback. The
+policy engine evaluates only a successfully verified result and produces an `allow`, `warn`, or
+`deny` Decision with stable reason codes.
+
+Cryptographic verification and policy evaluation are separate boundaries:
+
+- verification asks whether the Bundle, subject, transparency-log evidence, and Signing Identity
+  are valid;
+- policy asks whether that verified evidence satisfies the organisation's declared requirements.
+
+A policy gate affects merging only after a repository administrator makes its check required.
+
+## Release and public evidence
+
+The current immutable source release is
+[`v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6). It contains the release
+contract, checksums, public-package verification, SBOM, SLSA provenance, vulnerability and
+component scans, performance evidence, dogfood Bundle, and verification records.
+
+| Distribution | Public version |
+|---|---:|
+| `attest-core` | `0.1.0` |
+| `attest-collect` | `0.1.0` |
+| `attest-sign` | `0.1.1` |
+| `attest-store` | `0.1.1` |
+| `attest-policy` | `0.1.0` |
+| `attest-cli` | `0.1.4` |
+| `attest-export` | unpublished; F-12 is not complete |
+
+The current Action release points to commit
+`e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image manifest
+`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+Immutable release tags cannot be updated or deleted.
+
+Public behaviour is independently inspectable:
+
+- [same-repository proof PR #11](https://github.com/Parth2412/attest-action-proof/pull/11)
+  denied the unreviewed ChangeSet, passed after the project owner's review, and merged;
+- [fork proof PR #12](https://github.com/Parth2412/attest-action-proof/pull/12) failed before
+  receiving signing or write authority; and
+- [release `v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6) retains the exact
+  positive and negative evidence used for publication.
+
+## Security model and limitations
+
+attest is designed to fail closed, but its trust boundary must remain explicit:
+
+- Undeclared AI use is invisible to the claim model.
+- A Review Record establishes that a review event occurred; it does not establish comprehension.
+- A compromised trusted CI workflow can sign malicious content with a genuine workload identity.
+- A public transparency log can expose repository and workflow metadata.
+- The experimental Claude Code and Codex hooks cover only their documented edit events; CH-03
+  real-world claim-emission validation remains open.
+- Predicate identifiers remain unstable throughout the `v0.x` series.
+- Auditor-facing Evidence Bundle export is not shipped; CH-04 must close before F-12 reaches its
+  Definition of Done.
+- The v1.0.6 hosted cold-start p95 values were 16, 14, and 13 seconds, with a combined p95 of
+  16 seconds. All passed the strict release SLO below 18 seconds; the engineering target below
+  15 seconds was not met consistently.
+
+Read the complete [security threat model](docs/12-SECURITY-THREAT-MODEL.md), and report suspected
+vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+
+## Specification and project status
+
+- [Master project document](docs/00-MASTER-PROJECT-DOCUMENT.md)
+- [Normative terminology and limitations](docs/01-GLOSSARY-AND-CONVENTIONS.md)
+- [SPEC-001 and normative test vectors](spec/SPEC-001.md)
+- [Architecture decisions](docs/05-ADR-LOG.md)
+- [Requirement traceability and feature status](docs/06-BRD-INDEX-AND-TRACEABILITY.md)
+- [Current project status](PROJECT_SPECS.md)
+- [Open empirical challenges](docs/14-OPEN-CHALLENGES-AND-VALIDATION.md)
+
+## Development
+
+Prerequisites: Python 3.12 or 3.13, Git 2.40+,
+[`uv`](https://docs.astral.sh/uv/), and [`just`](https://just.systems/).
+
+```bash
+uv sync --locked --all-packages
 uv run pre-commit install
 just check
 ```
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Security reports must follow
-[SECURITY.md](SECURITY.md).
-
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the code or normative documents.
 Experimental claim-emission integrations and their exact limitations are documented under
 [examples/hooks](examples/hooks/README.md).
 

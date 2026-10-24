@@ -24,6 +24,7 @@ BANNED_PHRASES: Final[tuple[str, ...]] = (
 # banned-language-allowlist:end
 
 SCAN_PATTERNS: Final[tuple[str, ...]] = (
+    ".claude/**/*.md",
     "packages/**/*.py",
     "docs/**/*.md",
     "spec/**/*.md",

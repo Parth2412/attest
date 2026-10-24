@@ -94,6 +94,9 @@ def test_live_signing_tests_and_workflow_are_staging_only() -> None:
     workflow = workflow_path.read_text(encoding="utf-8")
     assert "id-token: write" in workflow
     assert "ATTEST_SIGSTORE_E2E=1" in workflow
+    pull_request_trigger = workflow.partition("  pull_request:\n")[2].partition("  push:\n")[0]
+    assert "    branches: [main, dev]\n" in pull_request_trigger
+    assert "    paths:" not in pull_request_trigger
 
     executable_sources = "\n".join(
         path.read_text(encoding="utf-8") for path in [*test_root.glob("test_*.py"), workflow_path]
