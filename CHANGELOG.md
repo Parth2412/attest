@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-068 and reopened F-11 for the bounded filesystem-lock correction. Workspace store
+  `0.1.2` uses atomic exclusive lock creation with a safe existing-lock fallback, and CLI `0.1.5`
+  exact-pins that store. A new `0.1.7-candidate` must repeat every two-platform supply-chain,
+  performance, release, public-proof, and reviewed-promotion gate before these versions are called
+  public. Cancelled old-label run `40086747745` remains incomplete non-promotable evidence; its
+  60-minute build ceiling becomes 90 minutes without changing inputs, privileges, or gates.
 - Completed the `ADR-065`–`ADR-067` security replacement on exact release commit
   `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and multi-platform manifest
   `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`. Three

@@ -16,8 +16,9 @@ It answers a deliberately narrow question:
 attest records chain of custody. It does not infer who wrote a line of code, assess code quality,
 or decide whether an organisation satisfies a compliance framework.
 
-> **Status:** public pre-alpha. F-01 through F-11 are implemented and evidence-backed. Six Python
-> distributions, multi-platform image `0.1.6`, immutable Action `v1.0.6`, and reviewed moving tag
+> **Status:** public pre-alpha. F-01 through F-10 are complete. F-11 is publicly available as
+> Action `v1.0.6` and is completing the bounded `ADR-068` store/CLI/Action patch lifecycle. Six
+> Python distributions, multi-platform image `0.1.6`, immutable Action `v1.0.6`, and reviewed moving tag
 > `v1` are public. Evidence export (F-12) remains planned and unpublished pending practising-auditor
 > validation (`CH-04`). The external adoption gates for the complete product/v1 launch remain open.
 

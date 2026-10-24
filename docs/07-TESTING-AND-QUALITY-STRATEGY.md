@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.5.6` |
+| Version | `1.5.7` |
 | Status | **NORMATIVE** for test obligations |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-24 |
 
 ---
 
@@ -264,6 +264,11 @@ A release **MUST NOT** ship unless:
 - [x] Candidate run `39906806331`, attempt 1, proves exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context `sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`, corresponding source `sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and multi-platform candidate `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` pass every existing source-correspondence, 23-test real-container, two-platform scan, component-scan, SBOM, provenance, and identity-attestation gate before reviewed digest pinning
 - [x] Performance runs `39987447085`, `39987667038`, and `39987819708`, all attempt 1, record p95 values of 16, 14, and 13 seconds and a recomputed 60-sample p95 of 16 seconds; every result passes the unchanged schema-2 release SLO before exact image `0.1.6`, source `v0.1.6`, and immutable Action `v1.0.6` publish without a Python distribution
 - [x] Release run `39988130356`, same-repository proof PR #11, fork-denial PR #12/run `39989723943`, public-package non-publication checks, and protected promotion run `39994508140` verify before `v1` moves from `v1.0.5` to exact release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050`
+- [x] ADR-068 unit and macOS evidence proves atomic exclusive filesystem-lock creation, safe existing-lock fallback, symlink denial, and ten fresh process-contention rounds; the exact failure was reproduced over 100 rounds before correction
+- [x] Candidate workflow contracts require store `0.1.2`, exact-pinned CLI `0.1.5`, the unique `0.1.7-candidate` label, and the bounded 90-minute build ceiling while retaining every existing gate
+- [ ] A new attempt-1 candidate passes both architectures after cancelled old-label run `40086747745`, whose successful pre-build evidence and missing binary remain retained
+- [ ] Three fresh ordered attempt-1 20-job measurements and their recomputed 60 samples pass the unchanged schema-2 release SLO for the exact merged commit and candidate
+- [ ] Protected release publishes only store `0.1.2` and CLI `0.1.5`, verifies exact public bytes and clean Python 3.12/3.13 installs, promotes immutable `0.1.7`/`v0.1.7`/`v1.0.7`, and completes dogfood and both public proofs before independently reviewed `v1` movement
 
 ---
 

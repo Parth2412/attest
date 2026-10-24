@@ -7,15 +7,19 @@ import sys
 import tomllib
 import zipfile
 from pathlib import Path
+from runpy import run_path
 from typing import Any, Final
 
 import pytest
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
-CLI_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.4.toml"
+RELEASE_SMOKE_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/smoke_release_install.py"
+CLI_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.5.toml"
 SIGN_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-sign.toml"
-STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-store.toml"
+STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2-store.toml"
+PREVIOUS_STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-store.toml"
+PREVIOUS_PUBLIC_CLI_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.4.toml"
 UNCHANGED_LIBRARY_MANIFEST: Final[Path] = (
     REPOSITORY_ROOT / "release/patches/0.1.5-unchanged-libraries.toml"
 )
@@ -27,9 +31,9 @@ PREVIOUS_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patche
 FIRST_PATCH_RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1.toml"
 PATCH_LIBRARY_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-libraries.toml"
 FIRST_RELEASE_VERSION: Final[str] = "0.1.0"
-STORE_PATCH_VERSION: Final[str] = "0.1.1"
+STORE_PATCH_VERSION: Final[str] = "0.1.2"
 SIGN_PATCH_VERSION: Final[str] = "0.1.1"
-CLI_PATCH_VERSION: Final[str] = "0.1.4"
+CLI_PATCH_VERSION: Final[str] = "0.1.5"
 PUBLISHED_PACKAGES: Final[tuple[str, ...]] = (
     "attest-core",
     "attest-collect",
@@ -56,7 +60,7 @@ INTERNAL_DEPENDENCIES: Final[dict[str, tuple[str, ...]]] = {
         "attest-core==0.1.0",
         "attest-collect==0.1.0",
         "attest-sign==0.1.1",
-        "attest-store==0.1.1",
+        "attest-store==0.1.2",
         "attest-policy==0.1.0",
     ),
 }
@@ -75,8 +79,17 @@ def _toml(path: Path) -> dict[str, Any]:
     return value
 
 
+@pytest.mark.ac("AC-F11-320")
+def test_release_smoke_versions_match_the_pending_package_graph() -> None:
+    """REQ-F11-320: the clean-install smoke test enforces the new exact graph."""
+    namespace = run_path(str(RELEASE_SMOKE_SCRIPT))
+
+    assert namespace["EXPECTED_VERSIONS"] == CURRENT_VERSIONS
+
+
 @pytest.mark.ac("AC-F11-140")
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-320")
 def test_release_package_set_and_metadata_are_closed() -> None:
     """REQ-F11-140: only six metadata-complete, mutually pinned projects ship."""
     release = _toml(RELEASE_MANIFEST)["release"]
@@ -93,7 +106,7 @@ def test_release_package_set_and_metadata_are_closed() -> None:
             "library-version": FIRST_RELEASE_VERSION,
             "sign-version": SIGN_PATCH_VERSION,
             "store-version": STORE_PATCH_VERSION,
-            "action-version": "v1.0.5",
+            "action-version": "v1.0.7",
         },
     }
     assert _toml(SIGN_PATCH_MANIFEST) == {
@@ -108,6 +121,18 @@ def test_release_package_set_and_metadata_are_closed() -> None:
             "version": STORE_PATCH_VERSION,
             "distributions": ["attest-store"],
         },
+        "compatibility": {
+            "core-version": FIRST_RELEASE_VERSION,
+            "action-version": "v1.0.7",
+        },
+    }
+    assert _toml(PREVIOUS_STORE_PATCH_MANIFEST)["release"] == {
+        "version": "0.1.1",
+        "distributions": ["attest-store"],
+    }
+    assert _toml(PREVIOUS_PUBLIC_CLI_MANIFEST)["release"] == {
+        "version": "0.1.4",
+        "distributions": ["attest-cli"],
     }
     assert _toml(UNCHANGED_LIBRARY_MANIFEST) == {
         "release": {
@@ -212,11 +237,12 @@ def test_release_package_set_and_metadata_are_closed() -> None:
 
 
 @pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-320")
 def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None:
-    """REQ-F11-220: the signer and CLI patch artifacts remain distinct and closed."""
+    """REQ-F11-320: the store and CLI patch artifacts remain distinct and closed."""
     artifact_directories: dict[str, Path] = {}
     for distribution, manifest in (
-        ("attest-sign", SIGN_PATCH_MANIFEST),
+        ("attest-store", STORE_PATCH_MANIFEST),
         ("attest-cli", CLI_PATCH_MANIFEST),
     ):
         artifact_directory = tmp_path / distribution
@@ -265,7 +291,7 @@ def test_built_patch_artifacts_match_the_closed_manifest(tmp_path: Path) -> None
         assert len(hashes.read_text(encoding="utf-8").splitlines()) == 2
 
     artifact_directory = artifact_directories["attest-cli"]
-    wheel = artifact_directory / "attest_cli-0.1.4-py3-none-any.whl"
+    wheel = artifact_directory / "attest_cli-0.1.5-py3-none-any.whl"
     changed_wheel = tmp_path / wheel.name
     with zipfile.ZipFile(wheel) as source, zipfile.ZipFile(changed_wheel, mode="w") as changed:
         for member in source.infolist():
