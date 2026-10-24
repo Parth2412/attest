@@ -102,8 +102,16 @@ class FilesystemStore:
         directory_fd = self._open_directory()
         lock_fd = -1
         try:
-            flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW
-            lock_fd = os.open(_LOCK_NAME, flags, 0o600, dir_fd=directory_fd)
+            flags = os.O_RDWR | os.O_NOFOLLOW
+            try:
+                lock_fd = os.open(
+                    _LOCK_NAME,
+                    flags | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=directory_fd,
+                )
+            except FileExistsError:
+                lock_fd = os.open(_LOCK_NAME, flags, dir_fd=directory_fd)
             lock_stat = os.fstat(lock_fd)
             if not stat.S_ISREG(lock_stat.st_mode):
                 raise store_error("ERR-STORE-404")
