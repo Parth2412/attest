@@ -49,6 +49,20 @@ def test_ci_action_contract_stages_verified_runtime_sources() -> None:
     assert "--runtime-sources build/action-runtime-sources" in workflow
 
 
+@pytest.mark.ac("AC-F11-320")
+def test_ci_package_contract_validates_the_pending_patch_manifests() -> None:
+    """REQ-F11-320: CI validates the exact store and CLI artifacts being built."""
+    workflow: dict[Any, Any] = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    commands = "\n".join(
+        step.get("run", "") for step in workflow["jobs"]["package-contract"]["steps"]
+    )
+
+    assert "--manifest release/patches/0.1.2-store.toml" in commands
+    assert "--manifest release/patches/0.1.5.toml" in commands
+    assert "--manifest release/patches/0.1.1-store.toml" not in commands
+    assert "--manifest release/patches/0.1.4.toml" not in commands
+
+
 def _run_context(
     repository: Path, destination: Path, evidence: Path, runtime_sources: Path
 ) -> subprocess.CompletedProcess[str]:
