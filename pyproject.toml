@@ -22,7 +22,7 @@ attest-cli = { workspace = true }
 [dependency-groups]
 action-build = [
   "maturin==1.15.0",
-  "setuptools==84.0.0",
+  "setuptools==84.1.0",
 ]
 dev = [
   "pytest",
