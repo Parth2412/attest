@@ -36,10 +36,14 @@ print(json.dumps([reference.location, reference.bundle_digest]))
 """
     result = subprocess.run(
         [sys.executable, "-c", script, directory, digest, bundle.hex()],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
         timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"filesystem child exited with {result.returncode}; "
+        f"stdout={result.stdout!r}; stderr={result.stderr!r}"
     )
     location, digest_of_bundle = cast(list[str], json.loads(result.stdout))
     return location, digest_of_bundle
