@@ -2,12 +2,7 @@ name: e2e-sign
 
 on:
   pull_request:
-    branches: [dev]
-    paths:
-      - ".github/workflows/e2e-sign.yml"
-      - "packages/attest-core/**"
-      - "packages/attest-sign/**"
-      - "uv.lock"
+    branches: [main, dev]
   push:
     branches: [main]
   schedule:
