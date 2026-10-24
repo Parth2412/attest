@@ -17,6 +17,7 @@ from attest_store import FilesystemStore, StoreError
 
 _DIGEST = "1" * 64
 _OTHER_DIGEST = "2" * 64
+_PROCESS_CONCURRENCY_ROUNDS = 10
 
 
 def _put_from_process(directory: str, digest: str, bundle: bytes) -> tuple[str, str]:
@@ -176,18 +177,25 @@ def test_invalid_bundle_is_returned_but_missing_digest_is_coded(
 @pytest.mark.ac("AC-F07-100")
 def test_process_concurrent_puts_are_complete_and_deduplicated(tmp_path: Path) -> None:
     """REQ-F07-100: cooperating processes expose no partial or duplicate entry."""
+    for attempt in range(_PROCESS_CONCURRENCY_ROUNDS):
+        directory = tmp_path / str(attempt)
+        directory.mkdir()
+        _assert_process_concurrent_puts(directory)
+
+
+def _assert_process_concurrent_puts(directory: Path) -> None:
     bundles = [b"same"] * 5 + [f"distinct-{index}".encode() for index in range(5)]
     with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(
             executor.map(
                 _put_from_process,
-                [str(tmp_path)] * len(bundles),
+                [str(directory)] * len(bundles),
                 [_DIGEST] * len(bundles),
                 bundles,
             )
         )
 
-    store = FilesystemStore(tmp_path)
+    store = FilesystemStore(directory)
     expected = sorted(set(bundles), key=lambda value: sha256(value).digest())
     assert store.get(_DIGEST) == expected
     assert len(list(store.list())) == len(expected)
@@ -195,7 +203,7 @@ def test_process_concurrent_puts_are_complete_and_deduplicated(tmp_path: Path) -
         result for result, bundle in zip(results, bundles, strict=True) if bundle == b"same"
     }
     assert len(same_results) == 1
-    assert not list(tmp_path.glob("*.tmp"))
+    assert not list(directory.glob("*.tmp"))
 
 
 @pytest.mark.ac("AC-F07-110")
