@@ -21,9 +21,9 @@ EXPECTED_VERSIONS: Final[dict[str, str]] = {
     "attest-core": "0.1.0",
     "attest-collect": "0.1.0",
     "attest-sign": "0.1.1",
-    "attest-store": "0.1.1",
+    "attest-store": "0.1.2",
     "attest-policy": "0.1.0",
-    "attest-cli": "0.1.4",
+    "attest-cli": "0.1.5",
 }
 
 

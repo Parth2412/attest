@@ -7,12 +7,14 @@ import sys
 import tomllib
 import zipfile
 from pathlib import Path
+from runpy import run_path
 from typing import Any, Final
 
 import pytest
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 RELEASE_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/packages.toml"
+RELEASE_SMOKE_SCRIPT: Final[Path] = REPOSITORY_ROOT / "scripts/smoke_release_install.py"
 CLI_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.5.toml"
 SIGN_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.1-sign.toml"
 STORE_PATCH_MANIFEST: Final[Path] = REPOSITORY_ROOT / "release/patches/0.1.2-store.toml"
@@ -75,6 +77,14 @@ def _toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as stream:
         value: dict[str, Any] = tomllib.load(stream)
     return value
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_smoke_versions_match_the_pending_package_graph() -> None:
+    """REQ-F11-320: the clean-install smoke test enforces the new exact graph."""
+    namespace = run_path(str(RELEASE_SMOKE_SCRIPT))
+
+    assert namespace["EXPECTED_VERSIONS"] == CURRENT_VERSIONS
 
 
 @pytest.mark.ac("AC-F11-140")
