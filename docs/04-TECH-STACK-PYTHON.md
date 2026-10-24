@@ -349,6 +349,12 @@ is by far the most persuasive demo you will have.
 | GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.6`, and reviewed moving `v1`, all at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
+`ADR-068` prepares but does not yet publish store `0.1.2`, CLI `0.1.5`, image `0.1.7`, or Action
+`v1.0.7`. The CLI exact-pins the corrected store; every other internal package version is
+unchanged. Public guidance remains on `v1.0.6`/`v1` until the unique two-platform candidate,
+three-run performance gate, protected two-package publication, dogfood, public proofs, and
+independently reviewed moving-major promotion complete.
+
 The current image records and pins the verified `python:3.12.14-alpine3.23` base digest and, under
 `ADR-062` as amended by `ADR-067`, builds unmodified Git `2.52.0` and curl `8.23.0` from their
 exact hash-locked upstream sources rather than retaining Alpine's broad Git/curl transport
@@ -432,6 +438,11 @@ p95 16, 14, and 13 seconds plus a combined 60-sample p95 of 16 seconds, all belo
 published no Python distribution, completed dogfood and immutable `v0.1.6`/`v1.0.6` records, and
 verified the public package set. Same-repository and fork-denial proofs completed before protected
 promotion run `39994508140` moved reviewed `v1` to the exact release commit.
+`ADR-068` reopens F-11 for the filesystem lock correction. Candidate run `40086747745` passed the
+repository, corresponding-source, and component gates but reached the former 60-minute build job
+ceiling before emitting a binary. The new `0.1.7-candidate` receives only a 90-minute ceiling and
+must otherwise repeat the unchanged two-platform build, scan, runtime, SBOM, provenance,
+attestation, performance, release, proof, and promotion controls.
 
 ---
 

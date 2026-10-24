@@ -234,7 +234,7 @@ def test_image_installs_exact_cli_and_uses_the_isolated_exec_entrypoint() -> Non
         "/opt/attest/entrypoint.py",
     ]
     assert version.returncode == 0, version.stderr
-    assert version.stdout == "attest 0.1.4\n"
+    assert version.stdout == "attest 0.1.5\n"
 
 
 @pytest.mark.container
@@ -600,7 +600,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert id.__file__.startswith(root + 'id/'); "
         "assert not id.__file__.startswith(runtime_path); "
         "assert callable(detect_github); "
-        "assert importlib.metadata.version('attest-cli') == '0.1.4'; "
+        "assert importlib.metadata.version('attest-cli') == '0.1.5'; "
         "assert importlib.metadata.version('certifi') == '2026.10.19'; "
         "assert not any(distribution.metadata['Name'].lower() == 'virtualenv' "
         "for distribution in importlib.metadata.distributions()); "

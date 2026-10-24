@@ -316,6 +316,7 @@ def test_security_patch_lock_uses_reviewed_fixed_dependencies() -> None:
 @pytest.mark.ac("AC-F11-260")
 @pytest.mark.ac("AC-F11-270")
 @pytest.mark.ac("AC-F11-290")
+@pytest.mark.ac("AC-F11-320")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -327,9 +328,9 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "workflow_dispatch" in triggers
     assert {
         "release/patches/0.1.5-unchanged-libraries.toml",
-        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.2-store.toml",
         "release/patches/0.1.1-sign.toml",
-        "release/patches/0.1.4.toml",
+        "release/patches/0.1.5.toml",
     } <= set(triggers["push"]["paths"])
     assert {
         "action/runtime-source-artifact.Dockerfile",
@@ -354,6 +355,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert jobs["source"]["needs"] == "validate"
     assert jobs["component-scan"]["needs"] == "source"
     assert jobs["build"]["needs"] == ["source", "component-scan"]
+    assert jobs["build"]["timeout-minutes"] == 90
     assert jobs["test-image"]["needs"] == "build"
     assert jobs["scan"]["needs"] == "build"
     assert jobs["attest"]["needs"] == [
@@ -399,12 +401,12 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "action/verify_trust_seed.py" in triggers["push"]["paths"]
     for manifest in (
         "release/patches/0.1.5-unchanged-libraries.toml",
-        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.2-store.toml",
         "release/patches/0.1.1-sign.toml",
-        "release/patches/0.1.4.toml",
+        "release/patches/0.1.5.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.6-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.7-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
     assert "env" not in image_tests
@@ -552,7 +554,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}",
         "org.opencontainers.image.revision=${{ github.sha }}",
         "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
-        "org.opencontainers.image.version=0.1.6-candidate",
+        "org.opencontainers.image.version=0.1.7-candidate",
     ]
     evidence_step = next(
         step
