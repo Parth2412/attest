@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.10` |
+| Version | `1.4.11` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-24 |
 
 ---
 
@@ -203,6 +203,15 @@ without rebuilding or publishing a Python distribution. Same-repository and fork
 completed before protected promotion run `39994508140` moved `v1` to immutable `v1.0.6`; the
 affected `v1.0.5` image remains immutable historical evidence and is no longer recommended for new
 deployments.
+
+`ADR-068` addresses a post-release availability and atomicity defect in filesystem lock
+acquisition. Public store `0.1.1` could transiently fail under Darwin process contention because
+create and existing-open were not discriminated atomically. Store `0.1.2` uses
+`O_CREAT | O_EXCL | O_NOFOLLOW`, falls back only after `FileExistsError`, and retains regular-file
+descriptor validation plus `flock`; adversarial symlink behavior remains fail closed. CLI `0.1.5`
+exact-pins the corrected store. No storage bytes, signature, trust root, error code, or privilege
+changes. The versions are not considered deployed until the new both-platform candidate, public
+byte verification, dogfood, fork denial, and reviewed promotion lifecycle completes.
 
 ---
 
