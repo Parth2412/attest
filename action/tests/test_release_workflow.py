@@ -350,6 +350,19 @@ def test_release_recovery_requires_exact_bytes_and_original_oidc_authority() -> 
 
 
 @pytest.mark.ac("AC-F11-320")
+def test_release_recovery_assembles_assets_after_publication_jobs_are_skipped() -> None:
+    """REQ-F11-320: proven prior publications must not skip release assembly."""
+    assemble = _workflow()["jobs"]["assemble-assets"]
+    observed = " ".join(assemble["if"].split())
+    assert observed == (
+        "always() && "
+        "needs.build-patches.result == 'success' && "
+        "needs.preflight.result == 'success' && "
+        "needs.verify-published.result == 'success'"
+    )
+
+
+@pytest.mark.ac("AC-F11-320")
 def test_release_progresses_only_after_exact_publication_verification() -> None:
     """REQ-F11-320: promotion and dogfood require exact public package bytes."""
     jobs = _workflow()["jobs"]

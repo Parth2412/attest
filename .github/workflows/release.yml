@@ -1315,6 +1315,11 @@ jobs:
 
   assemble-assets:
     needs: [build-patches, preflight, verify-published]
+    if: >-
+      always() &&
+      needs.build-patches.result == 'success' &&
+      needs.preflight.result == 'success' &&
+      needs.verify-published.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
