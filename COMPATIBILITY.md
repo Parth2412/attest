@@ -249,6 +249,10 @@ entire adoption strategy (`CH-07`).
   `0.1.1`, CLI `0.1.4`, image `0.1.6`, and Action `v1.0.6`/`v1` until a unique
   `0.1.7-candidate`, full performance/release lifecycle, public proofs, and reviewed promotion
   complete. Cancelled run `40086747745` remains incomplete evidence and is not promotable.
+  Replacement run `40114789855`, attempt 1, passed every source, component, both-platform runtime,
+  image-scan, SBOM, provenance, and identity gate for multi-platform candidate
+  `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; performance and public
+  release gates remain pending.
 - **2026-10-23**: Completed the `ADR-065`–`ADR-067` replacement on image `0.1.6`, immutable
   product `v0.1.6`, immutable Action `v1.0.6`, and reviewed moving `v1`, all at release commit
   `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and manifest

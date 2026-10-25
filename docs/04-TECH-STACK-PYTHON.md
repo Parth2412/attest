@@ -442,7 +442,14 @@ promotion run `39994508140` moved reviewed `v1` to the exact release commit.
 repository, corresponding-source, and component gates but reached the former 60-minute build job
 ceiling before emitting a binary. The new `0.1.7-candidate` receives only a 90-minute ceiling and
 must otherwise repeat the unchanged two-platform build, scan, runtime, SBOM, provenance,
-attestation, performance, release, proof, and promotion controls.
+attestation, performance, release, proof, and promotion controls. Replacement run `40114789855`,
+attempt 1, passed the complete candidate gate for source
+`62b72c2537176c84bc232f727f223a9ea21ae80b`, context
+`sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73`, corresponding source
+`sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805`, and multi-platform image
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; both architecture scans
+were clean and both 23-test container suites passed. Digest pinning and every post-candidate gate
+remain mandatory.
 
 ---
 

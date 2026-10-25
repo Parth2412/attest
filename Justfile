@@ -55,9 +55,9 @@ package-contract:
     uv build --package attest-sign --out-dir build/sign-dist --clear --no-create-gitignore
     uv run --no-project python scripts/validate_release_artifacts.py build/sign-dist --manifest release/patches/0.1.1-sign.toml --hash-output build/SIGN-SHA256SUMS
     uv build --package attest-store --out-dir build/store-dist --clear --no-create-gitignore
-    uv run --no-project python scripts/validate_release_artifacts.py build/store-dist --manifest release/patches/0.1.1-store.toml --hash-output build/STORE-SHA256SUMS
+    uv run --no-project python scripts/validate_release_artifacts.py build/store-dist --manifest release/patches/0.1.2-store.toml --hash-output build/STORE-SHA256SUMS
     uv build --package attest-cli --out-dir build/cli-dist --clear --no-create-gitignore
-    uv run --no-project python scripts/validate_release_artifacts.py build/cli-dist --manifest release/patches/0.1.4.toml --hash-output build/CLI-SHA256SUMS
+    uv run --no-project python scripts/validate_release_artifacts.py build/cli-dist --manifest release/patches/0.1.5.toml --hash-output build/CLI-SHA256SUMS
 
 action-contract:
     #!/usr/bin/env bash
