@@ -182,7 +182,8 @@ trust boundary in plain language. Prefer exact versions, identities, and links o
 
 **Metrics:**
 
-- F-01 through F-11 are implemented and evidence-backed.
+- F-01 through F-10 are complete. F-11 is public as Action `v1.0.6` and is temporarily
+  `In progress` while the bounded ADR-068 filesystem-lock patch repeats the full release proof.
 - Six Python distributions, a multi-platform image, and immutable Action `v1.0.6` are public.
 - The `v0.1.6` release includes SBOM, provenance, scan, verification, public-package, performance,
   and dogfood evidence.

@@ -37,7 +37,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe"
+    "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356"
 )
 
 
@@ -47,6 +47,20 @@ def test_ci_action_contract_stages_verified_runtime_sources() -> None:
 
     assert "scripts/prepare_action_runtime_sources.py" in workflow
     assert "--runtime-sources build/action-runtime-sources" in workflow
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_ci_package_contract_validates_the_pending_patch_manifests() -> None:
+    """REQ-F11-320: CI validates the exact store and CLI artifacts being built."""
+    workflow: dict[Any, Any] = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    commands = "\n".join(
+        step.get("run", "") for step in workflow["jobs"]["package-contract"]["steps"]
+    )
+
+    assert "--manifest release/patches/0.1.2-store.toml" in commands
+    assert "--manifest release/patches/0.1.5.toml" in commands
+    assert "--manifest release/patches/0.1.1-store.toml" not in commands
+    assert "--manifest release/patches/0.1.4.toml" not in commands
 
 
 def _run_context(
@@ -285,12 +299,17 @@ def test_action_context_rejects_runtime_source_drift(tmp_path: Path) -> None:
 
 
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-320")
 def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
     recipe = JUSTFILE.read_text(encoding="utf-8")
 
     assert "scripts/prepare_action_runtime_sources.py" in recipe
     assert '--runtime-sources "${validation_root}/runtime-sources"' in recipe
     assert '--file "${validation_root}/action-context/action/Dockerfile"' in recipe
+    assert "--manifest release/patches/0.1.2-store.toml" in recipe
+    assert "--manifest release/patches/0.1.5.toml" in recipe
+    assert "--manifest release/patches/0.1.1-store.toml" not in recipe
+    assert "--manifest release/patches/0.1.4.toml" not in recipe
 
 
 @pytest.mark.ac("AC-F11-290")
@@ -316,6 +335,7 @@ def test_security_patch_lock_uses_reviewed_fixed_dependencies() -> None:
 @pytest.mark.ac("AC-F11-260")
 @pytest.mark.ac("AC-F11-270")
 @pytest.mark.ac("AC-F11-290")
+@pytest.mark.ac("AC-F11-320")
 def test_candidate_workflow_has_closed_supply_chain() -> None:
     """REQ-F11-150: the candidate workflow proves every pre-publication artifact property."""
     workflow: dict[Any, Any] = yaml.safe_load(CANDIDATE_WORKFLOW.read_text(encoding="utf-8"))
@@ -327,9 +347,9 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "workflow_dispatch" in triggers
     assert {
         "release/patches/0.1.5-unchanged-libraries.toml",
-        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.2-store.toml",
         "release/patches/0.1.1-sign.toml",
-        "release/patches/0.1.4.toml",
+        "release/patches/0.1.5.toml",
     } <= set(triggers["push"]["paths"])
     assert {
         "action/runtime-source-artifact.Dockerfile",
@@ -354,6 +374,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert jobs["source"]["needs"] == "validate"
     assert jobs["component-scan"]["needs"] == "source"
     assert jobs["build"]["needs"] == ["source", "component-scan"]
+    assert jobs["build"]["timeout-minutes"] == 90
     assert jobs["test-image"]["needs"] == "build"
     assert jobs["scan"]["needs"] == "build"
     assert jobs["attest"]["needs"] == [
@@ -399,12 +420,12 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
     assert "action/verify_trust_seed.py" in triggers["push"]["paths"]
     for manifest in (
         "release/patches/0.1.5-unchanged-libraries.toml",
-        "release/patches/0.1.1-store.toml",
+        "release/patches/0.1.2-store.toml",
         "release/patches/0.1.1-sign.toml",
-        "release/patches/0.1.4.toml",
+        "release/patches/0.1.5.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.6-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.7-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
     assert "env" not in image_tests
@@ -552,7 +573,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}",
         "org.opencontainers.image.revision=${{ github.sha }}",
         "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
-        "org.opencontainers.image.version=0.1.6-candidate",
+        "org.opencontainers.image.version=0.1.7-candidate",
     ]
     evidence_step = next(
         step
