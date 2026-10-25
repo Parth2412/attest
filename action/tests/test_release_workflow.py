@@ -393,6 +393,10 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
         ".run_attempt == 1",
         '.conclusion == "success"',
         'expected_events=("push" "workflow_dispatch" "workflow_dispatch")',
+        "performance run ${index} ID must be a positive decimal integer",
+        "performance run IDs must be strictly increasing",
+        "performance run ${index} does not match the required event, exact main commit, "
+        "and successful attempt-1 contract",
         "actions/workflows/action-performance.yml/runs?branch=main&per_page=100",
         "latest three exact-commit performance runs are not the supplied sequence",
     ):

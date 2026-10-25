@@ -529,27 +529,40 @@ jobs:
           for offset in 0 1 2; do
             index=$((offset + 1))
             run_id="${run_ids[${offset}]}"
-            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
-            test "${run_id}" -gt "${previous}"
+            if ! [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]; then
+              echo "performance run ${index} ID must be a positive decimal integer" >&2
+              exit 1
+            fi
+            if ! test "${run_id}" -gt "${previous}"; then
+              echo "performance run IDs must be strictly increasing" >&2
+              exit 1
+            fi
             previous="${run_id}"
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
               > "release-preflight-evidence/performance-run-${index}.json"
-            jq -e \
-              --argjson runId "${run_id}" \
-              --arg sha "${GITHUB_SHA}" \
-              --arg repository "${GITHUB_REPOSITORY}" \
-              --arg event "${expected_events[${offset}]}" '
-                .id == $runId and
-                .name == "measure Action cold start" and
-                .path == ".github/workflows/action-performance.yml" and
-                .event == $event and
-                .head_branch == "main" and
-                .head_sha == $sha and
-                .repository.full_name == $repository and
-                .status == "completed" and
-                .conclusion == "success" and
-                .run_attempt == 1
-              ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null
+            if ! jq -e \
+                --argjson runId "${run_id}" \
+                --arg sha "${GITHUB_SHA}" \
+                --arg repository "${GITHUB_REPOSITORY}" \
+                --arg event "${expected_events[${offset}]}" '
+                  .id == $runId and
+                  .name == "measure Action cold start" and
+                  .path == ".github/workflows/action-performance.yml" and
+                  .event == $event and
+                  .head_branch == "main" and
+                  .head_sha == $sha and
+                  .repository.full_name == $repository and
+                  .status == "completed" and
+                  .conclusion == "success" and
+                  .run_attempt == 1
+                ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null; then
+              jq '{id, name, path, event, head_branch, head_sha, status, conclusion, run_attempt}' \
+                "release-preflight-evidence/performance-run-${index}.json" >&2
+              echo \
+                "performance run ${index} does not match the required event, exact main commit, and successful attempt-1 contract" \
+                >&2
+              exit 1
+            fi
           done
           gh api \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/action-performance.yml/runs?branch=main&per_page=100" \
