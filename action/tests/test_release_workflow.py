@@ -595,8 +595,14 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
         'int(os.environ["PERFORMANCE_RUN_ID_3"])',
         '"candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"])',
         "release-evidence-index.json",
+        "stale-release-assets.json",
+        '"repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"',
     ):
         assert fragment in publish
+    assert publish.index(".draft == true") < publish.index("gh api --silent --method DELETE")
+    assert publish.index("gh api --silent --method DELETE") < publish.index(
+        'gh release upload "${PRODUCT_TAG}"'
+    )
     assert "releases/tags/${PRODUCT_TAG}" in publish
     assert publish.index("> release-publish-request.json") < publish.index(
         "releases/tags/${PRODUCT_TAG}"
@@ -724,6 +730,52 @@ def test_release_evidence_rejects_empty_assets_before_publication(
 
     assert result.returncode != 0
     assert "empty retained evidence is forbidden" in result.stderr
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_reconciliation_selects_only_stale_draft_assets(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: recovery removes only assets absent from current evidence."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Create, verify, and publish the immutable release",
+    )["run"]
+    marker = "python3 - <<'PY'\nimport json\nfrom pathlib import Path\n"
+    assert publish.count(marker) == 1
+    script = (
+        marker.split("\n", maxsplit=1)[1]
+        + publish.split(marker, maxsplit=1)[1].split("\nPY", maxsplit=1)[0]
+    )
+
+    assets = tmp_path / "final-release-assets"
+    assets.mkdir()
+    (assets / "current.txt").write_text("current\n", encoding="utf-8")
+    (tmp_path / "release-state.json").write_text(
+        json.dumps(
+            {
+                "assets": [
+                    {"id": 101, "name": "current.txt"},
+                    {"id": 202, "name": "stale.txt"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads((tmp_path / "stale-release-assets.json").read_text(encoding="utf-8")) == [
+        {"id": 202, "name": "stale.txt"}
+    ]
 
 
 @pytest.mark.ac("AC-F11-320")
