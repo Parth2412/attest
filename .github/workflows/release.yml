@@ -1433,6 +1433,8 @@ jobs:
 
   attest-artifacts:
     needs: assemble-assets
+    if: >-
+      always() && needs.assemble-assets.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
