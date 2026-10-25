@@ -95,7 +95,7 @@ def test_performance_workflow_runs_twenty_independent_cold_start_jobs() -> None:
     }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
-        "group": "action-performance-${{ github.sha }}",
+        "group": "action-performance-${{ github.sha }}-${{ github.event_name }}",
         "cancel-in-progress": False,
     }
 
