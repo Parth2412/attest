@@ -536,6 +536,8 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
     promotion = _commands(jobs["promote-image"])
     assert "docker buildx imagetools create" in promotion
     assert '"${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"' in promotion
+    assert "printf 'inspection-state=%s\\n'" in promotion
+    assert ">> image-promotion-evidence/initial-inspection.txt" in promotion
     assert "docker build " not in promotion
     assert "build-push-action" not in promotion
 
@@ -676,6 +678,52 @@ def test_release_evidence_namespaces_duplicate_supporting_asset_names(
         "patch-attestations--SHA256SUMS.verification.json",
         "preflight--nested--evidence.json",
     }
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_evidence_rejects_empty_assets_before_publication(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: empty retained evidence fails before draft publication."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Assemble the immutable release evidence index",
+    )["run"]
+    marker = "python3 - <<'PY'\n"
+    script = publish.split(marker, maxsplit=1)[1].rsplit("\nPY", maxsplit=1)[0]
+
+    retained = tmp_path / "retained" / "promotion"
+    retained.mkdir(parents=True)
+    (retained / "initial-inspection.txt").write_bytes(b"")
+    (tmp_path / "final-release-assets").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={
+            "GITHUB_REPOSITORY": "Parth2412/attest",
+            "GITHUB_RUN_ID": "40191173659",
+            "GITHUB_SHA": "eab88275beccbb2b1fa7114703e06ecd89c61d1b",
+            "PERFORMANCE_RUN_ID_1": "40190698531",
+            "PERFORMANCE_RUN_ID_2": "40190772562",
+            "PERFORMANCE_RUN_ID_3": "40190840731",
+            "REVIEWED_CANDIDATE_RUN_ID": "40114789855",
+            "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
+            "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
+            "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
+            "STORE_VERSION": "0.1.2",
+            "CLI_VERSION": "0.1.5",
+            "PRODUCT_TAG": "v0.1.7",
+            "ACTION_VERSION_TAG": "v1.0.7",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode != 0
+    assert "empty retained evidence is forbidden" in result.stderr
 
 
 @pytest.mark.ac("AC-F11-320")
