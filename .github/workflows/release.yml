@@ -1839,6 +1839,53 @@ jobs:
             done
           fi
           if test "${release_state}" = "draft"; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              > release-state.json
+            jq -e \
+              --argjson releaseId "${release_id}" \
+              --arg tag "${PRODUCT_TAG}" \
+              --arg sha "${GITHUB_SHA}" '
+                .id == $releaseId and
+                .tag_name == $tag and
+                .target_commitish == $sha and
+                .draft == true and
+                .prerelease == false and
+                .immutable == false
+              ' release-state.json > /dev/null
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          release = json.loads(Path("release-state.json").read_text(encoding="utf-8"))
+          local_names = {
+              path.name
+              for path in Path("final-release-assets").iterdir()
+              if path.is_file()
+          }
+          remote_names = []
+          stale = []
+          for asset in release["assets"]:
+              asset_id = asset.get("id")
+              name = asset.get("name")
+              if not isinstance(asset_id, int) or asset_id <= 0:
+                  raise SystemExit("release publication: invalid draft asset ID")
+              if not isinstance(name, str) or not name:
+                  raise SystemExit("release publication: invalid draft asset name")
+              remote_names.append(name)
+              if name not in local_names:
+                  stale.append({"id": asset_id, "name": name})
+          if len(remote_names) != len(set(remote_names)):
+              raise SystemExit("release publication: duplicate draft asset names")
+          Path("stale-release-assets.json").write_text(
+              json.dumps(stale, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+            while IFS= read -r asset_id; do
+              test "${asset_id}" -gt 0
+              gh api --silent --method DELETE \
+                "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+            done < <(jq -r '.[].id' stale-release-assets.json)
             gh release upload "${PRODUCT_TAG}" final-release-assets/* --clobber
           fi
 
