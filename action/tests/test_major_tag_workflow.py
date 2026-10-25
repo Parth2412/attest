@@ -85,7 +85,7 @@ def test_major_tag_promotion_is_manual_reviewed_and_least_privileged() -> None:
     }
     assert jobs["promote"]["environment"] == {
         "name": "action-major",
-        "url": "https://github.com/Parth2412/attest/releases/tag/v0.1.6",
+        "url": "https://github.com/Parth2412/attest/releases/tag/v0.1.7",
     }
 
     action_references = _uses(workflow)
@@ -108,29 +108,29 @@ def test_major_tag_preflight_locks_source_release_and_repository_controls() -> N
     workflow = _workflow()
     assert workflow["env"] == {
         "ACTION_MAJOR_TAG": "v1",
-        "ACTION_VERSION_TAG": "v1.0.6",
-        "PRODUCT_TAG": "v0.1.6",
-        "CURRENT_MAJOR_SHA": "203d2deb7dff946dc82c6efc6506bc34adbcd209",
-        "TARGET_RELEASE_SHA": "e693e6b60afdf9c667a913faa4f9652bfd6dc050",
-        "RELEASE_RUN_ID": 39988130356,
+        "ACTION_VERSION_TAG": "v1.0.7",
+        "PRODUCT_TAG": "v0.1.7",
+        "CURRENT_MAJOR_SHA": "e693e6b60afdf9c667a913faa4f9652bfd6dc050",
+        "TARGET_RELEASE_SHA": "c42e52d038f5ecdcc498679cb7648e5b0957d489",
+        "RELEASE_RUN_ID": 40215131129,
         "PROOF_REPOSITORY": "Parth2412/attest-action-proof",
-        "PROOF_PR": 11,
-        "FORK_PROOF_PR": 12,
-        "PROOF_BASE_SHA": "4313aac417d3d5c646d1c28163ddadddc6bcb958",
-        "PROOF_HEAD_SHA": "65d56307b056a6ec9789d1984758cde9a0a29218",
-        "PROOF_MERGE_SHA": "a13dbf8d29cd54ea6de59b1fdd56bf7f57496147",
-        "FORK_PROOF_SHA": "2df0481e6acfcb1cbc0be09b54ea61ccaa1d3638",
-        "CHANGESET_DIGEST": ("208063e4f6e6d1858ae5fbc4732137fe837fc7efd1dce3fff74a26181d26452a"),
-        "DENIED_REF_OID": "00bbd4d5880a11519a8aca2ece6c5ad760648c8c",
-        "DENIED_BLOB_OID": "35a5ced0192b286c09859622fedcd07b9b65a5d7",
+        "PROOF_PR": 13,
+        "FORK_PROOF_PR": 14,
+        "PROOF_BASE_SHA": "a13dbf8d29cd54ea6de59b1fdd56bf7f57496147",
+        "PROOF_HEAD_SHA": "834636a149480ed72d0baf71daf086fe85700350",
+        "PROOF_MERGE_SHA": "644082721a4d61ff42a51c685a0fc192f90b41ce",
+        "FORK_PROOF_SHA": "fabf3bee8b2aba03288086bd69d20dfc8554596b",
+        "CHANGESET_DIGEST": ("13a9767a393bd5a2ed23dfe734bfbe3d7f5e44e02e65407f40cf44ecc09e3987"),
+        "DENIED_REF_OID": "dd12e17a8b805dc9fe61e63fe32ae9890eb3d79f",
+        "DENIED_BLOB_OID": "f3b9c2f0452e387a81baee5d84f80660153c76a6",
         "DENIED_BUNDLE_SHA256": (
-            "8caf3059532dd85aa437ce022c58e1f9d18b352fec10a1b2e4f213fa2a9fff38"
+            "0ebe061a591016dc6935650250270e415a6a1f2bb0e2184ab13b486176c9b3fd"
         ),
-        "APPROVED_REF_SUFFIX": "3421039989",
-        "APPROVED_REF_OID": "21ffcb79d3fa1189a4b2e31d42cae02e975ccb53",
-        "APPROVED_BLOB_OID": "cf5582240009431377610466c3d57aaf5bd4c716",
+        "APPROVED_REF_SUFFIX": "3463880835",
+        "APPROVED_REF_OID": "1cc724a5a86872e4a6fe638975ec6261957580b9",
+        "APPROVED_BLOB_OID": "8ac2562cce4035a430ea166e266dc121904b3514",
         "APPROVED_BUNDLE_SHA256": (
-            "3d76e7fc0f4727e8dbc5d8c4974b859d471c93042c52dcc43bf3b3dd8f21b2b5"
+            "485071e6d7f3b5b346f0cccddf40cfccf522bbc4ef63a1e71ece168e07e7e0b0"
         ),
     }
     commands = _commands(workflow["jobs"]["preflight"])
@@ -139,14 +139,14 @@ def test_major_tag_preflight_locks_source_release_and_repository_controls() -> N
         ".can_admins_bypass == false",
         ".deployment_branch_policy.protected_branches == true",
         "repos/${GITHUB_REPOSITORY}/rulesets",
-        '"refs/tags/v0.1.6"',
-        '"refs/tags/v1.0.6"',
+        '"refs/tags/v0.1.7"',
+        '"refs/tags/v1.0.7"',
         "actions/workflows/ci.yml/runs?branch=main&event=push",
         "actions/runs/${RELEASE_RUN_ID}",
         '.path == ".github/workflows/release.yml"',
-        "release-assets-v0.1.6",
-        "release-preflight-evidence-v0.1.6",
-        "release-corresponding-source-v0.1.6",
+        "release-assets-v0.1.7",
+        "release-preflight-evidence-v0.1.7",
+        "release-corresponding-source-v0.1.7",
         "releases/tags/${PRODUCT_TAG}",
         ".immutable == true",
         'git show "${TARGET_RELEASE_SHA}:action/action.yml"',
@@ -164,16 +164,16 @@ def test_major_tag_preflight_replays_the_complete_public_proof() -> None:
     for fragment in (
         "pulls/${PROOF_PR}",
         "pulls/${PROOF_PR}/reviews",
-        "actions/runs/39989199325/attempts/2/jobs",
-        "actions/runs/39989199325/attempts/3/jobs",
-        "actions/runs/39989174645/artifacts",
-        "blocked-before-check-v0.1.6-evidence-39989174645",
-        "check-runs/120536589276",
-        "check-runs/120537217793",
+        "actions/runs/40215971173/attempts/2/jobs",
+        "actions/runs/40215971173/attempts/3/jobs",
+        "actions/runs/40215956182/artifacts",
+        "blocked-before-check-v0.1.7-evidence-40215956182",
+        "check-runs/121237216992",
+        "check-runs/121237541687",
         "pulls/${FORK_PROOF_PR}",
         "issues/${FORK_PROOF_PR}/comments",
-        "actions/runs/39989723943",
-        "check-runs/120538048826",
+        "actions/runs/40216255453",
+        "check-runs/121237911907",
         "ERR-SIGN-301",
         "ACTIONS_ID_TOKEN_REQUEST_URL",
         "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
@@ -184,7 +184,7 @@ def test_major_tag_preflight_replays_the_complete_public_proof() -> None:
         'test "$(git -C proof rev-parse "${DENIED_REF_OID}^{}")" = "${DENIED_BLOB_OID}"',
         'test "$(sha256sum promotion-evidence/proof/denied-bundle.sigstore.json',
         'test "$(sha256sum promotion-evidence/proof/approved-bundle.sigstore.json',
-        "attest-cli==0.1.4",
+        "attest-cli==0.1.5",
         '"${cli}" verify',
         '"${cli}" gate',
         'test "${denied_exit}" = "3"',
@@ -197,7 +197,7 @@ def test_major_tag_preflight_replays_the_complete_public_proof() -> None:
 
     retained = _step(_workflow()["jobs"]["preflight"], "Retain preflight promotion evidence")
     assert retained["with"] == {
-        "name": "action-major-preflight-v1.0.6-${{ github.run_id }}",
+        "name": "action-major-preflight-v1.0.7-${{ github.run_id }}",
         "path": "promotion-evidence",
         "if-no-files-found": "error",
         "include-hidden-files": False,
@@ -228,12 +228,13 @@ def test_major_tag_is_moved_once_after_review_and_then_verified() -> None:
     assert "v0.1.3 v1.0.3" in commands
     assert "v0.1.4 v1.0.4" in commands
     assert "v0.1.5 v1.0.5" in commands
+    assert "v0.1.6 v1.0.6" in commands
     assert '"${PRODUCT_TAG}" "${ACTION_VERSION_TAG}"' in commands
 
     retained = _step(promote, "Retain final promotion evidence")
     assert retained["if"] == "always()"
     assert retained["with"] == {
-        "name": "action-major-promotion-v1.0.6-${{ github.run_id }}",
+        "name": "action-major-promotion-v1.0.7-${{ github.run_id }}",
         "path": "promotion-evidence",
         "if-no-files-found": "error",
         "include-hidden-files": False,
