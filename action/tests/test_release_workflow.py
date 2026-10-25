@@ -592,6 +592,75 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
 
 
 @pytest.mark.ac("AC-F11-320")
+def test_release_evidence_namespaces_duplicate_supporting_asset_names(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: distinct retained evidence cannot overwrite by basename."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Assemble the immutable release evidence index",
+    )["run"]
+    marker = "python3 - <<'PY'\n"
+    assert publish.count(marker) == 1
+    script = publish.split(marker, maxsplit=1)[1].rsplit("\nPY", maxsplit=1)[0]
+
+    retained = tmp_path / "retained"
+    (retained / "release-assets").mkdir(parents=True)
+    (retained / "patch-attestations").mkdir()
+    (retained / "attestations").mkdir()
+    (retained / "preflight" / "nested").mkdir(parents=True)
+    (retained / "release-assets" / "SHA256SUMS").write_bytes(b"primary")
+    (retained / "patch-attestations" / "SHA256SUMS.verification.json").write_bytes(b"patch")
+    (retained / "attestations" / "SHA256SUMS.verification.json").write_bytes(b"release")
+    (retained / "preflight" / "nested" / "evidence.json").write_bytes(b"nested")
+    (tmp_path / "final-release-assets").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={
+            "GITHUB_REPOSITORY": "Parth2412/attest",
+            "GITHUB_RUN_ID": "40170754320",
+            "GITHUB_SHA": "2b73af21f59d2088aa1991d18012fa5bf16ab601",
+            "PERFORMANCE_RUN_ID_1": "40170342988",
+            "PERFORMANCE_RUN_ID_2": "40170455864",
+            "PERFORMANCE_RUN_ID_3": "40170533853",
+            "REVIEWED_CANDIDATE_RUN_ID": "40114789855",
+            "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
+            "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
+            "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
+            "STORE_VERSION": "0.1.2",
+            "CLI_VERSION": "0.1.5",
+            "PRODUCT_TAG": "v0.1.7",
+            "ACTION_VERSION_TAG": "v1.0.7",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assets = tmp_path / "final-release-assets"
+    assert {path.name for path in assets.iterdir()} == {
+        "SHA256SUMS",
+        "attestations--SHA256SUMS.verification.json",
+        "patch-attestations--SHA256SUMS.verification.json",
+        "preflight--nested--evidence.json",
+        "release-evidence-index.json",
+    }
+    assert (assets / "attestations--SHA256SUMS.verification.json").read_bytes() == b"release"
+    assert (assets / "patch-attestations--SHA256SUMS.verification.json").read_bytes() == b"patch"
+    index = json.loads((assets / "release-evidence-index.json").read_text(encoding="utf-8"))
+    assert {asset["name"] for asset in index["assets"]} == {
+        "SHA256SUMS",
+        "attestations--SHA256SUMS.verification.json",
+        "patch-attestations--SHA256SUMS.verification.json",
+        "preflight--nested--evidence.json",
+    }
+
+
+@pytest.mark.ac("AC-F11-320")
 def test_release_notes_state_the_bounded_artifact_set() -> None:
     notes = RELEASE_NOTES.read_text(encoding="utf-8")
     for fragment in (

@@ -1717,9 +1717,17 @@ jobs:
                   continue
               if not path.is_file() or path.is_symlink():
                   raise SystemExit(f"invalid retained evidence: {path}")
-              target = root / path.name
+              if len(relative.parts) < 2:
+                  raise SystemExit(f"unnamespaced retained evidence is forbidden: {path}")
+              if relative.parts[0] == "release-assets":
+                  if len(relative.parts) != 2:
+                      raise SystemExit(f"nested primary release asset is forbidden: {path}")
+                  target_name = path.name
+              else:
+                  target_name = "--".join(relative.parts)
+              target = root / target_name
               if target.exists():
-                  raise SystemExit(f"duplicate release asset name: {path.name}")
+                  raise SystemExit(f"duplicate release asset name: {target_name}")
               shutil.copyfile(path, target)
 
           assets = []
