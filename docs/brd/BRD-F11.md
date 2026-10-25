@@ -565,6 +565,13 @@ corresponding source, and component scan passed, but the old-label build reached
 ceiling before emitting a binary. The replacement candidate uses a bounded 90-minute build ceiling
 without another runner, cache, privilege, mutable input, or relaxed gate.
 
+Replacement run `40114789855`, attempt 1, passed the complete candidate boundary for source
+`62b72c2537176c84bc232f727f223a9ea21ae80b`, context
+`sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73`, identity-attested
+corresponding source `sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805`, and image
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`. Both 23-test architecture
+suites and both image scans passed before reviewed digest pinning.
+
 After reviewed digest pinning, the exact protected-main commit and image must pass three fresh
 ordered attempt-1 20-job measurements and the combined 60-sample release SLO. Protected release
 publishes both Python distributions through their separate Trusted Publishers, verifies exact
@@ -744,6 +751,7 @@ write authority.
 - [x] Three fresh consecutive attempt-1 20-job runs and their combined 60-sample result each remain strictly below the 18-second nearest-rank p95 release SLO, with the strict 15-second engineering target recorded independently
 - [x] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 - [x] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
+- [x] Candidate run `40114789855` satisfies `ADR-068` source correspondence, exact context, 23-test both-platform runtime, zero-vulnerability image scans, component policy, SBOM, provenance, and identity-attestation gates for the unique `0.1.7-candidate`
 - [ ] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and

@@ -37,7 +37,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe"
+    "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356"
 )
 
 
@@ -299,12 +299,17 @@ def test_action_context_rejects_runtime_source_drift(tmp_path: Path) -> None:
 
 
 @pytest.mark.ac("AC-F11-270")
+@pytest.mark.ac("AC-F11-320")
 def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
     recipe = JUSTFILE.read_text(encoding="utf-8")
 
     assert "scripts/prepare_action_runtime_sources.py" in recipe
     assert '--runtime-sources "${validation_root}/runtime-sources"' in recipe
     assert '--file "${validation_root}/action-context/action/Dockerfile"' in recipe
+    assert "--manifest release/patches/0.1.2-store.toml" in recipe
+    assert "--manifest release/patches/0.1.5.toml" in recipe
+    assert "--manifest release/patches/0.1.1-store.toml" not in recipe
+    assert "--manifest release/patches/0.1.4.toml" not in recipe
 
 
 @pytest.mark.ac("AC-F11-290")
