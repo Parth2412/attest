@@ -1536,6 +1536,8 @@ jobs:
             echo "image promotion: registry state was not classified" >&2
             exit 1
           fi
+          printf 'inspection-state=%s\n' "${inspection_state}" \
+            >> image-promotion-evidence/initial-inspection.txt
           observed="sha256:$(sha256sum image-promotion-evidence/promoted-image-manifest.json | cut -d ' ' -f 1)"
           test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
           printf '%s\n' "${release_image}@${REVIEWED_IMAGE_DIGEST}" \
@@ -1724,6 +1726,8 @@ jobs:
                   continue
               if not path.is_file() or path.is_symlink():
                   raise SystemExit(f"invalid retained evidence: {path}")
+              if path.stat().st_size == 0:
+                  raise SystemExit(f"empty retained evidence is forbidden: {path}")
               if len(relative.parts) < 2:
                   raise SystemExit(f"unnamespaced retained evidence is forbidden: {path}")
               if relative.parts[0] == "release-assets":
