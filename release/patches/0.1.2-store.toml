@@ -1,0 +1,7 @@
+[release]
+version = "0.1.2"
+distributions = ["attest-store"]
+
+[compatibility]
+core-version = "0.1.0"
+action-version = "v1.0.7"

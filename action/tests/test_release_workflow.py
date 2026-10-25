@@ -1,4 +1,4 @@
-"""F-11 bounded image-only security release workflow contracts."""
+"""F-11 bounded storage-correction release workflow contracts."""
 
 from __future__ import annotations
 
@@ -15,17 +15,17 @@ import yaml  # type: ignore[import-untyped]  # PyYAML lacks typing metadata.
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW: Final[Path] = REPOSITORY_ROOT / ".github/workflows/release.yml"
-RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.6.md"
+RELEASE_NOTES: Final[Path] = REPOSITORY_ROOT / "release/RELEASE_NOTES-v0.1.7.md"
 VALIDATOR: Final[Path] = REPOSITORY_ROOT / "scripts/validate_release_candidate.py"
-IMAGE_DIGEST: Final[str] = "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe"
+IMAGE_DIGEST: Final[str] = "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356"
 CONTEXT_DIGEST: Final[str] = (
-    "sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1"
+    "sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73"
 )
-CANDIDATE_SHA: Final[str] = "ae456176d0faefb732b9d8d8a4526365ad559278"
+CANDIDATE_SHA: Final[str] = "62b72c2537176c84bc232f727f223a9ea21ae80b"
 SOURCE_ARTIFACT_DIGEST: Final[str] = (
-    "sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a"
+    "sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805"
 )
-PRIOR_RELEASE_SHA: Final[str] = "203d2deb7dff946dc82c6efc6506bc34adbcd209"
+PRIOR_RELEASE_SHA: Final[str] = "e693e6b60afdf9c667a913faa4f9652bfd6dc050"
 FULL_SHA: Final[re.Pattern[str]] = re.compile(r"[^@\s]+@[0-9a-f]{40}\Z")
 EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
@@ -35,6 +35,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
     "astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d",
     "docker/login-action@dbcb813823bdd20940b903addbd779551569679f",
     "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+    "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
 }
 
 
@@ -73,12 +74,9 @@ def _commands(job: dict[str, Any]) -> str:
     return "\n".join(step.get("run", "") for step in job["steps"] if isinstance(step, dict))
 
 
-@pytest.mark.ac("AC-F11-210")
-@pytest.mark.ac("AC-F11-220")
-@pytest.mark.ac("AC-F11-260")
-@pytest.mark.ac("AC-F11-290")
-def test_release_is_closed_to_the_approved_image_only_artifact_set() -> None:
-    """REQ-F11-290: v0.1.6 publishes no Python distributions."""
+@pytest.mark.ac("AC-F11-320")
+def test_release_is_closed_to_the_approved_storage_correction() -> None:
+    """REQ-F11-320: v0.1.7 publishes only the approved store and CLI patches."""
     workflow = _workflow()
     assert workflow["name"] == "release"
     assert _triggers(workflow) == {
@@ -105,23 +103,38 @@ def test_release_is_closed_to_the_approved_image_only_artifact_set() -> None:
                     "required": True,
                     "type": "string",
                 },
+                "prior_store_publication_run_id": {
+                    "description": (
+                        "Prior release run that published the exact attest-store artifacts"
+                    ),
+                    "required": False,
+                    "type": "string",
+                },
+                "prior_cli_publication_run_id": {
+                    "description": (
+                        "Prior release run that published the exact attest-cli artifacts"
+                    ),
+                    "required": False,
+                    "type": "string",
+                },
             }
         }
     }
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
-        "group": "release-v0.1.6",
+        "group": "release-v0.1.7",
         "cancel-in-progress": False,
     }
     assert workflow["env"] == {
-        "PRODUCT_VERSION": "0.1.6",
-        "PRODUCT_TAG": "v0.1.6",
-        "ACTION_VERSION_TAG": "v1.0.6",
+        "PRODUCT_VERSION": "0.1.7",
+        "STORE_VERSION": "0.1.2",
+        "CLI_VERSION": "0.1.5",
+        "PRODUCT_TAG": "v0.1.7",
+        "ACTION_VERSION_TAG": "v1.0.7",
         "SIGN_VERSION": "0.1.1",
-        "PUBLIC_CLI_VERSION": "0.1.4",
         "IMAGE_NAME": "ghcr.io/parth2412/attest",
         "PRIOR_RELEASE_SHA": PRIOR_RELEASE_SHA,
-        "REVIEWED_CANDIDATE_RUN_ID": 39906806331,
+        "REVIEWED_CANDIDATE_RUN_ID": 40114789855,
         "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
         "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
         "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
@@ -130,23 +143,49 @@ def test_release_is_closed_to_the_approved_image_only_artifact_set() -> None:
     jobs = workflow["jobs"]
     assert set(jobs) == {
         "preflight",
-        "verify-public-packages",
+        "build-patches",
+        "smoke-patches",
+        "attest-patches",
+        "inspect-publication",
+        "publish-store",
+        "publish-cli",
+        "verify-published",
         "assemble-assets",
         "attest-artifacts",
         "promote-image",
         "dogfood",
         "publish-release",
     }
-    assert jobs["verify-public-packages"]["needs"] == "preflight"
-    assert jobs["assemble-assets"]["needs"] == ["preflight", "verify-public-packages"]
+    assert jobs["build-patches"]["needs"] == "preflight"
+    assert jobs["smoke-patches"]["needs"] == "build-patches"
+    assert jobs["attest-patches"]["needs"] == ["build-patches", "smoke-patches"]
+    assert jobs["inspect-publication"]["needs"] == ["build-patches", "smoke-patches"]
+    for job_name in ("publish-store", "publish-cli"):
+        assert jobs[job_name]["needs"] == [
+            "attest-patches",
+            "inspect-publication",
+            "smoke-patches",
+        ]
+    assert jobs["verify-published"]["needs"] == [
+        "attest-patches",
+        "inspect-publication",
+        "publish-store",
+        "publish-cli",
+    ]
+    assert jobs["assemble-assets"]["needs"] == [
+        "build-patches",
+        "preflight",
+        "verify-published",
+    ]
     assert jobs["attest-artifacts"]["needs"] == "assemble-assets"
-    assert jobs["promote-image"]["needs"] == ["preflight", "verify-public-packages"]
-    assert jobs["dogfood"]["needs"] == ["promote-image", "verify-public-packages"]
+    assert jobs["promote-image"]["needs"] == ["preflight", "verify-published"]
+    assert jobs["dogfood"]["needs"] == ["promote-image", "verify-published"]
     assert jobs["publish-release"]["needs"] == [
         "attest-artifacts",
         "dogfood",
+        "inspect-publication",
         "promote-image",
-        "verify-public-packages",
+        "verify-published",
     ]
     assert jobs["promote-image"]["permissions"] == {
         "contents": "read",
@@ -160,75 +199,170 @@ def test_release_is_closed_to_the_approved_image_only_artifact_set() -> None:
         "contents": "read",
         "id-token": "write",
     }
+    for job_name, environment in (
+        ("publish-store", "pypi-attest-store"),
+        ("publish-cli", "pypi-attest-cli"),
+    ):
+        assert jobs[job_name]["permissions"] == {
+            "actions": "read",
+            "id-token": "write",
+        }
+        assert jobs[job_name]["environment"]["name"] == environment
 
     rendered = RELEASE_WORKFLOW.read_text(encoding="utf-8")
-    for forbidden in (
-        "pypa/gh-action-pypi-publish",
-        "packages-dir",
-        "skip-existing",
-        "uv build",
-        "pypi-attest-",
-        "publish-sign:",
-        "publish-cli:",
-        "verify-published:",
-        "inspect-publication:",
-        "prior_sign_publication_run_id",
-        "prior_cli_publication_run_id",
-    ):
+    for forbidden in ("publish-sign:", "attest-sign==0.1.2"):
         assert forbidden not in rendered
+    assert "secrets." not in rendered
+    assert "pull_request_target" not in rendered
+    assert "docker build " not in rendered
+    assert rendered.count("docker buildx imagetools create") == 1
     assert "git diff --quiet" not in rendered
     assert '"${REVIEWED_CANDIDATE_SOURCE_SHA}:uv.lock"' in rendered
     assert '"$(git hash-object uv.lock)"' in rendered
 
 
-@pytest.mark.ac("AC-F11-220")
-@pytest.mark.ac("AC-F11-290")
-def test_release_verifies_unchanged_public_packages_without_publication() -> None:
-    """REQ-F11-290: public package health is proved without rebuilding or upload."""
+@pytest.mark.ac("AC-F11-320")
+def test_release_builds_and_publishes_only_store_and_cli() -> None:
+    """REQ-F11-320: artifacts are built once and published by isolated authorities."""
     jobs = _workflow()["jobs"]
-    verify = jobs["verify-public-packages"]
-    assert verify["permissions"] == {"contents": "read"}
+    build = _commands(jobs["build-patches"])
+    assert build.count("uv build --package attest-store") == 1
+    assert build.count("uv build --package attest-cli") == 1
+    for distribution in (
+        "attest-core",
+        "attest-collect",
+        "attest-sign",
+        "attest-policy",
+        "attest-export",
+    ):
+        assert f"uv build --package {distribution}" not in build
+    for fragment in (
+        "release/patches/0.1.2-store.toml",
+        "release/patches/0.1.5.toml",
+        "store-distributions-v0.1.2",
+        "cli-distributions-v0.1.5",
+    ):
+        assert fragment in str(jobs["build-patches"])
+
+    smoke = jobs["smoke-patches"]
+    assert smoke["strategy"] == {
+        "fail-fast": False,
+        "matrix": {"python": ["3.12", "3.13"]},
+    }
+    for fragment in (
+        "attest_store-0.1.2-py3-none-any.whl",
+        "attest_cli-0.1.5-py3-none-any.whl",
+        'metadata.version("attest-store") == "0.1.2"',
+        'metadata.version("attest-cli") == "0.1.5"',
+    ):
+        assert fragment in _commands(smoke)
+
+    patch_attestation = _step(jobs["attest-patches"], "Attest the exact Python release assets")
+    assert patch_attestation["with"] == {"subject-path": "python-release-assets/*"}
+
+    for job_name, output_name, step_name in (
+        (
+            "publish-store",
+            "store-publication-required",
+            "Publish the store patch with Trusted Publishing",
+        ),
+        (
+            "publish-cli",
+            "cli-publication-required",
+            "Publish the CLI patch with Trusted Publishing",
+        ),
+    ):
+        publish = jobs[job_name]
+        assert publish["if"] == f"needs.inspect-publication.outputs.{output_name} == 'true'"
+        step = _step(publish, step_name)
+        assert step["uses"] == (
+            "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        )
+        assert step["with"]["skip-existing"] is False
+        assert publish["steps"][-1] == step
+
+    verify = jobs["verify-published"]
     assert verify["strategy"] == {
         "fail-fast": False,
         "matrix": {"python": ["3.12", "3.13"]},
     }
     commands = _commands(verify)
     for fragment in (
-        "https://pypi.org/pypi/${distribution}/${version}/json",
-        "pypi-${distribution}-${version}-python-${{ matrix.python }}.json",
-        "attest-core:0.1.0",
-        "attest-collect:0.1.0",
-        "attest-sign:0.1.1",
-        "attest-store:0.1.1",
-        "attest-policy:0.1.0",
-        "attest-cli:0.1.4",
-        '"attest-sign==${SIGN_VERSION}"',
-        '"attest-cli==${PUBLIC_CLI_VERSION}"',
+        "scripts/verify_published_release.py",
+        "release/patches/0.1.2-store.toml",
+        "release/patches/0.1.5.toml",
+        '"attest-store==${STORE_VERSION}"',
+        '"attest-cli==${CLI_VERSION}"',
+        'metadata.version("attest-store") == "0.1.2"',
+        'metadata.version("attest-cli") == "0.1.5"',
         '"minimumSafeCertifi": "2026.10.19"',
         'for excluded in ("virtualenv", "python-discovery")',
-        '"pythonDistributionsPublished": []',
+        '"pythonDistributionsPublished": [',
         "build/public-package-smoke/bin/attest --help",
     ):
         assert fragment in commands
-    assert "uv build" not in commands
-    assert "id-token" not in verify["permissions"]
 
 
-@pytest.mark.ac("AC-F11-220")
-@pytest.mark.ac("AC-F11-290")
-def test_release_progresses_only_after_public_package_verification() -> None:
-    """REQ-F11-290: promotion and dogfood require both read-only package probes."""
+@pytest.mark.ac("AC-F11-320")
+def test_release_recovery_requires_exact_bytes_and_original_oidc_authority() -> None:
+    """REQ-F11-320: a partial publication resumes only from proven prior authority."""
+    inspection = _workflow()["jobs"]["inspect-publication"]
+    commands = _commands(inspection)
+    for fragment in (
+        '"https://pypi.org/pypi/${distribution}/${version}/json"',
+        'attest-store "${STORE_VERSION}" store-dist',
+        'attest-cli "${CLI_VERSION}" cli-dist',
+        "scripts/verify_published_release.py",
+        "existing ${distribution} requires its prior run ID",
+        "prior run ID supplied for absent ${distribution}",
+        "actions/runs/${run_id}",
+        'git merge-base --is-ancestor "${prior_sha}" "${GITHUB_SHA}"',
+        '.name == $job_name and .conclusion == "success"',
+        '"authentication": "oidc-trusted-publishing"',
+        '"pypi-attest-store"',
+        '"pypi-attest-cli"',
+        "prior Trusted Publishing evidence mismatch",
+    ):
+        assert fragment in commands
+
+    for step_name, output_name, distribution, input_name in (
+        (
+            "Retrieve prior store Trusted Publishing evidence",
+            "store-publication-required",
+            "attest-store",
+            "prior_store_publication_run_id",
+        ),
+        (
+            "Retrieve prior CLI Trusted Publishing evidence",
+            "cli-publication-required",
+            "attest-cli",
+            "prior_cli_publication_run_id",
+        ),
+    ):
+        retrieval = _step(inspection, step_name)
+        assert retrieval["if"] == f"steps.inspect.outputs.{output_name} == 'false'"
+        assert retrieval["with"] == {
+            "name": f"trusted-publisher-evidence-{distribution}-v0.1.7",
+            "path": f"prior-trusted-publisher-{distribution.removeprefix('attest-')}",
+            "run-id": f"${{{{ inputs.{input_name} }}}}",
+            "github-token": "${{ github.token }}",
+        }
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_progresses_only_after_exact_publication_verification() -> None:
+    """REQ-F11-320: promotion and dogfood require exact public package bytes."""
     jobs = _workflow()["jobs"]
     expected_conditions = {
         "promote-image": (
             "always() && "
             "needs.preflight.result == 'success' && "
-            "needs.verify-public-packages.result == 'success'"
+            "needs.verify-published.result == 'success'"
         ),
         "dogfood": (
             "always() && "
             "needs.promote-image.result == 'success' && "
-            "needs.verify-public-packages.result == 'success'"
+            "needs.verify-published.result == 'success'"
         ),
     }
     for job_name, expected in expected_conditions.items():
@@ -267,7 +401,7 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
     for index in range(1, 4):
         download = _step(preflight, f"Download performance evidence {index}")
         assert download["with"] == {
-            "name": f"action-performance-v1.0.6-${{{{ inputs.performance_run_id_{index} }}}}",
+            "name": f"action-performance-v1.0.7-${{{{ inputs.performance_run_id_{index} }}}}",
             "path": f"${{{{ runner.temp }}}}/performance-evidence-{index}",
             "github-token": "${{ github.token }}",
             "repository": "Parth2412/attest",
@@ -318,7 +452,7 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         'docker pull "${source_reference}"',
         '"io.github.parth2412.attest.source-artifact": source_reference',
         "candidate-source-attestation-verification.json",
-        '"org.opencontainers.image.version": "0.1.6-candidate"',
+        '"org.opencontainers.image.version": "0.1.7-candidate"',
         "--signer-workflow",
         "--source-ref refs/heads/dev",
         "--deny-self-hosted-runners",
@@ -355,7 +489,7 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
 
     source_upload = _step(preflight, "Retain the exact corresponding source for release")
     assert source_upload["with"] == {
-        "name": "release-corresponding-source-v0.1.6",
+        "name": "release-corresponding-source-v0.1.7",
         "path": "${{ runner.temp }}/reviewed-runtime-sources",
         "if-no-files-found": "error",
         "include-hidden-files": False,
@@ -367,17 +501,15 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
         step
         for step in assemble["steps"]
         if step.get("uses", "").startswith("actions/download-artifact")
-        and step.get("with", {}).get("name") == "release-corresponding-source-v0.1.6"
+        and step.get("with", {}).get("name") == "release-corresponding-source-v0.1.7"
     )
     assert source_download["with"]["path"] == "corresponding-source"
-    assert "action-corresponding-source-v1.0.6.tar.gz" in _commands(assemble)
+    assert "action-corresponding-source-v1.0.7.tar.gz" in _commands(assemble)
 
 
-@pytest.mark.ac("AC-F11-090")
-@pytest.mark.ac("AC-F11-210")
-@pytest.mark.ac("AC-F11-220")
+@pytest.mark.ac("AC-F11-320")
 def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
-    """REQ-F11-210/290: exact promotion uses the unchanged public CLI for dogfood."""
+    """REQ-F11-320: exact promotion dogfoods the newly verified public CLI."""
     jobs = _workflow()["jobs"]
     promotion = _commands(jobs["promote-image"])
     assert "docker buildx imagetools create" in promotion
@@ -387,8 +519,8 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
 
     dogfood = _commands(jobs["dogfood"])
     for fragment in (
-        '"attest-cli==${PUBLIC_CLI_VERSION}"',
-        'metadata.version("attest-cli") != "0.1.4"',
+        '"attest-cli==${CLI_VERSION}"',
+        'metadata.version("attest-cli") != "0.1.5"',
         'metadata.version("attest-sign") != "0.1.1"',
         "attest run",
         "attest verify",
@@ -401,18 +533,18 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
     assert "uv build" not in dogfood
 
 
-@pytest.mark.ac("AC-F11-080")
-@pytest.mark.ac("AC-F11-150")
-@pytest.mark.ac("AC-F11-210")
-@pytest.mark.ac("AC-F11-220")
-@pytest.mark.ac("AC-F11-290")
-def test_release_attests_assets_and_keeps_v1_on_v1_0_5() -> None:
-    """REQ-F11-290: immutable v0.1.6/v1.0.6 publish before major-tag movement."""
+@pytest.mark.ac("AC-F11-320")
+def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
+    """REQ-F11-320: immutable v0.1.7/v1.0.7 publish before major-tag movement."""
     jobs = _workflow()["jobs"]
     repository_controls = _step(
         jobs["preflight"], "Validate source and immutable repository controls"
     )["run"]
     for fragment in (
+        "for distribution in attest-store attest-cli; do",
+        ".can_admins_bypass == false",
+        '"refs/tags/v0.1.7"',
+        '"refs/tags/v1.0.7"',
         "gh api --paginate --slurp",
         '"repos/${GITHUB_REPOSITORY}/releases?per_page=100"',
         "[.[][] | select(.tag_name == $tag)] as $matches",
@@ -421,18 +553,18 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_5() -> None:
     ):
         assert fragment in repository_controls
 
-    attestation = _step(jobs["attest-artifacts"], "Attest the image-only release assets")
+    attestation = _step(jobs["attest-artifacts"], "Attest the complete release assets")
     assert attestation["with"] == {"subject-path": "release-assets/*"}
     publish = _commands(jobs["publish-release"])
     for fragment in (
-        "--notes-file release/RELEASE_NOTES-v0.1.6.md",
+        "--notes-file release/RELEASE_NOTES-v0.1.7.md",
         '"repos/${GITHUB_REPOSITORY}/releases?per_page=100"',
         '"repos/${GITHUB_REPOSITORY}/releases/${release_id}"',
         "jq -n '{draft: false, make_latest: \"true\"}'",
         '--field ref="refs/tags/${ACTION_VERSION_TAG}"',
         ".immutable == true",
         '"majorTagMoved": False',
-        '"pythonDistributionsPublished": []',
+        '"pythonDistributionsPublished": ["attest-store==0.1.2", "attest-cli==0.1.5"]',
         '"performanceRunIds": [',
         'int(os.environ["PERFORMANCE_RUN_ID_1"])',
         'int(os.environ["PERFORMANCE_RUN_ID_2"])',
@@ -455,17 +587,15 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_5() -> None:
     assert all(FULL_SHA.fullmatch(reference) for reference in references)
 
 
-@pytest.mark.ac("AC-F11-210")
-@pytest.mark.ac("AC-F11-220")
-@pytest.mark.ac("AC-F11-260")
+@pytest.mark.ac("AC-F11-320")
 def test_release_notes_state_the_bounded_artifact_set() -> None:
     notes = RELEASE_NOTES.read_text(encoding="utf-8")
     for fragment in (
-        "# attest 0.1.6 / GitHub Action v1.0.6",
+        "# attest 0.1.7 / GitHub Action v1.0.7",
         IMAGE_DIGEST,
         CONTEXT_DIGEST,
         CANDIDATE_SHA,
-        "39906806331",
+        "40114789855",
         SOURCE_ARTIFACT_DIGEST,
         "Git `2.52.0`",
         "curl `8.23.0`",
@@ -476,11 +606,12 @@ def test_release_notes_state_the_bounded_artifact_set() -> None:
         "three consecutive",
         "60-sample",
         "attest-sign==0.1.1",
-        "attest-cli==0.1.4",
-        "No Python distribution",
-        "39829765757",
+        "attest-store==0.1.2",
+        "attest-cli==0.1.5",
+        "Only these two Python distributions",
+        "40086747745",
         "v1",
-        "v1.0.5",
+        "v1.0.6",
     ):
         assert fragment in notes
     assert "pythonDistributionsPublished" in notes

@@ -60,7 +60,7 @@ jobs:
         env:
           ACTION_CONCLUSION: ${{ steps.action.outcome }}
           ACTION_SHA: ${{ github.sha }}
-          IMAGE_DIGEST: sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe
+          IMAGE_DIGEST: sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356
           SAMPLE: ${{ matrix.sample }}
         shell: bash
         run: |
@@ -197,7 +197,7 @@ jobs:
             --run-attempt "${GITHUB_RUN_ATTEMPT}" \
             --head-sha "${GITHUB_SHA}" \
             --expected-action-sha "${GITHUB_SHA}" \
-            --expected-image-digest "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe" \
+            --expected-image-digest "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356" \
             --expected-samples 20 \
             --engineering-target-seconds 15 \
             --slo-threshold-seconds 18 \
@@ -221,13 +221,13 @@ jobs:
             jq -r '"- Release SLO (<18s): \(.metric.passed)"' \
               performance-evidence/summary.json
             echo "- Exact merged Action: \`${GITHUB_SHA}\`"
-            echo "- Image: \`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe\`"
+            echo "- Image: \`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356\`"
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain complete performance evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: action-performance-v1.0.6-${{ github.run_id }}
+          name: action-performance-v1.0.7-${{ github.run_id }}
           path: performance-evidence
           if-no-files-found: error
           retention-days: 90

@@ -21,7 +21,7 @@ PERFORMANCE_POLICY: Final[Path] = REPOSITORY_ROOT / "action/performance/policy.y
 SUMMARIZER: Final[Path] = REPOSITORY_ROOT / "scripts/summarize_action_performance.py"
 COMBINER: Final[Path] = REPOSITORY_ROOT / "scripts/combine_action_performance.py"
 ACTION_SHA: Final[str] = "a" * 40
-IMAGE_DIGEST: Final[str] = "sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe"
+IMAGE_DIGEST: Final[str] = "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356"
 ACTION_REFERENCE: Final[str] = "./action"
 ACTION_STEP: Final[str] = "Measure exact merged Action"
 ENGINEERING_TARGET_SECONDS: Final[float] = 15.0
@@ -220,7 +220,7 @@ def test_performance_fixture_is_frozen_to_staging_and_exact_identity() -> None:
     assert "--engineering-target-seconds 15" in commands
     assert "--slo-threshold-seconds 18" in commands
     assert "--require-run-attempt 1" in commands
-    assert "action-performance-v1.0.6-${{ github.run_id }}" in PERFORMANCE_WORKFLOW.read_text(
+    assert "action-performance-v1.0.7-${{ github.run_id }}" in PERFORMANCE_WORKFLOW.read_text(
         encoding="utf-8"
     )
 

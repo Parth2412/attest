@@ -4192,3 +4192,97 @@ Acceptance authorizes only this exact curl `8.23.0` source replacement within AD
 existing `0.1.6` lifecycle. It would not authorize a scan exception, another dependency or
 feature change, package publication, failed-run reuse, threshold change, API change, F-12 work,
 release, or movement of `v1`.
+
+---
+
+## ADR-068 — Publish the corrected filesystem lock through a bounded patch release
+
+**Status:** Accepted · **Date:** 2026-10-24 · **Affects:** `QA-001`, `SEC-001`, `BRD-INDEX`,
+`BRD-F07`, `BRD-F11`, `COMPAT-001`, `F-07`, `F-11` · **Amends:** `ADR-043`, `ADR-064`
+
+**Context.** Post-release concurrency validation reproduced a Darwin-only race in the public
+`attest-store==0.1.1` filesystem adapter. The lock path was opened with `O_CREAT | O_NOFOLLOW`
+without atomic create-or-open discrimination. Ten fresh child processes could therefore observe a
+transient `FileNotFoundError` during lock acquisition even though the storage operation was valid.
+One hundred repeated process-contention rounds reproduced the exact failure on macOS Python 3.12.
+The correction now attempts `O_CREAT | O_EXCL | O_NOFOLLOW`, falls back to an existing
+`O_NOFOLLOW` lock only after `FileExistsError`, and retains descriptor type validation and
+`flock`. A deterministic flag contract, the existing symlink-denial contract, and ten fresh
+process-contention rounds pass on Linux and macOS. This is an implementation correction to the
+already accepted atomicity and fail-closed requirements `REQ-F07-060`, `REQ-F07-100`, and
+`REQ-F07-110`; it does not change the storage format or API.
+
+The correction is merged in protected source, but public `attest-store==0.1.1` still contains the
+old implementation. Public `attest-cli==0.1.4` exact-pins that store version, and the released
+Action image embeds the same CLI/store pair. Documentation or a source-only fix would therefore
+leave every public installation channel behind the corrected source.
+
+Automatic protected-`dev` run `40086747745` validated the complete repository, published and
+verified corresponding source, and passed the exact component gate. Its multi-platform build was
+then cancelled by the existing 60-minute job ceiling while arm64 source compilation was still
+making progress. It emitted no binary candidate, scan, attestation, or promotable digest and still
+carried the already-published `0.1.6-candidate` OCI label.
+
+**Decision.** Preserve every existing PyPI file, image, tag, Release, Bundle, and evidence record
+unchanged. Publish exactly `attest-store==0.1.2` with the corrected lock implementation and
+`attest-cli==0.1.5` with an exact `attest-store==0.1.2` dependency. The CLI retains exact
+dependencies on core, collect, and policy `0.1.0` and sign `0.1.1`. Core, collect, sign, policy,
+and the intentionally unpublished export scaffold are not rebuilt or uploaded.
+
+Build a new unique `0.1.7-candidate` from a protected `dev` commit. Increase only the candidate
+`build` job ceiling from 60 to 90 minutes so both architectures can complete the existing
+hash-locked source build; do not add caching, mutable inputs, privileges, a runner exception, or a
+relaxed gate. Run `40086747745` remains retained incomplete evidence and must not be rerun, counted,
+or promoted. The new attempt-1 candidate must repeat every source-correspondence, component,
+container, image-scan, SBOM, provenance, identity-attestation, and both-platform runtime contract.
+
+A reviewed manifest-pinning change is the only path to protected `main`. The exact merged commit
+and candidate digest must then pass the automatic-plus-two-reviewed-dispatch sequence of three
+ordered, non-overlapping, attempt-1 20-job measurements and the recomputed 60-sample gate under
+evidence schema 2, the strict 15-second engineering target, and the unchanged strict release SLO
+below 18 seconds.
+
+The protected release builds the two Python distributions exactly once, validates their closed
+manifests and metadata, attests the assets, and publishes them through the separate
+`pypi-attest-store` and `pypi-attest-cli` Trusted Publisher environments without `skip-existing`.
+It compares both public files for each distribution byte-for-byte and clean-installs the exact
+graph on Python 3.12 and 3.13 before promoting the reviewed manifest without rebuilding to image
+`0.1.7`. It then creates immutable source `v0.1.7` and Action `v1.0.7`, completes production
+dogfood, same-repository proof, and fork-denial proof, and retains all evidence in the immutable
+Release. The tag ruleset must protect `v0.1.7` and `v1.0.7` before publication. Only a separately
+reviewed protected promotion may move `v1` from `v1.0.6` to the exact `v1.0.7` release commit.
+
+F-11 returns to `In progress` until the new candidate, package publication, performance sequence,
+immutable release, dogfood, public proof, fork denial, and independently reviewed moving-major
+promotion all pass. F-07 remains functionally complete in source but its public storage channel is
+not described as corrected until public `attest-store==0.1.2` verifies byte-for-byte.
+
+**Rationale.** A store-only publication would leave the public CLI resolver pinned to the affected
+version. Publishing store and its compatibility CLI is the smallest artifact set that moves both
+Python and Action users to the corrected runtime. Rebuilding the Action is necessary because its
+container embeds those Python bytes. Repeating the full lifecycle preserves the established
+review, performance, supply-chain, and public-proof boundary instead of treating a concurrency fix
+as exempt from release controls.
+
+**Rejected alternatives.** Leaving the fix source-only, using a loose CLI dependency, mutating an
+existing PyPI file or image, moving `v1` directly, reusing an old candidate, or documenting a
+retry would leave users exposed or destroy immutability. Publishing all six distributions would
+manufacture unrelated bytes. Reusing or rerunning cancelled run `40086747745` would misrepresent
+an incomplete old-label build. Disabling arm64, using a self-hosted runner, adding an unreviewed
+cache, or weakening source-build, scan, performance, or proof gates would reduce assurance.
+
+**Consequences.** Two new Python distribution versions, one new image/product patch, and one new
+Action patch are required. The Action candidate incurs the complete two-platform build and
+three-run performance cost. Storage wire format, public API, predicate, policy, signing behavior,
+trust roots, error codes, and every prior immutable record remain unchanged.
+
+### ADR-068 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F07-060`, `REQ-F07-100`, `REQ-F07-110` | Retain atomic exclusive lock creation, safe existing-lock fallback, descriptor validation, symlink denial, and repeated process-contention proof | filesystem adapter and F-07 boundary/concurrency tests |
+| `REQ-F11-320` | Publish only store `0.1.2` and exact-pinned CLI `0.1.5`; build and pin a unique `0.1.7-candidate`; use the bounded 90-minute build ceiling; repeat the complete three-run, release, public-verification, dogfood, proof, fork-denial, immutable-tag, and reviewed-`v1` lifecycle | package metadata/manifests and lock, candidate/performance/release/promotion workflows and contracts, tag ruleset, release notes, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F07`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+Acceptance authorizes only this bounded filesystem-lock release and the exact operational timeout
+needed for the unchanged two-platform build. It does not authorize another dependency, API,
+format, runner, cache, privilege, package, threshold, trust, evidence, F-12, or prior-record change.
