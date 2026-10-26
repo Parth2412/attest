@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `attest-store` |
 | Depends on | `F-01`, `F-06` |
-| Status | **Done** · completion reconciled by `ADR-052` and the public v1.0.3 proof |
+| Status | **Done** · corrected filesystem lock is public as store `0.1.2` under `ADR-068` |
 
 ---
 
@@ -139,3 +139,5 @@ Hosted store (`OOS-01`, v1.1), retention policy enforcement, cross-repository se
 - [x] All three backends pass the identical store conformance suite
 - [x] Coverage ≥ 90%
 - [x] Cross-cutting obligations satisfied
+- [x] Store `0.1.2`, exact-pinned CLI `0.1.5`, and Action `v1.0.7` publish the corrected Darwin
+  process-lock acquisition after the complete `ADR-068` proof and reviewed promotion lifecycle

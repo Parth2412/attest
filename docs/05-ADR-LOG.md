@@ -4197,7 +4197,7 @@ release, or movement of `v1`.
 
 ## ADR-068 — Publish the corrected filesystem lock through a bounded patch release
 
-**Status:** Accepted · **Date:** 2026-10-24 · **Affects:** `QA-001`, `SEC-001`, `BRD-INDEX`,
+**Status:** Accepted · implemented 2026-10-26 · **Date:** 2026-10-24 · **Affects:** `QA-001`, `SEC-001`, `BRD-INDEX`,
 `BRD-F07`, `BRD-F11`, `COMPAT-001`, `F-07`, `F-11` · **Amends:** `ADR-043`, `ADR-064`
 
 **Context.** Post-release concurrency validation reproduced a Darwin-only race in the public
@@ -4282,6 +4282,29 @@ trust roots, error codes, and every prior immutable record remain unchanged.
 |---|---|---|
 | `REQ-F07-060`, `REQ-F07-100`, `REQ-F07-110` | Retain atomic exclusive lock creation, safe existing-lock fallback, descriptor validation, symlink denial, and repeated process-contention proof | filesystem adapter and F-07 boundary/concurrency tests |
 | `REQ-F11-320` | Publish only store `0.1.2` and exact-pinned CLI `0.1.5`; build and pin a unique `0.1.7-candidate`; use the bounded 90-minute build ceiling; repeat the complete three-run, release, public-verification, dogfood, proof, fork-denial, immutable-tag, and reviewed-`v1` lifecycle | package metadata/manifests and lock, candidate/performance/release/promotion workflows and contracts, tag ruleset, release notes, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F07`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+### ADR-068 implementation evidence
+
+Candidate run `40114789855`, attempt 1, passed both 23-test architecture suites, zero-vulnerability
+image scans, component policy, source correspondence, SBOM, provenance, and identity-attestation
+gates for manifest
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`. Exact release commit
+`c42e52d038f5ecdcc498679cb7648e5b0957d489` and that unchanged manifest completed attempt-1
+performance runs `40214718176`, `40214802805`, and `40214887540` at p95 12, 14, and 14 seconds.
+The recomputed 60-sample result retained p50 11 seconds and p95 14 seconds; every individual and
+combined result passed both the strict engineering target below 15 seconds and release SLO below
+18 seconds.
+
+Protected release run `40215131129`, attempt 1, published only `attest-store==0.1.2` and
+`attest-cli==0.1.5`, verified their public bytes and clean Python 3.12/3.13 installations,
+promoted the reviewed image without rebuilding, completed production dogfood, and created
+immutable product `v0.1.7` and Action `v1.0.7` at the exact release commit. Same-repository proof
+PR `Parth2412/attest-action-proof#13` retained no-review denial and passed only after independent
+review before merge. Fork proof PR #14 failed safely before repository-controlled execution and
+closed unmerged. Protected promotion run `40287925165`, attempt 1, independently revalidated the
+release and both proofs, received the required `action-major` environment review, and moved only
+`v1` from `e693e6b60afdf9c667a913faa4f9652bfd6dc050` to the exact release commit. Separate preflight
+and promotion evidence artifacts retain the reviewed decision and tag mutation response.
 
 Acceptance authorizes only this bounded filesystem-lock release and the exact operational timeout
 needed for the unchanged two-platform build. It does not authorize another dependency, API,
