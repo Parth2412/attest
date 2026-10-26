@@ -79,7 +79,7 @@ attest init \
   --github-repository OWNER/REPOSITORY \
   --default-branch main \
   --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
-  --action-ref Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+  --action-ref Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
 ```
 
 The generated workflow grants only the permissions required for a publishing `run`: repository
