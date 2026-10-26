@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- Accepted ADR-068 and reopened F-11 for the bounded filesystem-lock correction. Workspace store
-  `0.1.2` uses atomic exclusive lock creation with a safe existing-lock fallback, and CLI `0.1.5`
-  exact-pins that store. Attempt-1 candidate run `40114789855` passed every two-platform
-  supply-chain and runtime gate for source `62b72c2537176c84bc232f727f223a9ea21ae80b`, context
-  `sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73`, source artifact
-  `sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805`, and image
-  `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`. The performance,
-  release, public-proof, and reviewed-promotion gates remain required before these versions are
-  called public. Cancelled old-label run `40086747745` remains incomplete non-promotable evidence;
-  the successful replacement used the approved 90-minute build ceiling without changing inputs,
-  privileges, or gates.
+- Completed ADR-068 and returned F-11 to Done on exact release commit
+  `c42e52d038f5ecdcc498679cb7648e5b0957d489`. Attempt-1 candidate run `40114789855` passed every
+  two-platform supply-chain and runtime gate for image
+  `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; runs `40214718176`,
+  `40214802805`, and `40214887540` passed both performance thresholds with a combined 60-sample
+  p50 of 11 seconds and p95 of 14 seconds. Protected release run `40215131129` published only
+  store `0.1.2` and exact-pinned CLI `0.1.5`, promoted image `0.1.7` without rebuilding, and
+  created immutable product `v0.1.7` and Action `v1.0.7`. Same-repository proof PR #13,
+  fork-denial PR #14, and independently approved promotion run `40287925165` completed before
+  reviewed `v1` moved to the exact release commit. Cancelled run `40086747745` remains incomplete
+  non-promotable evidence.
 - Completed the `ADR-065`–`ADR-067` security replacement on exact release commit
   `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and multi-platform manifest
   `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`. Three

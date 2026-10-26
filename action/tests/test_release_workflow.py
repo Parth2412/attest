@@ -529,9 +529,10 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     assert "action-corresponding-source-v1.0.7.tar.gz" in _commands(assemble)
 
 
+@pytest.mark.ac("AC-F11-090")
 @pytest.mark.ac("AC-F11-320")
 def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
-    """REQ-F11-320: exact promotion dogfoods the newly verified public CLI."""
+    """REQ-F11-090/320: exact promotion dogfoods the verified public CLI."""
     jobs = _workflow()["jobs"]
     promotion = _commands(jobs["promote-image"])
     assert "docker buildx imagetools create" in promotion
@@ -541,13 +542,25 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
     assert "docker build " not in promotion
     assert "build-push-action" not in promotion
 
-    dogfood = _commands(jobs["dogfood"])
+    dogfood_job = jobs["dogfood"]
+    assert dogfood_job["env"] == {
+        "RELEASE_IDENTITY": (
+            "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
+        ),
+        "OIDC_ISSUER": "https://token.actions.githubusercontent.com",
+    }
+    dogfood = _commands(dogfood_job)
     for fragment in (
         '"attest-cli==${CLI_VERSION}"',
         'metadata.version("attest-cli") != "0.1.5"',
         'metadata.version("attest-sign") != "0.1.1"',
         "attest run",
         "attest verify",
+        "attest-${PRODUCT_TAG}.bundle.json",
+        "public-verification.json",
+        '--identity "${RELEASE_IDENTITY}"',
+        '--issuer "${OIDC_ISSUER}"',
+        "--online",
         "--signing-environment production",
         "--verify-environment production",
         '--base "${PRIOR_RELEASE_SHA}"',
@@ -555,11 +568,24 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
     ):
         assert fragment in dogfood
     assert "uv build" not in dogfood
+    evidence_upload = next(
+        step
+        for step in dogfood_job["steps"]
+        if step.get("uses", "").startswith("actions/upload-artifact")
+    )
+    assert evidence_upload["with"] == {
+        "name": "release-dogfood-evidence-v0.1.7",
+        "path": "release-dogfood-evidence",
+        "if-no-files-found": "error",
+        "include-hidden-files": False,
+        "retention-days": 90,
+    }
 
 
+@pytest.mark.ac("AC-F11-090")
 @pytest.mark.ac("AC-F11-320")
 def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
-    """REQ-F11-320: immutable v0.1.7/v1.0.7 publish before major-tag movement."""
+    """REQ-F11-090/320: attest assets before immutable tags and major movement."""
     jobs = _workflow()["jobs"]
     repository_controls = _step(
         jobs["preflight"], "Validate source and immutable repository controls"

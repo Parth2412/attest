@@ -16,11 +16,11 @@ It answers a deliberately narrow question:
 attest records chain of custody. It does not infer who wrote a line of code, assess code quality,
 or decide whether an organisation satisfies a compliance framework.
 
-> **Status:** public pre-alpha. F-01 through F-10 are complete. F-11 is publicly available as
-> Action `v1.0.6` and is completing the bounded `ADR-068` store/CLI/Action patch lifecycle. Six
-> Python distributions, multi-platform image `0.1.6`, immutable Action `v1.0.6`, and reviewed moving tag
-> `v1` are public. Evidence export (F-12) remains planned and unpublished pending practising-auditor
-> validation (`CH-04`). The external adoption gates for the complete product/v1 launch remain open.
+> **Status:** public `v0.1.7` pre-alpha. F-01 through F-11 are complete and available as six
+> Python distributions, multi-platform image `0.1.7`, immutable Action `v1.0.7`, and reviewed
+> moving tag `v1`. Evidence export (F-12) remains planned and unpublished pending
+> practising-auditor validation (`CH-04`). The external adoption gates for a stable product/v1
+> declaration remain open.
 
 ## Why attest exists
 
@@ -53,9 +53,9 @@ From the repository root, run the released initializer. Both Actions are pinned 
 SHAs; do not replace them with mutable branch names.
 
 ```bash
-uvx --from attest-cli==0.1.4 attest init \
+uvx --from attest-cli==0.1.5 attest init \
   --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
-  --action-ref Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+  --action-ref Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
 ```
 
 This creates exactly three files and refuses to overwrite an existing target:
@@ -92,7 +92,7 @@ this boundary with `pull_request_target`.
 The initializer is the recommended setup path. The generated Action step is equivalent to:
 
 ```yaml
-- uses: Parth2412/attest/action@e693e6b60afdf9c667a913faa4f9652bfd6dc050
+- uses: Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
   env:
     GITHUB_TOKEN: ${{ github.token }}
   with:
@@ -114,7 +114,7 @@ Successful runs expose the ChangeSet Digest, stored Bundle reference, policy Dec
 log index. Configuration, signature, identity, storage, and network failures remain fatal even when
 policy violations are configured as non-blocking.
 
-The released Action is also available as immutable `v1.0.6` and reviewed moving tag `v1`. For a
+The released Action is also available as immutable `v1.0.7` and reviewed moving tag `v1`. For a
 reproducible workflow, pin the full release commit shown above. The Action itself consumes the
 reviewed multi-platform image only by digest—never by a mutable image tag.
 
@@ -123,7 +123,7 @@ reviewed multi-platform image only by digest—never by a mutable image tag.
 Install the released command in an isolated environment:
 
 ```bash
-uv tool install attest-cli==0.1.4
+uv tool install attest-cli==0.1.5
 attest version
 attest doctor
 ```
@@ -187,7 +187,7 @@ A policy gate affects merging only after a repository administrator makes its ch
 ## Release and public evidence
 
 The current immutable source release is
-[`v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6). It contains the release
+[`v0.1.7`](https://github.com/Parth2412/attest/releases/tag/v0.1.7). It contains the release
 contract, checksums, public-package verification, SBOM, SLSA provenance, vulnerability and
 component scans, performance evidence, dogfood Bundle, and verification records.
 
@@ -196,24 +196,26 @@ component scans, performance evidence, dogfood Bundle, and verification records.
 | `attest-core` | `0.1.0` |
 | `attest-collect` | `0.1.0` |
 | `attest-sign` | `0.1.1` |
-| `attest-store` | `0.1.1` |
+| `attest-store` | `0.1.2` |
 | `attest-policy` | `0.1.0` |
-| `attest-cli` | `0.1.4` |
+| `attest-cli` | `0.1.5` |
 | `attest-export` | unpublished; F-12 is not complete |
 
 The current Action release points to commit
-`e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image manifest
-`sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+`c42e52d038f5ecdcc498679cb7648e5b0957d489` and image manifest
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`.
 Immutable release tags cannot be updated or deleted.
 
 Public behaviour is independently inspectable:
 
-- [same-repository proof PR #11](https://github.com/Parth2412/attest-action-proof/pull/11)
+- [same-repository proof PR #13](https://github.com/Parth2412/attest-action-proof/pull/13)
   denied the unreviewed ChangeSet, passed after the project owner's review, and merged;
-- [fork proof PR #12](https://github.com/Parth2412/attest-action-proof/pull/12) failed before
+- [fork proof PR #14](https://github.com/Parth2412/attest-action-proof/pull/14) failed before
   receiving signing or write authority; and
-- [release `v0.1.6`](https://github.com/Parth2412/attest/releases/tag/v0.1.6) retains the exact
-  positive and negative evidence used for publication.
+- [release `v0.1.7`](https://github.com/Parth2412/attest/releases/tag/v0.1.7) retains the exact
+  publication evidence, while [promotion run
+  `40287925165`](https://github.com/Parth2412/attest/actions/runs/40287925165) independently
+  revalidated the release and both proofs before reviewed `v1` movement.
 
 ## Security model and limitations
 
@@ -228,9 +230,9 @@ attest is designed to fail closed, but its trust boundary must remain explicit:
 - Predicate identifiers remain unstable throughout the `v0.x` series.
 - Auditor-facing Evidence Bundle export is not shipped; CH-04 must close before F-12 reaches its
   Definition of Done.
-- The v1.0.6 hosted cold-start p95 values were 16, 14, and 13 seconds, with a combined p95 of
-  16 seconds. All passed the strict release SLO below 18 seconds; the engineering target below
-  15 seconds was not met consistently.
+- The v1.0.7 hosted cold-start p95 values were 12, 14, and 14 seconds, with a combined p50 of
+  11 seconds and p95 of 14 seconds across 60 samples. Every result passed both the engineering
+  target below 15 seconds and the release SLO below 18 seconds.
 
 Read the complete [security threat model](docs/12-SECURITY-THREAT-MODEL.md), and report suspected
 vulnerabilities privately according to [SECURITY.md](SECURITY.md).
@@ -259,6 +261,11 @@ just check
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the code or normative documents.
 Experimental claim-emission integrations and their exact limitations are documented under
 [examples/hooks](examples/hooks/README.md).
+
+If you are evaluating AI-assisted development controls, try the five-minute setup and share the
+result in [GitHub Discussions](https://github.com/Parth2412/attest/discussions). Design partners
+can open a private security report for sensitive findings or a public issue for product feedback;
+the project does not claim certification or framework compliance.
 
 ## Licensing
 

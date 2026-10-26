@@ -267,8 +267,8 @@ A release **MUST NOT** ship unless:
 - [x] ADR-068 unit and macOS evidence proves atomic exclusive filesystem-lock creation, safe existing-lock fallback, symlink denial, and ten fresh process-contention rounds; the exact failure was reproduced over 100 rounds before correction
 - [x] Candidate workflow contracts require store `0.1.2`, exact-pinned CLI `0.1.5`, the unique `0.1.7-candidate` label, and the bounded 90-minute build ceiling while retaining every existing gate
 - [x] Attempt-1 candidate run `40114789855` passes both architectures for source `62b72c2537176c84bc232f727f223a9ea21ae80b`, context `sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73`, corresponding source `sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805`, and image `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; cancelled old-label run `40086747745`, its successful pre-build evidence, and missing binary remain retained
-- [ ] Three fresh ordered attempt-1 20-job measurements and their recomputed 60 samples pass the unchanged schema-2 release SLO for the exact merged commit and candidate
-- [ ] Protected release publishes only store `0.1.2` and CLI `0.1.5`, verifies exact public bytes and clean Python 3.12/3.13 installs, promotes immutable `0.1.7`/`v0.1.7`/`v1.0.7`, and completes dogfood and both public proofs before independently reviewed `v1` movement
+- [x] Runs `40214718176`, `40214802805`, and `40214887540`, all attempt 1, measured 20 samples each at p95 12, 14, and 14 seconds; their recomputed 60 samples retained p50 11 seconds and p95 14 seconds, passing both schema-2 thresholds for the exact merged commit and candidate
+- [x] Release run `40215131129` published only store `0.1.2` and CLI `0.1.5`, verified exact public bytes and clean Python 3.12/3.13 installs, and promoted immutable `0.1.7`/`v0.1.7`/`v1.0.7`; proof PRs #13/#14 and independently approved run `40287925165` completed before `v1` movement
 
 ---
 
