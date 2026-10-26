@@ -3,10 +3,10 @@
 ## Project Overview
 
 - **Project Name**: attest
-- **Version**: 0.0.0 workspace; pending store `0.1.2` and CLI `0.1.5`; current public
-  product/image `0.1.6`, immutable Action `v1.0.6`, and reviewed moving Action major `v1`.
-  F-01 through F-10 are Done, F-11 is In progress under `ADR-068`, and F-12 is Planned.
-- **Last Updated**: 2026-10-24
+- **Version**: 0.0.0 workspace; current public product/image `0.1.7`, store `0.1.2`, CLI `0.1.5`,
+  immutable Action `v1.0.7`, and reviewed moving Action major `v1`. F-01 through F-11 are Done,
+  and F-12 is Planned.
+- **Last Updated**: 2026-10-26
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -27,16 +27,15 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Public pre-alpha.** BOOT-001 and F-01 through F-10 are complete. The
-  `ADR-065`–`ADR-067` security replacement remains public as image/product `0.1.6`, immutable
-  Action `v1.0.6`, and reviewed moving major `v1`. F-11 is reopened while `ADR-068` carries the
-  corrected store/CLI runtime through a complete `0.1.7` lifecycle. F-12 remains Planned and
-  unpublished pending `CH-04`; external M2/M3 launch gates remain pending.
+- **Development Stage**: **Public `v0.1.7` pre-alpha.** BOOT-001 and F-01 through F-11 are
+  complete. `ADR-068` published the corrected store/CLI runtime as product/image `0.1.7`,
+  immutable Action `v1.0.7`, and reviewed moving major `v1`. F-12 remains Planned and unpublished
+  pending `CH-04`; external M2/M3 adoption and validation gates remain pending.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
   across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
   safe fork-denial, dogfood, and reviewed moving-major gates are green for exact release commit
-  `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image manifest
-  `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`.
+  `c42e52d038f5ecdcc498679cb7648e5b0957d489` and image manifest
+  `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
   90% `attest-collect` floor with both Git backends, real-repository fixtures, and normative
   vectors. F-03 retains that floor at 92% with all four claim sources, strict malformed-input
@@ -46,25 +45,20 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,314 tests with two
+  entrypoint and startup contracts. The current reconciliation gate passes 1,321 tests with two
   intentional environment-dependent skips and 23 explicitly deselected live/container tests.
 - **Known Issues**:
-  - Public `attest-store==0.1.1`, exact-pinned by CLI `0.1.4` and embedded in Action `v1.0.6`,
-    predates the corrected Darwin process-lock acquisition. Workspace store `0.1.2` and CLI
-    `0.1.5` are not public until the `ADR-068` lifecycle completes.
   - Candidate run `40086747745` passed validation, corresponding-source, and component gates but
     reached the old 60-minute build ceiling before producing a candidate; it is not promotable.
-  - Immutable `v1.0.5` remains historical and contains the certifi/musl/curl versions superseded by
-    `v1.0.6`; new deployments should use `v1.0.6`, reviewed `v1`, or preferably the full release
-    commit.
+  - Immutable Actions through `v1.0.6` remain historical. New deployments should use `v1.0.7`,
+    reviewed `v1`, or preferably the full release commit.
   - F-12 remains unimplemented and `attest-export` remains intentionally unpublished.
   - `CH-03` through `CH-07` remain open; external M2 adoption/feedback and M3 auditor/commercial
     evidence are not complete.
-  - The v1.0.6 sequence passed the strict release SLO below 18 seconds with individual p95 values
-    of 16, 14, and 13 seconds and combined p95 16 seconds. The separate strict engineering target
-    below 15 seconds remains unmet for the first and combined results.
-- **Next Milestone**: Complete the bounded `ADR-068` release and proofs, then close `CH-04` with
-  practising-auditor evidence and the remaining external M2 validation gates before F-12.
+  - Predicate identifiers remain unstable during `v0.x`; external interoperability and adoption
+    evidence are not yet sufficient for a stable product/v1 declaration.
+- **Next Milestone**: Close `CH-04` with practising-auditor evidence and complete the remaining
+  external M2 validation gates before implementing and publishing F-12.
 
 ---
 
@@ -159,7 +153,7 @@ out of order means inventing those contracts.
 | `F-08` | Verification | `attest-sign` | M1 | F-01, F-06 | `CH-02` | Cipher | ✓ done |
 | `F-09` | Policy engine and CI gate | `attest-policy` | M2 | F-01, F-04, F-08 | — | Pixel | ✓ done |
 | `F-10` | CLI | `attest-cli` | M2 | F-01…F-09 | — | Pixel | ✓ done |
-| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ◐ ADR-068 release pending |
+| `F-11` | GitHub Action packaging | `action/` | M2 | F-06, F-07, F-09, F-10 | `CH-09` (DoD) | Forge | ✓ done |
 | `F-12` | Evidence export and control mapping | `attest-export` | M3 | F-07, F-08 | `CH-04` (DoD) | Quill | ☐ not started |
 
 ### The two irreducible ideas (`MPD-001 §5.2`)
@@ -372,6 +366,17 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-26**: Accepted and implemented `ADR-069`. The source baseline replaces affected
+  build-only setuptools `84.0.0` with patched `84.1.0` and development-only virtualenv `21.14.12`
+  with patched `21.14.13`, retaining python-discovery `1.6.4`. All three remain absent from the
+  published Action runtime, so public `v0.1.7`/`v1.0.7` artifacts and evidence remain unchanged.
+- **2026-10-26**: Completed `ADR-068` and returned F-11 to Done. Exact release commit
+  `c42e52d038f5ecdcc498679cb7648e5b0957d489` and image
+  `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356` passed the three
+  attempt-1 performance runs and combined 60-sample gate; release run `40215131129` published
+  store `0.1.2`, CLI `0.1.5`, image/source `0.1.7`/`v0.1.7`, and Action `v1.0.7`. Public proof PR
+  #13, fork-denial PR #14, and protected promotion run `40287925165` completed before reviewed
+  `v1` moved to the exact release commit.
 - **2026-10-23**: Completed the `ADR-065`–`ADR-067` security replacement. Exact release commit
   `e693e6b60afdf9c667a913faa4f9652bfd6dc050` and image
   `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` passed three

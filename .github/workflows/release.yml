@@ -529,27 +529,40 @@ jobs:
           for offset in 0 1 2; do
             index=$((offset + 1))
             run_id="${run_ids[${offset}]}"
-            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
-            test "${run_id}" -gt "${previous}"
+            if ! [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]; then
+              echo "performance run ${index} ID must be a positive decimal integer" >&2
+              exit 1
+            fi
+            if ! test "${run_id}" -gt "${previous}"; then
+              echo "performance run IDs must be strictly increasing" >&2
+              exit 1
+            fi
             previous="${run_id}"
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
               > "release-preflight-evidence/performance-run-${index}.json"
-            jq -e \
-              --argjson runId "${run_id}" \
-              --arg sha "${GITHUB_SHA}" \
-              --arg repository "${GITHUB_REPOSITORY}" \
-              --arg event "${expected_events[${offset}]}" '
-                .id == $runId and
-                .name == "measure Action cold start" and
-                .path == ".github/workflows/action-performance.yml" and
-                .event == $event and
-                .head_branch == "main" and
-                .head_sha == $sha and
-                .repository.full_name == $repository and
-                .status == "completed" and
-                .conclusion == "success" and
-                .run_attempt == 1
-              ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null
+            if ! jq -e \
+                --argjson runId "${run_id}" \
+                --arg sha "${GITHUB_SHA}" \
+                --arg repository "${GITHUB_REPOSITORY}" \
+                --arg event "${expected_events[${offset}]}" '
+                  .id == $runId and
+                  .name == "measure Action cold start" and
+                  .path == ".github/workflows/action-performance.yml" and
+                  .event == $event and
+                  .head_branch == "main" and
+                  .head_sha == $sha and
+                  .repository.full_name == $repository and
+                  .status == "completed" and
+                  .conclusion == "success" and
+                  .run_attempt == 1
+                ' "release-preflight-evidence/performance-run-${index}.json" > /dev/null; then
+              jq '{id, name, path, event, head_branch, head_sha, status, conclusion, run_attempt}' \
+                "release-preflight-evidence/performance-run-${index}.json" >&2
+              echo \
+                "performance run ${index} does not match the required event, exact main commit, and successful attempt-1 contract" \
+                >&2
+              exit 1
+            fi
           done
           gh api \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/action-performance.yml/runs?branch=main&per_page=100" \
@@ -1302,6 +1315,11 @@ jobs:
 
   assemble-assets:
     needs: [build-patches, preflight, verify-published]
+    if: >-
+      always() &&
+      needs.build-patches.result == 'success' &&
+      needs.preflight.result == 'success' &&
+      needs.verify-published.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -1415,6 +1433,8 @@ jobs:
 
   attest-artifacts:
     needs: assemble-assets
+    if: >-
+      always() && needs.assemble-assets.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -1516,6 +1536,8 @@ jobs:
             echo "image promotion: registry state was not classified" >&2
             exit 1
           fi
+          printf 'inspection-state=%s\n' "${inspection_state}" \
+            >> image-promotion-evidence/initial-inspection.txt
           observed="sha256:$(sha256sum image-promotion-evidence/promoted-image-manifest.json | cut -d ' ' -f 1)"
           test "${observed}" = "${REVIEWED_IMAGE_DIGEST}"
           printf '%s\n' "${release_image}@${REVIEWED_IMAGE_DIGEST}" \
@@ -1704,9 +1726,19 @@ jobs:
                   continue
               if not path.is_file() or path.is_symlink():
                   raise SystemExit(f"invalid retained evidence: {path}")
-              target = root / path.name
+              if path.stat().st_size == 0:
+                  raise SystemExit(f"empty retained evidence is forbidden: {path}")
+              if len(relative.parts) < 2:
+                  raise SystemExit(f"unnamespaced retained evidence is forbidden: {path}")
+              if relative.parts[0] == "release-assets":
+                  if len(relative.parts) != 2:
+                      raise SystemExit(f"nested primary release asset is forbidden: {path}")
+                  target_name = path.name
+              else:
+                  target_name = "--".join(relative.parts)
+              target = root / target_name
               if target.exists():
-                  raise SystemExit(f"duplicate release asset name: {path.name}")
+                  raise SystemExit(f"duplicate release asset name: {target_name}")
               shutil.copyfile(path, target)
 
           assets = []
@@ -1807,6 +1839,53 @@ jobs:
             done
           fi
           if test "${release_state}" = "draft"; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              > release-state.json
+            jq -e \
+              --argjson releaseId "${release_id}" \
+              --arg tag "${PRODUCT_TAG}" \
+              --arg sha "${GITHUB_SHA}" '
+                .id == $releaseId and
+                .tag_name == $tag and
+                .target_commitish == $sha and
+                .draft == true and
+                .prerelease == false and
+                .immutable == false
+              ' release-state.json > /dev/null
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          release = json.loads(Path("release-state.json").read_text(encoding="utf-8"))
+          local_names = {
+              path.name
+              for path in Path("final-release-assets").iterdir()
+              if path.is_file()
+          }
+          remote_names = []
+          stale = []
+          for asset in release["assets"]:
+              asset_id = asset.get("id")
+              name = asset.get("name")
+              if not isinstance(asset_id, int) or asset_id <= 0:
+                  raise SystemExit("release publication: invalid draft asset ID")
+              if not isinstance(name, str) or not name:
+                  raise SystemExit("release publication: invalid draft asset name")
+              remote_names.append(name)
+              if name not in local_names:
+                  stale.append({"id": asset_id, "name": name})
+          if len(remote_names) != len(set(remote_names)):
+              raise SystemExit("release publication: duplicate draft asset names")
+          Path("stale-release-assets.json").write_text(
+              json.dumps(stale, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+            while IFS= read -r asset_id; do
+              test "${asset_id}" -gt 0
+              gh api --silent --method DELETE \
+                "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+            done < <(jq -r '.[].id' stale-release-assets.json)
             gh release upload "${PRODUCT_TAG}" final-release-assets/* --clobber
           fi
 

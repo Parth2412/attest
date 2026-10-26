@@ -204,14 +204,22 @@ completed before protected promotion run `39994508140` moved `v1` to immutable `
 affected `v1.0.5` image remains immutable historical evidence and is no longer recommended for new
 deployments.
 
+`ADR-069` treats newly affected build and development tools as a source-security defect while
+preserving the runtime boundary. Exact patched setuptools and virtualenv versions are locked for
+future builds and contributor environments; Dockerfile and real-container contracts prove the
+build tool is removed and virtualenv plus python-discovery never enter the published image. No
+existing public artifact is rebuilt or relabelled because none contains the affected packages.
+
 `ADR-068` addresses a post-release availability and atomicity defect in filesystem lock
 acquisition. Public store `0.1.1` could transiently fail under Darwin process contention because
 create and existing-open were not discriminated atomically. Store `0.1.2` uses
 `O_CREAT | O_EXCL | O_NOFOLLOW`, falls back only after `FileExistsError`, and retains regular-file
 descriptor validation plus `flock`; adversarial symlink behavior remains fail closed. CLI `0.1.5`
 exact-pins the corrected store. No storage bytes, signature, trust root, error code, or privilege
-changes. The versions are not considered deployed until the new both-platform candidate, public
-byte verification, dogfood, fork denial, and reviewed promotion lifecycle completes.
+changes. Candidate run `40114789855`, protected release run `40215131129`, public proof PRs
+#13/#14, and reviewed promotion run `40287925165` completed that lifecycle. Store `0.1.2`, CLI
+`0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, and reviewed `v1` are deployed at exact release
+commit `c42e52d038f5ecdcc498679cb7648e5b0957d489`.
 
 ---
 

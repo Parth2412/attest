@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · public `v1.0.6` remains current while `ADR-068` prepares the bounded store `0.1.2` / CLI `0.1.5` / Action `v1.0.7` correction |
+| Status | **Done** · `ADR-068` completed store `0.1.2`, CLI `0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, public proofs, and reviewed `v1` promotion |
 
 ---
 
@@ -579,6 +579,31 @@ public bytes and Python 3.12/3.13 clean installs, promotes without rebuilding to
 and creates immutable `v0.1.7`/`v1.0.7` records. Production dogfood, same-repository proof, safe
 fork denial, and independent promotion review must complete before `v1` moves from `v1.0.6`.
 
+### 4.1.20 Completed 0.1.7 release and promotion evidence
+
+Exact release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489` and unchanged candidate
+manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`
+completed attempt-1 performance runs `40214718176`, `40214802805`, and `40214887540` with
+nearest-rank p95 values of 12, 14, and 14 seconds. Their recomputed 60-sample summary retained p50
+11 seconds and p95 14 seconds. Every individual and combined result passed both the engineering
+target below 15 seconds and release SLO below 18 seconds.
+
+Protected release run `40215131129`, attempt 1, published only store `0.1.2` and exact-pinned CLI
+`0.1.5`, verified exact public bytes and clean Python 3.12/3.13 installations, promoted the
+reviewed image without rebuilding, completed production dogfood, and created immutable product
+`v0.1.7` and Action `v1.0.7` at the exact release commit. The immutable Release retains the
+corresponding source, both platform manifests, scans, SBOM, provenance, performance evidence,
+public-package probes, release attestations, and dogfood verification.
+
+Same-repository proof PR `Parth2412/attest-action-proof#13` retained its no-review denial and
+passed only after independent review before merge. Fork proof PR #14 failed safely before
+repository-controlled execution and closed unmerged. Protected promotion run `40287925165`,
+attempt 1, independently revalidated the release and both proofs, received the required
+`action-major` environment review, and moved only `v1` from the exact `v1.0.6` release commit to
+the exact `v1.0.7` release commit. Its separate preflight and promotion artifacts retain the
+review decision, tag response, and evidence digests. This evidence completes `REQ-F11-320`,
+`AC-F11-320`, and F-11.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -637,6 +662,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-300` | The same security replacement **MUST** build against exact `musl-dev==1.2.5-r24`, upgrade the final Action runtime to exact `musl==1.2.5-r24`, retain deterministic installed-version evidence after Alpine package metadata is removed, and reject affected `r23` on both architectures; it **MUST NOT** change ADR-065's candidate identity, release versions, publication boundary, performance thresholds, evidence sequence, immutable history, or independent promotion requirement. |
 | `REQ-F11-310` | The same security replacement **MUST** replace only source-built curl `8.22.0` with the official signed, SHA-512-locked curl `8.23.0` archive; preserve Git `2.52.0`, the HTTP/1.1-only feature set, exact toolchain and loader closure, sole Git-for-Windows VEX statement, scan thresholds, release versions, and no-Python-publication boundary; reject `8.22.0` from source, component, runtime, candidate, and release evidence; retain failed run `39829765757`, its raw scan, and attested source artifact as immutable negative evidence; and require a new unique corresponding-source artifact and two-platform candidate before the unchanged ADR-065 lifecycle continues. |
 | `REQ-F11-320` | The filesystem-lock correction **MUST** preserve every earlier immutable record; publish exactly `attest-store==0.1.2` and `attest-cli==0.1.5` with the CLI exact-pinning that store and every other internal version unchanged; build one unique two-platform `0.1.7-candidate` under a 90-minute build ceiling and every existing supply-chain/runtime gate; retain cancelled run `40086747745` as incomplete non-promotable evidence; pass the unchanged schema-2 three-run performance contract; publish through the two separate protected Trusted Publishers without `skip-existing`; verify exact public bytes and clean Python 3.12/3.13 installs; promote without rebuilding to image `0.1.7` and immutable `v0.1.7`/`v1.0.7`; and move `v1` only after dogfood, same-repository proof, fork denial, and independent protected review. |
+| `REQ-F11-330` | The post-release source baseline **MUST** replace affected build-only `setuptools==84.0.0` with exact patched `84.1.0` and affected development-only `virtualenv==21.14.12` with exact patched `21.14.13`; retain resolver-selected `python-discovery==1.6.4`; prove setuptools, virtualenv, and python-discovery remain absent from the published Action runtime; pass the complete repository and real-container contracts; and close both alerts through a reviewed protected-source merge. It **MUST NOT** mutate or republish any existing package, image, Release, immutable tag, or evidence record. |
 
 ## 6. Acceptance criteria
 
@@ -674,6 +700,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-300` | Dockerfile and both-platform real-container contracts prove the two exact `musl-dev==1.2.5-r24` build pins, exact final `musl==1.2.5-r24` installation, retained single-line `musl-1.2.5-r24` version record, absence of affected `r23`, and unchanged minimized-runtime/native behavior; the candidate's clean scans, SBOM, provenance, and identity evidence then feed the complete unchanged ADR-065 lifecycle. |
 | `AC-F11-310` | Source-preparation, Dockerfile, component-gate, candidate/release-validator, workflow, and both-platform real-container contracts prove curl `8.23.0`'s exact archive hash, source root, purl, CPE, licence, compiled version, unchanged protocols/features, loader closure, and clean fixable-High component result while rejecting `8.22.0`; retained evidence proves run `39829765757` stopped before a binary and a new protected-`dev` commit created distinct corresponding-source and candidate identities before any performance or release step. |
 | `AC-F11-320` | Package, lock, workflow, and container contracts prove the exact two-distribution graph, closed manifests, separate OIDC publishers, 90-minute candidate build ceiling, `0.1.7-candidate` identity, and absence of unrelated publication; retained evidence proves run `40086747745` emitted no candidate, the new attempt-1 candidate passes both-platform source/runtime/scan/SBOM/provenance/attestation gates, three fresh performance runs plus all 60 samples pass the release SLO, public store/CLI bytes and clean installs match, immutable `0.1.7`/`v0.1.7`/`v1.0.7` plus dogfood and both public proofs verify, and independent review precedes moving `v1`. |
+| `AC-F11-330` | Workspace, lock, Dockerfile, and real-container contracts prove exact setuptools `84.1.0`, virtualenv `21.14.13`, retained python-discovery `1.6.4`, removal of build tooling, exclusion of development tooling from runtime, and no product-version or publication change; the complete pull-request gate and dependency audit pass before protected merge and both superseded dependency pull requests close. |
 
 ## 7. Evidence retention
 
@@ -734,7 +761,7 @@ write authority.
 
 ## 9. Definition of Done
 
-- [ ] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced (`REQ-F11-320` lifecycle pending)
+- [x] All `REQ-F11-*` implemented, all `AC-F11-*` green and traced
 - [x] The exact F-10-generated and copy-pasteable README workflows run unmodified on a fresh repository
 - [x] The six packages and multi-platform image are publicly installable by immutable version/digest
 - [x] Dogfood release evidence verifies publicly
@@ -752,7 +779,7 @@ write authority.
 - [x] Exact signer `0.1.1`, CLI `0.1.4`, image `0.1.5`, source `v0.1.5`, immutable Action `v1.0.5`, dogfood, public proof, fork denial, and reviewed `v1` promotion complete without another Python publication
 - [x] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
 - [x] Candidate run `40114789855` satisfies `ADR-068` source correspondence, exact context, 23-test both-platform runtime, zero-vulnerability image scans, component policy, SBOM, provenance, and identity-attestation gates for the unique `0.1.7-candidate`
-- [ ] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
+- [x] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run
@@ -812,3 +839,14 @@ attempt 1, before repository-controlled execution. Protected promotion run `3873
 1, independently revalidated the release and proof, received the required environment approval,
 and moved `v1` from `4e73dcaf888f15967da66826d48cca5ac6684fcb` to exact release commit
 `203d2deb7dff946dc82c6efc6506bc34adbcd209`. `ADR-064` closes F-11 on this immutable evidence.
+
+The `ADR-068` sequence measured exact release commit
+`c42e52d038f5ecdcc498679cb7648e5b0957d489` and unchanged candidate manifest
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`. Runs
+`40214718176`, `40214802805`, and `40214887540`, all attempt 1, retained 20 samples each at p95
+12, 14, and 14 seconds; their combined 60-sample summary retained p50 11 seconds and p95 14
+seconds. Protected release run `40215131129`, attempt 1, published store `0.1.2`, CLI `0.1.5`,
+image `0.1.7`, product `v0.1.7`, and Action `v1.0.7` at the exact release commit. Public proof PR
+#13 passed only after review, fork proof PR #14 failed safely, and independently approved promotion
+run `40287925165`, attempt 1, moved reviewed `v1` to the exact release commit. `ADR-068` closes
+F-11 on this immutable evidence.

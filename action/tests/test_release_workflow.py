@@ -350,6 +350,24 @@ def test_release_recovery_requires_exact_bytes_and_original_oidc_authority() -> 
 
 
 @pytest.mark.ac("AC-F11-320")
+def test_release_recovery_continues_after_publication_jobs_are_skipped() -> None:
+    """REQ-F11-320: proven prior publications must not skip release completion."""
+    assemble = _workflow()["jobs"]["assemble-assets"]
+    observed = " ".join(assemble["if"].split())
+    assert observed == (
+        "always() && "
+        "needs.build-patches.result == 'success' && "
+        "needs.preflight.result == 'success' && "
+        "needs.verify-published.result == 'success'"
+    )
+
+    attest = _workflow()["jobs"]["attest-artifacts"]
+    assert " ".join(attest["if"].split()) == (
+        "always() && needs.assemble-assets.result == 'success'"
+    )
+
+
+@pytest.mark.ac("AC-F11-320")
 def test_release_progresses_only_after_exact_publication_verification() -> None:
     """REQ-F11-320: promotion and dogfood require exact public package bytes."""
     jobs = _workflow()["jobs"]
@@ -393,6 +411,10 @@ def test_release_recomputes_three_exact_attempt_one_performance_gates() -> None:
         ".run_attempt == 1",
         '.conclusion == "success"',
         'expected_events=("push" "workflow_dispatch" "workflow_dispatch")',
+        "performance run ${index} ID must be a positive decimal integer",
+        "performance run IDs must be strictly increasing",
+        "performance run ${index} does not match the required event, exact main commit, "
+        "and successful attempt-1 contract",
         "actions/workflows/action-performance.yml/runs?branch=main&per_page=100",
         "latest three exact-commit performance runs are not the supplied sequence",
     ):
@@ -507,23 +529,38 @@ def test_release_revalidates_the_exact_candidate_supply_chain() -> None:
     assert "action-corresponding-source-v1.0.7.tar.gz" in _commands(assemble)
 
 
+@pytest.mark.ac("AC-F11-090")
 @pytest.mark.ac("AC-F11-320")
 def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
-    """REQ-F11-320: exact promotion dogfoods the newly verified public CLI."""
+    """REQ-F11-090/320: exact promotion dogfoods the verified public CLI."""
     jobs = _workflow()["jobs"]
     promotion = _commands(jobs["promote-image"])
     assert "docker buildx imagetools create" in promotion
     assert '"${IMAGE_NAME}@${REVIEWED_IMAGE_DIGEST}"' in promotion
+    assert "printf 'inspection-state=%s\\n'" in promotion
+    assert ">> image-promotion-evidence/initial-inspection.txt" in promotion
     assert "docker build " not in promotion
     assert "build-push-action" not in promotion
 
-    dogfood = _commands(jobs["dogfood"])
+    dogfood_job = jobs["dogfood"]
+    assert dogfood_job["env"] == {
+        "RELEASE_IDENTITY": (
+            "https://github.com/Parth2412/attest/.github/workflows/release.yml@refs/heads/main"
+        ),
+        "OIDC_ISSUER": "https://token.actions.githubusercontent.com",
+    }
+    dogfood = _commands(dogfood_job)
     for fragment in (
         '"attest-cli==${CLI_VERSION}"',
         'metadata.version("attest-cli") != "0.1.5"',
         'metadata.version("attest-sign") != "0.1.1"',
         "attest run",
         "attest verify",
+        "attest-${PRODUCT_TAG}.bundle.json",
+        "public-verification.json",
+        '--identity "${RELEASE_IDENTITY}"',
+        '--issuer "${OIDC_ISSUER}"',
+        "--online",
         "--signing-environment production",
         "--verify-environment production",
         '--base "${PRIOR_RELEASE_SHA}"',
@@ -531,11 +568,24 @@ def test_release_promotes_without_rebuild_and_dogfoods_the_public_cli() -> None:
     ):
         assert fragment in dogfood
     assert "uv build" not in dogfood
+    evidence_upload = next(
+        step
+        for step in dogfood_job["steps"]
+        if step.get("uses", "").startswith("actions/upload-artifact")
+    )
+    assert evidence_upload["with"] == {
+        "name": "release-dogfood-evidence-v0.1.7",
+        "path": "release-dogfood-evidence",
+        "if-no-files-found": "error",
+        "include-hidden-files": False,
+        "retention-days": 90,
+    }
 
 
+@pytest.mark.ac("AC-F11-090")
 @pytest.mark.ac("AC-F11-320")
 def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
-    """REQ-F11-320: immutable v0.1.7/v1.0.7 publish before major-tag movement."""
+    """REQ-F11-090/320: attest assets before immutable tags and major movement."""
     jobs = _workflow()["jobs"]
     repository_controls = _step(
         jobs["preflight"], "Validate source and immutable repository controls"
@@ -571,8 +621,14 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
         'int(os.environ["PERFORMANCE_RUN_ID_3"])',
         '"candidateRunId": int(os.environ["REVIEWED_CANDIDATE_RUN_ID"])',
         "release-evidence-index.json",
+        "stale-release-assets.json",
+        '"repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"',
     ):
         assert fragment in publish
+    assert publish.index(".draft == true") < publish.index("gh api --silent --method DELETE")
+    assert publish.index("gh api --silent --method DELETE") < publish.index(
+        'gh release upload "${PRODUCT_TAG}"'
+    )
     assert "releases/tags/${PRODUCT_TAG}" in publish
     assert publish.index("> release-publish-request.json") < publish.index(
         "releases/tags/${PRODUCT_TAG}"
@@ -585,6 +641,167 @@ def test_release_attests_assets_and_keeps_v1_on_v1_0_6() -> None:
     references = _uses(_workflow())
     assert references == EXPECTED_ACTIONS
     assert all(FULL_SHA.fullmatch(reference) for reference in references)
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_evidence_namespaces_duplicate_supporting_asset_names(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: distinct retained evidence cannot overwrite by basename."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Assemble the immutable release evidence index",
+    )["run"]
+    marker = "python3 - <<'PY'\n"
+    assert publish.count(marker) == 1
+    script = publish.split(marker, maxsplit=1)[1].rsplit("\nPY", maxsplit=1)[0]
+
+    retained = tmp_path / "retained"
+    (retained / "release-assets").mkdir(parents=True)
+    (retained / "patch-attestations").mkdir()
+    (retained / "attestations").mkdir()
+    (retained / "preflight" / "nested").mkdir(parents=True)
+    (retained / "release-assets" / "SHA256SUMS").write_bytes(b"primary")
+    (retained / "patch-attestations" / "SHA256SUMS.verification.json").write_bytes(b"patch")
+    (retained / "attestations" / "SHA256SUMS.verification.json").write_bytes(b"release")
+    (retained / "preflight" / "nested" / "evidence.json").write_bytes(b"nested")
+    (tmp_path / "final-release-assets").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={
+            "GITHUB_REPOSITORY": "Parth2412/attest",
+            "GITHUB_RUN_ID": "40170754320",
+            "GITHUB_SHA": "2b73af21f59d2088aa1991d18012fa5bf16ab601",
+            "PERFORMANCE_RUN_ID_1": "40170342988",
+            "PERFORMANCE_RUN_ID_2": "40170455864",
+            "PERFORMANCE_RUN_ID_3": "40170533853",
+            "REVIEWED_CANDIDATE_RUN_ID": "40114789855",
+            "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
+            "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
+            "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
+            "STORE_VERSION": "0.1.2",
+            "CLI_VERSION": "0.1.5",
+            "PRODUCT_TAG": "v0.1.7",
+            "ACTION_VERSION_TAG": "v1.0.7",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assets = tmp_path / "final-release-assets"
+    assert {path.name for path in assets.iterdir()} == {
+        "SHA256SUMS",
+        "attestations--SHA256SUMS.verification.json",
+        "patch-attestations--SHA256SUMS.verification.json",
+        "preflight--nested--evidence.json",
+        "release-evidence-index.json",
+    }
+    assert (assets / "attestations--SHA256SUMS.verification.json").read_bytes() == b"release"
+    assert (assets / "patch-attestations--SHA256SUMS.verification.json").read_bytes() == b"patch"
+    index = json.loads((assets / "release-evidence-index.json").read_text(encoding="utf-8"))
+    assert {asset["name"] for asset in index["assets"]} == {
+        "SHA256SUMS",
+        "attestations--SHA256SUMS.verification.json",
+        "patch-attestations--SHA256SUMS.verification.json",
+        "preflight--nested--evidence.json",
+    }
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_evidence_rejects_empty_assets_before_publication(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: empty retained evidence fails before draft publication."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Assemble the immutable release evidence index",
+    )["run"]
+    marker = "python3 - <<'PY'\n"
+    script = publish.split(marker, maxsplit=1)[1].rsplit("\nPY", maxsplit=1)[0]
+
+    retained = tmp_path / "retained" / "promotion"
+    retained.mkdir(parents=True)
+    (retained / "initial-inspection.txt").write_bytes(b"")
+    (tmp_path / "final-release-assets").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={
+            "GITHUB_REPOSITORY": "Parth2412/attest",
+            "GITHUB_RUN_ID": "40191173659",
+            "GITHUB_SHA": "eab88275beccbb2b1fa7114703e06ecd89c61d1b",
+            "PERFORMANCE_RUN_ID_1": "40190698531",
+            "PERFORMANCE_RUN_ID_2": "40190772562",
+            "PERFORMANCE_RUN_ID_3": "40190840731",
+            "REVIEWED_CANDIDATE_RUN_ID": "40114789855",
+            "REVIEWED_CANDIDATE_SOURCE_SHA": CANDIDATE_SHA,
+            "REVIEWED_CONTEXT_DIGEST": CONTEXT_DIGEST,
+            "REVIEWED_IMAGE_DIGEST": IMAGE_DIGEST,
+            "STORE_VERSION": "0.1.2",
+            "CLI_VERSION": "0.1.5",
+            "PRODUCT_TAG": "v0.1.7",
+            "ACTION_VERSION_TAG": "v1.0.7",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode != 0
+    assert "empty retained evidence is forbidden" in result.stderr
+
+
+@pytest.mark.ac("AC-F11-320")
+def test_release_reconciliation_selects_only_stale_draft_assets(
+    tmp_path: Path,
+) -> None:
+    """REQ-F11-320: recovery removes only assets absent from current evidence."""
+    publish = _step(
+        _workflow()["jobs"]["publish-release"],
+        "Create, verify, and publish the immutable release",
+    )["run"]
+    marker = "python3 - <<'PY'\nimport json\nfrom pathlib import Path\n"
+    assert publish.count(marker) == 1
+    script = (
+        marker.split("\n", maxsplit=1)[1]
+        + publish.split(marker, maxsplit=1)[1].split("\nPY", maxsplit=1)[0]
+    )
+
+    assets = tmp_path / "final-release-assets"
+    assets.mkdir()
+    (assets / "current.txt").write_text("current\n", encoding="utf-8")
+    (tmp_path / "release-state.json").write_text(
+        json.dumps(
+            {
+                "assets": [
+                    {"id": 101, "name": "current.txt"},
+                    {"id": 202, "name": "stale.txt"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads((tmp_path / "stale-release-assets.json").read_text(encoding="utf-8")) == [
+        {"id": 202, "name": "stale.txt"}
+    ]
 
 
 @pytest.mark.ac("AC-F11-320")
