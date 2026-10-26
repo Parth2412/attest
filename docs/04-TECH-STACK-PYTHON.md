@@ -139,6 +139,12 @@ same record and reject affected `1.2.5-r23`.
 Git `2.52.0`, the pinned removable toolchain, HTTP/1.1-only feature set, sole Git-for-Windows VEX
 statement, and every candidate/release threshold remain unchanged.
 
+`ADR-069` advances the current source baseline to build-only `setuptools==84.1.0` and
+development-only `virtualenv==21.14.13` after new upstream advisories affected the previously
+reviewed pins. `python-discovery==1.6.4` remains unchanged. Setuptools is removed after the Action
+build; virtualenv and python-discovery remain excluded from its runtime. Existing public artifacts
+therefore remain immutable, while any future candidate must use and prove the patched baseline.
+
 ### 3.1 Notes on specific choices
 
 **Sigstore-native DSSE (`ADR-020`).**

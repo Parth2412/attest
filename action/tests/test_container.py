@@ -539,6 +539,7 @@ def test_source_built_git_clones_over_verified_public_https() -> None:
 @pytest.mark.ac("AC-F11-220")
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-290")
+@pytest.mark.ac("AC-F11-330")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -602,8 +603,10 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert callable(detect_github); "
         "assert importlib.metadata.version('attest-cli') == '0.1.5'; "
         "assert importlib.metadata.version('certifi') == '2026.10.19'; "
-        "assert not any(distribution.metadata['Name'].lower() == 'virtualenv' "
-        "for distribution in importlib.metadata.distributions()); "
+        "excluded = {'virtualenv', 'python-discovery'}; "
+        "installed = {distribution.metadata['Name'].lower() "
+        "for distribution in importlib.metadata.distributions()}; "
+        "assert excluded.isdisjoint(installed); "
         "metadata_roots = list(pathlib.Path(root).glob('*.dist-info')); "
         "assert len(metadata_roots) == 51; "
         "assert all((metadata / 'METADATA').is_file() for metadata in metadata_roots); "

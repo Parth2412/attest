@@ -366,6 +366,10 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-26**: Accepted and implemented `ADR-069`. The source baseline replaces affected
+  build-only setuptools `84.0.0` with patched `84.1.0` and development-only virtualenv `21.14.12`
+  with patched `21.14.13`, retaining python-discovery `1.6.4`. All three remain absent from the
+  published Action runtime, so public `v0.1.7`/`v1.0.7` artifacts and evidence remain unchanged.
 - **2026-10-26**: Completed `ADR-068` and returned F-11 to Done. Exact release commit
   `c42e52d038f5ecdcc498679cb7648e5b0957d489` and image
   `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356` passed the three

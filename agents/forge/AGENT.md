@@ -23,7 +23,7 @@ Forge is who pays it.
 
 ```bash
 grep -A 15 '^## 12. Outcome log' docs/14-OPEN-CHALLENGES-AND-VALIDATION.md
-# F-11 and CH-09 are Done. Read ADR-064 through ADR-068 before changing the published Action or release pipeline.
+# F-11 and CH-09 are Done. Read ADR-064 through ADR-069 before changing the published Action or release pipeline.
 ```
 
 ---
@@ -106,7 +106,8 @@ is not Forge's to trigger.
 
 ## `CH-09` — container cold start
 
-`CH-09` and F-11 are closed under `ADR-064` and the completed `ADR-065`–`ADR-068` replacements.
+`CH-09` and F-11 are closed under `ADR-064`, the completed `ADR-065`–`ADR-068` replacements, and
+the source-only `ADR-069` tooling patch.
 `REQ-F11-280` retains a strict engineering target
 below 15 s p95 and a separate strict release SLO below 18 s p95.
 

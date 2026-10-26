@@ -4309,3 +4309,65 @@ and promotion evidence artifacts retain the reviewed decision and tag mutation r
 Acceptance authorizes only this bounded filesystem-lock release and the exact operational timeout
 needed for the unchanged two-platform build. It does not authorize another dependency, API,
 format, runner, cache, privilege, package, threshold, trust, evidence, F-12, or prior-record change.
+
+---
+
+## ADR-069 — Patch vulnerable build and development dependencies without republishing
+
+**Status:** Accepted · **Date:** 2026-10-26 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-065`, `ADR-068`
+
+**Context.** After the immutable `v0.1.7`/`v1.0.7` lifecycle completed, GitHub opened two
+dependency alerts against the committed workspace lock. `GHSA-xmj3-9gf7-h52w` affects
+`setuptools>=38.2.2,<84.1.0`: on Windows, attacker-controlled legacy-wheel namespace metadata can
+escape the requested installation directory and create a fixed-content `__init__.py` at an
+attacker-influenced path. Exact `84.1.0` is patched. `GHSA-cx6f-vjhg-g3cc` / `CVE-2026-115586`
+affects `virtualenv>=21.14.9,<21.14.13`: an attacker-controlled prompt value can become executable
+shell syntax after Bash prompt expansion is re-enabled or inherited. Exact `21.14.13` is patched.
+
+The first dependency is confined to the `action-build` group and is explicitly uninstalled before
+the runtime image is finalized. The second and its `python-discovery` dependency are development
+tools and are explicitly excluded from the published Action runtime. Therefore no vulnerable
+package is present in the public `0.1.7` image or any attest Python distribution. The committed
+source baseline nevertheless exposes future Action builds and contributor or CI environments, so
+leaving either alert open is not acceptable.
+
+**Decision.** Preserve every published PyPI file, OCI manifest, Release, Bundle, tag, and retained
+evidence record unchanged. Update only the current workspace baseline to exact
+`setuptools==84.1.0` and `virtualenv==21.14.13`, retaining resolver-selected
+`python-discovery==1.6.4`. Update the exact-version and runtime-exclusion contracts, normative
+security and quality records, and traceability under new `REQ-F11-330` / `AC-F11-330`.
+
+Merge one protected security PR from the current protected `main` tree only after the complete
+repository checks, dependency audit, and real-container Action contract pass. The existing
+single-dependency Dependabot PRs are evidence that the exact-version contracts fail closed; close
+them as superseded only after the combined reviewed correction merges. Reconcile protected `dev`
+through review without force push or history replacement.
+
+**Rationale.** Updating the committed lock removes known affected tooling from future builds and
+developer environments. A combined change keeps the exact version assertions, lock, security
+decision, and tests internally consistent. A product or Action patch release would not remove
+vulnerable runtime bytes because those bytes are not shipped; it would instead manufacture new
+public artifacts without a product correction.
+
+**Rejected alternatives.** Dismissing either alert would retain known affected tools. Merging the
+bot PRs while weakening or deleting exact-version tests would discard a deliberate fail-closed
+control. Republishing packages, rebuilding the public image, mutating immutable tags, or claiming
+the existing release was affected would misstate the artifact boundary. Downgrading virtualenv to
+an older unaffected version would abandon the already-reviewed security fixes in `21.14.12`.
+
+**Consequences.** Future source checkouts and Action builds use the patched tools. The Action build
+context changes, so any future candidate must be built and reviewed through the full existing
+candidate lifecycle; no current candidate or release digest is reinterpreted. Public product
+versions remain core/collect/policy `0.1.0`, sign `0.1.1`, store `0.1.2`, CLI `0.1.5`, image
+`0.1.7`, product `v0.1.7`, and Action `v1.0.7`/`v1`.
+
+### ADR-069 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-330` | Pin the two patched tool versions, retain the unchanged transitive dependency, prove build/development tooling is absent from the public runtime, pass all source and real-container gates, merge through protected review, close the superseded bot PRs, and reconcile protected `dev` without publishing or mutating an artifact | workspace manifest and lock, Action build/runtime contracts, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project records |
+
+Acceptance authorizes only this bounded source, build-tool, development-tool, test, and documentation
+correction. It does not authorize a package, image, Release, tag, candidate, API, format, feature,
+threshold, trust-boundary, evidence-record, or F-12 change.

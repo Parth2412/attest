@@ -131,9 +131,8 @@ hand-write a version from memory.
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
 | `attest-cli` | `attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml`; `attest-export` only after F-12 |
 
-Current published CLI `0.1.4` metadata exact-pins core, collect, and policy to `0.1.0` and sign and
-store to `0.1.1`. Pending workspace CLI `0.1.5` preserves those pins except for corrected store
-`0.1.2`; these source versions remain local until `ADR-068` completes. `attest-export` is excluded
+Current published CLI `0.1.5` metadata exact-pins core, collect, and policy to `0.1.0`, sign to
+`0.1.1`, and corrected store to `0.1.2`. `attest-export` is excluded
 from the published set and from the published CLI dependency graph until F-12 is Done (`ADR-046`,
 `ADR-064`).
 
@@ -175,7 +174,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | published `0.1.5`: exact core/collect/policy 0.1.0, sign 0.1.1, store 0.1.2 | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.7; Action v1.0.7/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-068` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.7; Action v1.0.7/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `REQ-F11-330`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-069` |
 
 ---
 
@@ -242,6 +241,10 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-26**: Accepted and implemented `ADR-069` as a source-only security correction. Future
+  builds use exact patched setuptools `84.1.0`; development environments use exact patched
+  virtualenv `21.14.13`; python-discovery remains `1.6.4`; and runtime-exclusion contracts remain
+  enforced. No public package, image, source release, Action tag, or compatibility surface changes.
 - **2026-10-26**: Completed `ADR-068` and returned F-11 to Done. Public store `0.1.2`, CLI
   `0.1.5`, image `0.1.7`, product `v0.1.7`, and immutable Action `v1.0.7` resolve to exact release
   commit `c42e52d038f5ecdcc498679cb7648e5b0957d489`; independently approved promotion run

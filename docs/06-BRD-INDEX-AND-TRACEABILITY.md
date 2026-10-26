@@ -400,6 +400,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F11-300` | `AC-F11-300` | `action/tests/test_entrypoint.py`, `test_container.py` | ✓ |
 | `REQ-F11-310` | `AC-F11-310` | `action/tests/test_runtime_sources.py`, `test_component_scan.py`, `test_entrypoint.py`, `test_container.py`, `test_release_workflow.py` | ✓ |
 | `REQ-F11-320` | `AC-F11-320` | `packages/attest-cli/tests/test_release_packaging.py`, `action/tests/test_release_candidate.py`, `test_container.py`, `test_action_performance_workflow.py`, `test_release_workflow.py`, `test_major_tag_workflow.py` | ✓ |
+| `REQ-F11-330` | `AC-F11-330` | `action/tests/test_release_candidate.py`, `test_entrypoint.py`, `test_container.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.
