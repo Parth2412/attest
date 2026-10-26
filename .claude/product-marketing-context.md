@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-*Last updated: 2026-10-24*
+*Last updated: 2026-10-26*
 
 ## Product Overview
 
@@ -182,16 +182,22 @@ trust boundary in plain language. Prefer exact versions, identities, and links o
 
 **Metrics:**
 
-- F-01 through F-10 are complete. F-11 is public as Action `v1.0.6` and is temporarily
-  `In progress` while the bounded ADR-068 filesystem-lock patch repeats the full release proof.
-- Six Python distributions, a multi-platform image, and immutable Action `v1.0.6` are public.
-- The `v0.1.6` release includes SBOM, provenance, scan, verification, public-package, performance,
-  and dogfood evidence.
-- Three 20-sample hosted cold-start runs measured p95 values of 16, 14, and 13 seconds; the combined
-  p95 was 16 seconds, below the strict 18-second release SLO.
-- Public proof PR #11 passed after independent review; fork proof PR #12 failed before receiving
+- F-01 through F-11 are complete. F-12 Evidence Bundle export remains planned and unpublished
+  pending practising-auditor validation.
+- Six Python distributions are public at their independently versioned releases: core, collect,
+  and policy `0.1.0`; sign `0.1.1`; store `0.1.2`; and CLI `0.1.5`. `attest-export` is not public.
+- The `v0.1.7` release includes SBOM, provenance, scan, verification, public-package, performance,
+  dogfood, and public proof evidence. The multi-platform image is `0.1.7`; immutable Action
+  `v1.0.7` and the independently reviewed moving `v1` tag point to the exact release commit.
+- Three 20-sample hosted cold-start runs measured p95 values of 12, 14, and 14 seconds; the combined
+  60-sample result measured p50 11 seconds and p95 14 seconds, passing both the engineering target
+  below 15 seconds and the release SLO below 18 seconds.
+- Public proof PR #13 passed after independent review; fork proof PR #14 failed before receiving
   signing or write authority.
-- The full local release-closure suite passed with 1,314 tests, two skips, and 23 deselections.
+- The full local release-closure suite passed with 1,321 tests, two skips, and 23 deselections.
+- ADR-069 patched vulnerable build and development tooling in the source baseline and closed both
+  dependency alerts. Runtime-exclusion contracts prove those tools were not shipped, so no public
+  package, image, Release, tag, or retained evidence record changed.
 
 **Customers:** No customer or design-partner logo is validated for public use.
 
