@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted and implemented ADR-069's source-only security correction: the Action build group now
+  pins patched `setuptools==84.1.0`, the workspace lock pins patched `virtualenv==21.14.13`, and
+  `python-discovery==1.6.4` remains unchanged. Contracts prove all three tools are absent from the
+  published Action runtime. No package, image, Release, tag, or retained evidence record changes.
 - Completed ADR-068 and returned F-11 to Done on exact release commit
   `c42e52d038f5ecdcc498679cb7648e5b0957d489`. Attempt-1 candidate run `40114789855` passed every
   two-platform supply-chain and runtime gate for image
