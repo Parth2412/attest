@@ -18,6 +18,24 @@ EXPECTED_ACTIONS: Final[set[str]] = {
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d",
 }
+EXPECTED_RELEASE_ARTIFACTS: Final[set[tuple[int, str, int]]] = {
+    (12606524834, "release-preflight-evidence-v0.1.7", 329219),
+    (12606554771, "public-package-evidence-python-3.12-v0.1.7", 1461),
+    (12606629629, "release-assets-v0.1.7", 12290458),
+    (12606669337, "release-corresponding-source-v0.1.7", 10968578),
+    (12606689679, "publication-state-evidence-v0.1.7", 16066),
+    (12606814250, "public-package-evidence-python-3.13-v0.1.7", 1463),
+    (12606854283, "image-promotion-evidence-v0.1.7", 1130),
+    (12606884252, "patch-attestation-evidence-v0.1.7", 58030),
+    (12607128488, "release-dogfood-evidence-v0.1.7", 34401),
+    (12607221367, "cli-distributions-v0.1.5", 94979),
+    (12607236241, "python-release-assets-v0.1.7", 1207007),
+    (12607281535, "release-asset-attestation-evidence-v0.1.7", 203698),
+    (12607356042, "store-distributions-v0.1.2", 67189),
+}
+RELEASE_ARTIFACT_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r'id: (\d+),\s+name: "([^"]+)",\s+size_in_bytes: (\d+),\s+expired: false'
+)
 
 
 def _workflow() -> dict[Any, Any]:
@@ -153,6 +171,12 @@ def test_major_tag_preflight_locks_source_release_and_repository_controls() -> N
         'test "${observed_image}" = "ghcr.io/parth2412/attest@sha256:',
     ):
         assert fragment in commands
+
+    observed_artifacts = {
+        (int(artifact_id), name, int(size))
+        for artifact_id, name, size in RELEASE_ARTIFACT_PATTERN.findall(commands)
+    }
+    assert observed_artifacts == EXPECTED_RELEASE_ARTIFACTS
 
 
 @pytest.mark.ac("AC-F11-110")

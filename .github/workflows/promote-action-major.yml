@@ -209,14 +209,14 @@ jobs:
             }] | sort_by(.id)) == ([
               {
                 id: 12606524834,
-                name: "public-package-evidence-python-3.12-v0.1.7",
-                size_in_bytes: 1461,
+                name: "release-preflight-evidence-v0.1.7",
+                size_in_bytes: 329219,
                 expired: false
               },
               {
                 id: 12606554771,
-                name: "release-preflight-evidence-v0.1.7",
-                size_in_bytes: 329219,
+                name: "public-package-evidence-python-3.12-v0.1.7",
+                size_in_bytes: 1461,
                 expired: false
               },
               {
