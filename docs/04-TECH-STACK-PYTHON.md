@@ -139,6 +139,12 @@ same record and reject affected `1.2.5-r23`.
 Git `2.52.0`, the pinned removable toolchain, HTTP/1.1-only feature set, sole Git-for-Windows VEX
 statement, and every candidate/release threshold remain unchanged.
 
+`ADR-069` advances the current source baseline to build-only `setuptools==84.1.0` and
+development-only `virtualenv==21.14.13` after new upstream advisories affected the previously
+reviewed pins. `python-discovery==1.6.4` remains unchanged. Setuptools is removed after the Action
+build; virtualenv and python-discovery remain excluded from its runtime. Existing public artifacts
+therefore remain immutable, while any future candidate must use and prove the patched baseline.
+
 ### 3.1 Notes on specific choices
 
 **Sigstore-native DSSE (`ADR-020`).**
@@ -344,16 +350,14 @@ is by far the most persuasive demo you will have.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| PyPI | Current core/collect/policy `0.1.0`, store/sign `0.1.1`, and CLI `0.1.4`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.1`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current public `ghcr.io/parth2412/attest:0.1.6` at manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe`; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.6`, and reviewed moving `v1`, all at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| PyPI | Current core/collect/policy `0.1.0`, sign `0.1.1`, store `0.1.2`, and CLI `0.1.5`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.2`, and the other three libraries at `0.1.0`; no export package until F-12 |
+| GHCR | Current public `ghcr.io/parth2412/attest:0.1.7` at manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.7`, and reviewed moving `v1`, all at release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-`ADR-068` prepares but does not yet publish store `0.1.2`, CLI `0.1.5`, image `0.1.7`, or Action
-`v1.0.7`. The CLI exact-pins the corrected store; every other internal package version is
-unchanged. Public guidance remains on `v1.0.6`/`v1` until the unique two-platform candidate,
-three-run performance gate, protected two-package publication, dogfood, public proofs, and
-independently reviewed moving-major promotion complete.
+`ADR-068` published store `0.1.2`, CLI `0.1.5`, image `0.1.7`, and Action `v1.0.7`. The CLI
+exact-pins the corrected store; every other internal package version is unchanged. Public guidance
+uses the full release commit above, immutable `v1.0.7`, or the independently reviewed moving `v1`.
 
 The current image records and pins the verified `python:3.12.14-alpine3.23` base digest and, under
 `ADR-062` as amended by `ADR-067`, builds unmodified Git `2.52.0` and curl `8.23.0` from their
@@ -438,7 +442,7 @@ p95 16, 14, and 13 seconds plus a combined 60-sample p95 of 16 seconds, all belo
 published no Python distribution, completed dogfood and immutable `v0.1.6`/`v1.0.6` records, and
 verified the public package set. Same-repository and fork-denial proofs completed before protected
 promotion run `39994508140` moved reviewed `v1` to the exact release commit.
-`ADR-068` reopens F-11 for the filesystem lock correction. Candidate run `40086747745` passed the
+`ADR-068` reopened F-11 for the filesystem lock correction. Candidate run `40086747745` passed the
 repository, corresponding-source, and component gates but reached the former 60-minute build job
 ceiling before emitting a binary. The new `0.1.7-candidate` receives only a 90-minute ceiling and
 must otherwise repeat the unchanged two-platform build, scan, runtime, SBOM, provenance,
@@ -448,8 +452,11 @@ attempt 1, passed the complete candidate gate for source
 `sha256:580c0b7881882817ae7ca65dfe1bbdcd06c5bea77556c8b77ff5b04e11cacc73`, corresponding source
 `sha256:7472c920350b428c850a6f18f2e17693431b0e89761ef52498b009b0ea447805`, and multi-platform image
 `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; both architecture scans
-were clean and both 23-test container suites passed. Digest pinning and every post-candidate gate
-remain mandatory.
+were clean and both 23-test container suites passed. Exact release commit
+`c42e52d038f5ecdcc498679cb7648e5b0957d489` then passed all three performance runs and the combined
+60-sample gate. Release run `40215131129` published the bounded artifact set and completed dogfood;
+proof PRs #13/#14 and protected promotion run `40287925165` verified before reviewed `v1` moved,
+returning F-11 to Done.
 
 ---
 

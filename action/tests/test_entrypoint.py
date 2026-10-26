@@ -1308,6 +1308,7 @@ def test_advisory_policy_never_neutralizes_fatal_failures(
 @pytest.mark.ac("AC-F11-290")
 @pytest.mark.ac("AC-F11-300")
 @pytest.mark.ac("AC-F11-310")
+@pytest.mark.ac("AC-F11-330")
 def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> None:
     dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
     workspace = tomllib.loads(
@@ -1430,7 +1431,7 @@ def test_dockerfile_uses_pinned_multi_platform_bases_and_exec_entrypoint() -> No
     assert "cryptography.libs" not in dockerfile
     assert workspace["dependency-groups"]["action-build"] == [
         "maturin==1.15.0",
-        "setuptools==84.0.0",
+        "setuptools==84.1.0",
     ]
     assert "strip --strip-unneeded" in dockerfile
     assert "securesystemslib/_vendor/ed25519/test_data" in dockerfile

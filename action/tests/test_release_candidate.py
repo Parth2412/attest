@@ -313,14 +313,16 @@ def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
 
 
 @pytest.mark.ac("AC-F11-290")
+@pytest.mark.ac("AC-F11-330")
 def test_security_patch_lock_uses_reviewed_fixed_dependencies() -> None:
-    """REQ-F11-290: the release lock excludes every reviewed affected dependency version."""
+    """REQ-F11-290/330: the lock excludes every reviewed affected dependency version."""
     lock = tomllib.loads(LOCK_FILE.read_text(encoding="utf-8"))
     versions = {package["name"]: package["version"] for package in lock["package"]}
 
     assert versions["certifi"] == "2026.10.19"
     assert versions["python-discovery"] == "1.6.4"
-    assert versions["virtualenv"] == "21.14.12"
+    assert versions["setuptools"] == "84.1.0"
+    assert versions["virtualenv"] == "21.14.13"
 
 
 @pytest.mark.ac("AC-F11-150")

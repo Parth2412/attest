@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.18.0` |
+| Version | `1.19.0` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-10-24 |
+| Last updated | 2026-10-26 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -29,12 +29,12 @@
 | Core | `attest-core` | `attest_core` | 0.1.0 | Python 3.12+ | `F-01`, `F-05` | active |
 | Collectors | `attest-collect` | `attest_collect` | 0.1.0 | Python 3.12+ | `F-02`, `F-03`, `F-04`, `F-05` | active |
 | Signing & verification | `attest-sign` | `attest_sign` | 0.1.1 | Python 3.12+ | `F-06`, `F-08` | active |
-| Storage | `attest-store` | `attest_store` | 0.1.2 source / 0.1.1 public | Python 3.12+ | `F-07` | active |
+| Storage | `attest-store` | `attest_store` | 0.1.2 | Python 3.12+ | `F-07` | active |
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
-| CLI | `attest-cli` | `attest_cli` | 0.1.5 source / 0.1.4 public | Python 3.12+ | `F-10` | active |
-| GitHub Action | `Parth2412/attest/action` | — | v1.0.6 / v1 | Container | `F-11` | active |
-| Container image | `ghcr.io/parth2412/attest` | — | 0.1.6 | multi-platform Alpine manifest | `F-11` | active |
+| CLI | `attest-cli` | `attest_cli` | 0.1.5 | Python 3.12+ | `F-10` | active |
+| GitHub Action | `Parth2412/attest/action` | — | v1.0.7 / v1 | Container | `F-11` | active |
+| Container image | `ghcr.io/parth2412/attest` | — | 0.1.7 | multi-platform Alpine manifest | `F-11` | active |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
@@ -43,12 +43,10 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
-F-11's published Action/image are active and F-11 is `In progress`. `ADR-065`–`ADR-067` completed the
-`v1.0.6` replacement of the affected `v1.0.5` runtime CA bundle and musl libc plus the rejected
-`8.22.0` curl source; every earlier release remains immutable historical evidence. `ADR-068`
-prepares source store `0.1.2` and CLI `0.1.5`, but the public versions remain `0.1.1`/`0.1.4`
-until the complete `0.1.7` release and proof lifecycle succeeds. F-12 is Planned and
-`attest-export` remains a development scaffold pending `CH-04`.
+F-11's published Action/image are active and F-11 is Done. `ADR-068` completed public store
+`0.1.2`, CLI `0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, and reviewed moving `v1`; every
+earlier release remains immutable historical evidence. F-12 is Planned and `attest-export`
+remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -133,9 +131,8 @@ hand-write a version from memory.
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign`, `pyyaml` |
 | `attest-cli` | `attest-core`, `attest-collect`, `attest-sign`, `attest-store`, `attest-policy`, `pydantic`, `httpx`, `typer`, `rich`, `structlog`, `pyyaml`; `attest-export` only after F-12 |
 
-Current published CLI `0.1.4` metadata exact-pins core, collect, and policy to `0.1.0` and sign and
-store to `0.1.1`. Pending workspace CLI `0.1.5` preserves those pins except for corrected store
-`0.1.2`; these source versions remain local until `ADR-068` completes. `attest-export` is excluded
+Current published CLI `0.1.5` metadata exact-pins core, collect, and policy to `0.1.0`, sign to
+`0.1.1`, and corrected store to `0.1.2`. `attest-export` is excluded
 from the published set and from the published CLI dependency graph until F-12 is Done (`ADR-046`,
 `ADR-064`).
 
@@ -172,12 +169,12 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 |---|---|---|---|
 | `attest-collect` | `attest-core` | 0.1.0 | import-linter `layers` |
 | `attest-sign` | `attest-core` | exactly 0.1.0 in published `0.1.1` metadata | import-linter `layers` |
-| `attest-store` | `attest-core` | exactly 0.1.0 in source `0.1.2` and published `0.1.1` metadata | import-linter `layers` |
+| `attest-store` | `attest-core` | exactly 0.1.0 in published `0.1.2` metadata | import-linter `layers` |
 | `attest-policy` | `attest-core` | 0.1.0 | import-linter `layers` |
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
-| `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | source `0.1.5`: exact core/collect/policy 0.1.0, sign 0.1.1, store 0.1.2; published `0.1.4` retains store 0.1.1 | import-linter `layers` |
+| `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | published `0.1.5`: exact core/collect/policy 0.1.0, sign 0.1.1, store 0.1.2 | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.6; Action v1.0.6/v1; 0.1.7 pending | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-068` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.7; Action v1.0.7/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `REQ-F11-330`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-069` |
 
 ---
 
@@ -201,9 +198,9 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | public `ghcr.io/parth2412/attest:0.1.6` for amd64/arm64 at immutable manifest `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` | **Primary** CI channel | `F-11` |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.6` and reviewed moving `v1` at release commit `e693e6b60afdf9c667a913faa4f9652bfd6dc050` | Most users — generated workflows pin a commit | `F-11` |
-| PyPI | core, collect, policy `0.1.0`; store/sign `0.1.1`; CLI `0.1.4`; no export distribution | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
+| GHCR | public `ghcr.io/parth2412/attest:0.1.7` for amd64/arm64 at immutable manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356` | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.7` and reviewed moving `v1` at release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489` | Most users — generated workflows pin a commit | `F-11` |
+| PyPI | core, collect, policy `0.1.0`; sign `0.1.1`; store `0.1.2`; CLI `0.1.5`; no export distribution | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
 Multi-arch: `linux/amd64` and `linux/arm64`. The Action builds from the reviewed
@@ -244,6 +241,15 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-26**: Accepted and implemented `ADR-069` as a source-only security correction. Future
+  builds use exact patched setuptools `84.1.0`; development environments use exact patched
+  virtualenv `21.14.13`; python-discovery remains `1.6.4`; and runtime-exclusion contracts remain
+  enforced. No public package, image, source release, Action tag, or compatibility surface changes.
+- **2026-10-26**: Completed `ADR-068` and returned F-11 to Done. Public store `0.1.2`, CLI
+  `0.1.5`, image `0.1.7`, product `v0.1.7`, and immutable Action `v1.0.7` resolve to exact release
+  commit `c42e52d038f5ecdcc498679cb7648e5b0957d489`; independently approved promotion run
+  `40287925165` moved reviewed `v1` only after the release, same-repository proof, and safe fork
+  denial verified.
 - **2026-10-24**: Accepted `ADR-068` and reopened F-11. Source store `0.1.2` corrects Darwin
   process-lock acquisition and source CLI `0.1.5` exact-pins it. Public versions remain store
   `0.1.1`, CLI `0.1.4`, image `0.1.6`, and Action `v1.0.6`/`v1` until a unique
