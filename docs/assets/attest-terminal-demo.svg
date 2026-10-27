@@ -1,0 +1,151 @@
+<!-- Source artwork for attest-terminal-demo.gif. GitHub disables inline SVG animation, so README.md embeds the rendered GIF. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">attest public proof demonstration</title>
+  <desc id="description">An animated terminal binds an authorship claim to one ChangeSet, verifies its signed Bundle, denies it without human review, records an independent review, and allows the same ChangeSet after reverification.</desc>
+
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07101d" />
+      <stop offset="1" stop-color="#10172f" />
+    </linearGradient>
+    <linearGradient id="terminal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101827" />
+      <stop offset="1" stop-color="#0b1220" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#020617" flood-opacity="0.58" />
+    </filter>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#94a3b8" stroke-opacity="0.035" />
+    </pattern>
+    <style>
+      text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+      .frame { opacity: 0; animation-duration: 15s; animation-iteration-count: infinite; animation-timing-function: linear; }
+      .frame-1 { animation-name: frame-1; }
+      .frame-2 { animation-name: frame-2; }
+      .frame-3 { animation-name: frame-3; }
+      .frame-4 { animation-name: frame-4; }
+      .frame-5 { opacity: 1; animation-name: frame-5; }
+      @keyframes frame-1 { 0%, 18% { opacity: 1; } 20%, 100% { opacity: 0; } }
+      @keyframes frame-2 { 0%, 18% { opacity: 0; } 20%, 38% { opacity: 1; } 40%, 100% { opacity: 0; } }
+      @keyframes frame-3 { 0%, 38% { opacity: 0; } 40%, 58% { opacity: 1; } 60%, 100% { opacity: 0; } }
+      @keyframes frame-4 { 0%, 58% { opacity: 0; } 60%, 78% { opacity: 1; } 80%, 100% { opacity: 0; } }
+      @keyframes frame-5 { 0%, 78% { opacity: 0; } 80%, 98% { opacity: 1; } 100% { opacity: 0; } }
+      .label { font-size: 17px; font-weight: 800; letter-spacing: .035em; }
+      .command { font-size: 23px; fill: #f8fafc; }
+      .key { font-size: 18px; fill: #94a3b8; }
+      .value { font-size: 18px; fill: #f8fafc; font-weight: 700; }
+      .small { font-size: 16px; fill: #64748b; }
+      .check { font-size: 18px; fill: #f8fafc; }
+      @media (prefers-reduced-motion: reduce) {
+        .frame { animation: none; opacity: 0; }
+        .frame-5 { opacity: 1; }
+      }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#background)" />
+  <rect width="1200" height="675" fill="url(#grid)" />
+  <circle cx="1090" cy="70" r="180" fill="#22d3ee" opacity="0.05" />
+  <circle cx="110" cy="610" r="210" fill="#8b5cf6" opacity="0.055" />
+
+  <g filter="url(#shadow)">
+    <rect x="34" y="28" width="1132" height="619" rx="18" fill="url(#terminal)" stroke="#334155" stroke-width="2" />
+    <path d="M34 88H1166" stroke="#334155" stroke-width="2" />
+  </g>
+
+  <circle cx="78" cy="58" r="8" fill="#fb7185" />
+  <circle cx="105" cy="58" r="8" fill="#fbbf24" />
+  <circle cx="132" cy="58" r="8" fill="#4ade80" />
+  <text x="169" y="66" fill="#cbd5e1" font-size="22" font-weight="800">attest</text>
+  <text x="270" y="66" fill="#64748b" font-size="17">public proof · pull request #13</text>
+  <rect x="884" y="42" width="245" height="32" rx="16" fill="#0f2531" stroke="#155e75" />
+  <text x="1006" y="64" text-anchor="middle" fill="#67e8f9" font-size="14" font-weight="800">KEYLESS · PUBLIC EVIDENCE</text>
+
+  <g class="frame frame-1" opacity="0">
+    <text x="74" y="135" fill="#22d3ee" class="label">01 / 05 · BIND ONE EXACT CHANGESET</text>
+    <text x="74" y="188" fill="#4ade80" font-size="23">$</text>
+    <text x="106" y="188" class="command">attest run --policy .attest/policy.yaml</text>
+    <rect x="74" y="217" width="930" height="173" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#155e75" />
+    <text x="96" y="256" class="key">Repository</text><text x="298" y="256" class="value">Parth2412/attest-action-proof</text>
+    <text x="96" y="291" class="key">CSD-1 digest</text><text x="298" y="291" fill="#67e8f9" class="value">13a9767a393b…c09e3987</text>
+    <text x="96" y="326" class="key">Changed files</text><text x="298" y="326" class="value">2 · workflow + nonexecution fixture</text>
+    <text x="96" y="361" class="key">Authorship Claim</text><text x="298" y="361" class="value">codex-cli · </text><text x="430" y="361" fill="#fbbf24" font-size="18" font-weight="800">SELF-REPORTED</text>
+    <text x="74" y="426" class="small">Signed evidence of what was declared—not forensic proof of who wrote the code.</text>
+  </g>
+
+  <g class="frame frame-2" opacity="0">
+    <text x="74" y="135" fill="#22d3ee" class="label">02 / 05 · VERIFY SIGNATURE AND WORKLOAD IDENTITY</text>
+    <text x="74" y="188" fill="#4ade80" font-size="23">$</text>
+    <text x="106" y="188" class="command">attest verify --input bundle.sigstore.json --identity &lt;workflow&gt;</text>
+    <rect x="74" y="221" width="474" height="175" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#166534" />
+    <rect x="570" y="221" width="496" height="175" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#155e75" />
+    <text x="99" y="263" fill="#4ade80" class="check">✓</text><text x="128" y="263" class="check">Sigstore DSSE</text><text x="306" y="263" class="small">passed</text>
+    <text x="99" y="309" fill="#4ade80" class="check">✓</text><text x="128" y="309" class="check">Statement payload</text><text x="337" y="309" class="small">passed</text>
+    <text x="99" y="355" fill="#4ade80" class="check">✓</text><text x="128" y="355" class="check">ChangeSet recomputation</text><text x="394" y="355" class="small">passed</text>
+    <text x="596" y="263" fill="#22d3ee" class="check">✓</text><text x="625" y="263" class="check">Workflow identity</text><text x="824" y="263" class="small">verified</text>
+    <text x="596" y="309" fill="#22d3ee" class="check">✓</text><text x="625" y="309" class="check">Certificate issuer</text><text x="824" y="309" class="small">verified</text>
+    <text x="596" y="355" fill="#22d3ee" class="check">✓</text><text x="625" y="355" class="check">Transparency log</text><text x="824" y="355" class="small">verified · 3463880835</text>
+  </g>
+
+  <g class="frame frame-3" opacity="0">
+    <text x="74" y="135" fill="#fb7185" class="label">03 / 05 · BLOCK THE UNREVIEWED CHANGE</text>
+    <rect x="74" y="177" width="620" height="239" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#9f1239" />
+    <text x="96" y="216" class="key">ChangeSet</text><text x="276" y="216" fill="#67e8f9" class="value">13a9767a393b…c09e3987</text>
+    <text x="96" y="252" class="key">Verification</text><text x="276" y="252" fill="#4ade80" class="value">VERIFIED</text>
+    <text x="96" y="288" class="key">Human approvals</text><text x="276" y="288" fill="#fb7185" class="value">0</text>
+    <text x="96" y="340" fill="#fb7185" class="check">×</text><text x="126" y="340" class="check">minHumanApprovals</text><text x="354" y="340" class="small">approvals-insufficient</text>
+    <text x="96" y="382" fill="#fb7185" class="check">×</text><text x="126" y="382" class="check">approverMustNotBeAuthor</text><text x="412" y="382" class="small">non-author approval missing</text>
+    <rect x="724" y="203" width="344" height="58" rx="10" fill="#fb7185" fill-opacity=".08" stroke="#fb7185" stroke-width="2" />
+    <text x="896" y="240" text-anchor="middle" fill="#fb7185" font-size="24" font-weight="900">DECISION: DENY</text>
+    <rect x="724" y="277" width="344" height="54" rx="10" fill="#172033" stroke="#94a3b8" stroke-width="2" />
+    <text x="896" y="312" text-anchor="middle" fill="#94a3b8" font-size="22" font-weight="800">EXIT CODE 3</text>
+    <text x="724" y="369" class="small">Cryptography passed.</text>
+    <text x="724" y="396" class="small">Policy still blocked the merge.</text>
+  </g>
+
+  <g class="frame frame-4" opacity="0">
+    <text x="74" y="135" fill="#fbbf24" class="label">04 / 05 · RECORD THE FORGE REVIEW</text>
+    <text x="74" y="188" fill="#4ade80" font-size="23">$</text>
+    <text x="106" y="188" class="command">GitHub review submitted · rerun the required attest check</text>
+    <rect x="74" y="218" width="403" height="226" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#334155" />
+    <text x="96" y="251" class="small">BEFORE REVIEW</text>
+    <text x="96" y="293" class="key">ChangeSet</text><text x="272" y="293" fill="#67e8f9" class="value">13a9767…c09e3987</text>
+    <text x="96" y="335" class="key">State</text><text x="272" y="335" fill="#fb7185" class="value">none</text>
+    <text x="96" y="377" class="key">Approvals</text><text x="272" y="377" fill="#fb7185" class="value">0</text>
+    <text x="527" y="339" fill="#fbbf24" font-size="38">→</text>
+    <rect x="587" y="218" width="481" height="226" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#a16207" />
+    <text x="609" y="251" fill="#fbbf24" class="small">FORGE-SOURCED REVIEW RECORD</text>
+    <text x="609" y="293" class="key">Same ChangeSet</text><text x="822" y="293" fill="#67e8f9" class="value">13a9767…c09e3987</text>
+    <text x="609" y="335" class="key">State</text><text x="822" y="335" fill="#4ade80" class="value">approved</text>
+    <text x="609" y="377" class="key">Approvals</text><text x="822" y="377" fill="#4ade80" class="value">1 effective</text>
+    <text x="609" y="419" class="key">Reviewer is author</text><text x="822" y="419" fill="#4ade80" class="value">false</text>
+    <text x="74" y="477" class="small">review evidence digest: 5796c50a5e42…3b7dbbc2e514e3</text>
+  </g>
+
+  <g class="frame frame-5" opacity="1">
+    <text x="74" y="135" fill="#4ade80" class="label">05 / 05 · REVERIFY THE SAME CHANGESET</text>
+    <rect x="74" y="177" width="591" height="234" rx="10" fill="#0f172a" fill-opacity=".72" stroke="#166534" />
+    <text x="99" y="218" fill="#4ade80" class="check">✓</text><text x="128" y="218" class="check">Signature and identity</text><text x="390" y="218" class="small">verified</text>
+    <text x="99" y="259" fill="#4ade80" class="check">✓</text><text x="128" y="259" class="check">Transparency log</text><text x="342" y="259" class="small">verified</text>
+    <text x="99" y="300" fill="#4ade80" class="check">✓</text><text x="128" y="300" class="check">Human approvals</text><text x="323" y="300" class="small">1 effective</text>
+    <text x="99" y="341" fill="#4ade80" class="check">✓</text><text x="128" y="341" class="check">Reviewer is not change author</text><text x="449" y="341" class="small">satisfied</text>
+    <text x="99" y="382" fill="#22d3ee" class="check">✓</text><text x="128" y="382" class="check">CSD-1 ChangeSet</text><text x="323" y="382" class="small">13a9767a393b…c09e3987</text>
+    <rect x="704" y="211" width="364" height="60" rx="10" fill="#4ade80" fill-opacity=".08" stroke="#4ade80" stroke-width="2" />
+    <text x="886" y="249" text-anchor="middle" fill="#4ade80" font-size="24" font-weight="900">DECISION: ALLOW</text>
+    <rect x="704" y="288" width="364" height="56" rx="10" fill="#172033" stroke="#94a3b8" stroke-width="2" />
+    <text x="886" y="324" text-anchor="middle" fill="#94a3b8" font-size="22" font-weight="800">EXIT CODE 0</text>
+    <path d="M74 449H1068" stroke="#1e293b" />
+    <text x="74" y="486" class="small">Chain of custody for code changes—not authorship truth, code quality, or compliance.</text>
+  </g>
+
+  <text x="74" y="618" fill="#64748b" font-size="14">retained v0.1.7 proof evidence</text>
+  <g transform="translate(884 614)">
+    <circle cx="0" cy="0" r="5" fill="#22d3ee" />
+    <circle cx="22" cy="0" r="5" fill="#334155" />
+    <circle cx="44" cy="0" r="5" fill="#334155" />
+    <circle cx="66" cy="0" r="5" fill="#334155" />
+    <circle cx="88" cy="0" r="5" fill="#334155" />
+    <text x="114" y="6" fill="#64748b" font-size="14">15 second loop</text>
+  </g>
+</svg>

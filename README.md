@@ -13,6 +13,15 @@ It answers a deliberately narrow question:
 > Which claims and review evidence were present for this exact ChangeSet, and which trusted
 > workflow signed that record?
 
+![attest public proof demo showing one signed ChangeSet denied without human review and allowed after an independent forge review](docs/assets/attest-terminal-demo.gif)
+
+The loop reproduces retained evidence from
+[`attest-action-proof#13`](https://github.com/Parth2412/attest-action-proof/pull/13): the same
+`CSD-1` ChangeSet verifies in both states, policy denies it with no human approval, and policy
+allows it after one effective non-author approval. A
+[48-second walkthrough](docs/assets/attest-linkedin-demo.mp4) explains the complete evidence path;
+the editable [animated SVG](docs/assets/attest-terminal-demo.svg) is retained alongside the render.
+
 attest records chain of custody. It does not infer who wrote a line of code, assess code quality,
 or decide whether an organisation satisfies a compliance framework.
 
