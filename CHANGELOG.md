@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added evidence-backed launch media derived from public proof PR #13: a 15-second README loop,
+  a 48-second LinkedIn walkthrough, and an upload thumbnail show the same verified ChangeSet
+  moving from policy denial to allow only after an effective non-author Review Record.
 - Accepted and implemented ADR-069's source-only security correction: the Action build group now
   pins patched `setuptools==84.1.0`, the workspace lock pins patched `virtualenv==21.14.13`, and
   `python-discovery==1.6.4` remains unchanged. Contracts prove all three tools are absent from the
