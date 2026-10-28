@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **Done** · `ADR-068` completed store `0.1.2`, CLI `0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, public proofs, and reviewed `v1` promotion |
+| Status | **In progress** · `ADR-071` requires an image-only `0.1.8` / Action `v1.0.8` security replacement before F-11 returns to Done |
 
 ---
 
@@ -604,6 +604,26 @@ the exact `v1.0.7` release commit. Its separate preflight and promotion artifact
 review decision, tag response, and evidence digests. This evidence completes `REQ-F11-320`,
 `AC-F11-320`, and F-11.
 
+### 4.1.21 Runtime DNS parser security replacement
+
+`ADR-071` reopens F-11 after `GHSA-45c3-73f7-pv4m` / `CVE-2026-114605` established that
+`dnspython<2.9.0` can consume excessive CPU while following attacker-controlled DNS compression
+pointers. Exact inspection proves the immutable public `0.1.7` Action image contains affected
+`dnspython==2.8.0`. The corrected source lock must use exact `dnspython==2.9.0`.
+
+The same audit reports `GHSA-j586-36cw-2gc2` / `CVE-2026-114613` against `msgpack<1.2.3`.
+Msgpack enters only through development-only `pip-audit` and is absent from the public runtime; the
+corrected lock must nevertheless use exact `msgpack==1.2.3`. Source and real-container contracts
+must prove both exact versions and runtime exclusion before a candidate is promotable.
+
+Every existing package, image, tag, Release, Bundle, and evidence record remains immutable. Fresh
+Python installations already resolve a corrected dnspython and never install msgpack through an
+attest product dependency, so this is an image-only replacement. A unique `0.1.8-candidate` must
+repeat the complete two-platform source-correspondence, real-container, scan, SBOM, provenance,
+identity-attestation, reviewed digest-pinning, three-run performance, release, dogfood,
+same-repository proof, fork-denial, and independent moving-major promotion boundary. No Python
+distribution may be built or published for this correction.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -663,6 +683,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `REQ-F11-310` | The same security replacement **MUST** replace only source-built curl `8.22.0` with the official signed, SHA-512-locked curl `8.23.0` archive; preserve Git `2.52.0`, the HTTP/1.1-only feature set, exact toolchain and loader closure, sole Git-for-Windows VEX statement, scan thresholds, release versions, and no-Python-publication boundary; reject `8.22.0` from source, component, runtime, candidate, and release evidence; retain failed run `39829765757`, its raw scan, and attested source artifact as immutable negative evidence; and require a new unique corresponding-source artifact and two-platform candidate before the unchanged ADR-065 lifecycle continues. |
 | `REQ-F11-320` | The filesystem-lock correction **MUST** preserve every earlier immutable record; publish exactly `attest-store==0.1.2` and `attest-cli==0.1.5` with the CLI exact-pinning that store and every other internal version unchanged; build one unique two-platform `0.1.7-candidate` under a 90-minute build ceiling and every existing supply-chain/runtime gate; retain cancelled run `40086747745` as incomplete non-promotable evidence; pass the unchanged schema-2 three-run performance contract; publish through the two separate protected Trusted Publishers without `skip-existing`; verify exact public bytes and clean Python 3.12/3.13 installs; promote without rebuilding to image `0.1.7` and immutable `v0.1.7`/`v1.0.7`; and move `v1` only after dogfood, same-repository proof, fork denial, and independent protected review. |
 | `REQ-F11-330` | The post-release source baseline **MUST** replace affected build-only `setuptools==84.0.0` with exact patched `84.1.0` and affected development-only `virtualenv==21.14.12` with exact patched `21.14.13`; retain resolver-selected `python-discovery==1.6.4`; prove setuptools, virtualenv, and python-discovery remain absent from the published Action runtime; pass the complete repository and real-container contracts; and close both alerts through a reviewed protected-source merge. It **MUST NOT** mutate or republish any existing package, image, Release, immutable tag, or evidence record. |
+| `REQ-F11-340` | The runtime security replacement **MUST** preserve every earlier immutable record; lock exact patched `dnspython==2.9.0` and development-only `msgpack==1.2.3`; prove the Action runtime contains exact dnspython and excludes msgpack; pass a clean dependency audit; build and review one unique two-platform `0.1.8-candidate`; repeat every existing source-correspondence, real-container, scan, SBOM, provenance, identity, schema-2 performance, release, dogfood, same-repository, fork-denial, and independent-promotion gate; publish only image `0.1.8`, product `v0.1.8`, and immutable Action `v1.0.8` with no Python distribution; and move `v1` only after independent protected review. |
 
 ## 6. Acceptance criteria
 
@@ -701,6 +722,7 @@ PyPI's publication attestations complement, but do not replace, the product's se
 | `AC-F11-310` | Source-preparation, Dockerfile, component-gate, candidate/release-validator, workflow, and both-platform real-container contracts prove curl `8.23.0`'s exact archive hash, source root, purl, CPE, licence, compiled version, unchanged protocols/features, loader closure, and clean fixable-High component result while rejecting `8.22.0`; retained evidence proves run `39829765757` stopped before a binary and a new protected-`dev` commit created distinct corresponding-source and candidate identities before any performance or release step. |
 | `AC-F11-320` | Package, lock, workflow, and container contracts prove the exact two-distribution graph, closed manifests, separate OIDC publishers, 90-minute candidate build ceiling, `0.1.7-candidate` identity, and absence of unrelated publication; retained evidence proves run `40086747745` emitted no candidate, the new attempt-1 candidate passes both-platform source/runtime/scan/SBOM/provenance/attestation gates, three fresh performance runs plus all 60 samples pass the release SLO, public store/CLI bytes and clean installs match, immutable `0.1.7`/`v0.1.7`/`v1.0.7` plus dogfood and both public proofs verify, and independent review precedes moving `v1`. |
 | `AC-F11-330` | Workspace, lock, Dockerfile, and real-container contracts prove exact setuptools `84.1.0`, virtualenv `21.14.13`, retained python-discovery `1.6.4`, removal of build tooling, exclusion of development tooling from runtime, and no product-version or publication change; the complete pull-request gate and dependency audit pass before protected merge and both superseded dependency pull requests close. |
+| `AC-F11-340` | Lock and real-container contracts prove exact dnspython `2.9.0`, exact development-only msgpack `1.2.3`, msgpack runtime exclusion, the updated deterministic runtime archive, and a clean dependency audit; retained candidate evidence proves both architectures, complete runtime behavior, clean image and component scans, source correspondence, SBOM, provenance, identity attestation, and reviewed digest pinning; three fresh attempt-1 runs and their combined 60 samples pass the unchanged release SLO; immutable `0.1.8`/`v0.1.8`/`v1.0.8`, dogfood, public-package non-publication, same-repository proof, and fork-denial evidence verify before independently reviewed `v1` promotion. |
 
 ## 7. Evidence retention
 
@@ -752,6 +774,11 @@ tests, cancelled run `40086747745` and its successful pre-build evidence, exact 
 hashes and Trusted Publisher contexts, new source/context/image identities, both-platform gates,
 three-run and combined performance evidence, public byte/installation verification, immutable
 release and dogfood, same-repository and fork proofs, and independently reviewed `v1` promotion.
+For `ADR-071` it additionally retains both advisory identities and fixed versions, exact public
+`0.1.7` runtime inspection, the lock diff and clean audit, both-platform exact dnspython and msgpack
+exclusion proofs, candidate source/context/image identities, scans, SBOM, provenance, attestation,
+three-run and combined performance evidence, Python non-publication probes, immutable release and
+dogfood, both public proofs, and independently reviewed `v1` promotion.
 
 ## 8. Out of scope
 
@@ -780,6 +807,7 @@ write authority.
 - [x] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
 - [x] Candidate run `40114789855` satisfies `ADR-068` source correspondence, exact context, 23-test both-platform runtime, zero-vulnerability image scans, component policy, SBOM, provenance, and identity-attestation gates for the unique `0.1.7-candidate`
 - [x] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
+- [ ] Exact patched lock, image `0.1.8`, immutable `v0.1.8`/`v1.0.8`, dogfood, public-package non-publication, both public proofs, and independently reviewed `v1` promotion complete under `ADR-071`
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run

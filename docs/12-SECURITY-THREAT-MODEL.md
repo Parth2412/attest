@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `SEC-001` |
-| Version | `1.4.11` |
+| Version | `1.4.12` |
 | Status | **NORMATIVE** for threats and controls |
-| Last updated | 2026-10-24 |
+| Last updated | 2026-10-28 |
 
 ---
 
@@ -209,6 +209,14 @@ preserving the runtime boundary. Exact patched setuptools and virtualenv version
 future builds and contributor environments; Dockerfile and real-container contracts prove the
 build tool is removed and virtualenv plus python-discovery never enter the published image. No
 existing public artifact is rebuilt or relabelled because none contains the affected packages.
+
+`ADR-071` treats `GHSA-45c3-73f7-pv4m` as a shipped runtime regression because exact inspection
+proves public image `0.1.7` contains affected `dnspython==2.8.0`. The lock must use exact patched
+`dnspython==2.9.0`, and both candidate architectures must prove that version before promotion.
+Development-only `msgpack==1.2.2`, affected by `GHSA-j586-36cw-2gc2`, is replaced by exact
+`1.2.3` and proved absent from the runtime. The existing image remains immutable history; only a
+new candidate with clean audits and scans may become image `0.1.8` and Action `v1.0.8`, with no
+Python publication and no moving-`v1` update before dogfood, public proofs, and independent review.
 
 `ADR-068` addresses a post-release availability and atomicity defect in filesystem lock
 acquisition. Public store `0.1.1` could transiently fail under Darwin process contention because
