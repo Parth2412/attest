@@ -62,6 +62,7 @@ package-contract:
 action-contract:
     #!/usr/bin/env bash
     set -euo pipefail
+    mkdir -p build
     validation_root="$(mktemp -d -p build action-contract-XXXXXX)"
     trap 'rm -rf -- "${validation_root}"' EXIT
     uv run --no-project python scripts/prepare_action_runtime_sources.py "${validation_root}/runtime-sources"

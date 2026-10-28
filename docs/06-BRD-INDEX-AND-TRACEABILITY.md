@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.14` |
+| Version | `2.6.15` |
 | Status | Baselined |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-28 |
 
 ---
 
@@ -191,7 +191,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-08` | Done |
 | `F-09` | Done |
 | `F-10` | Done |
-| `F-11` | Done |
+| `F-11` | In progress |
 | `F-12` | Planned |
 
 ### 7.2 Requirement-to-test mapping
@@ -401,6 +401,7 @@ fails if a `REQ-` id exists with no test referencing it (`QA-001 §8`).
 | `REQ-F11-310` | `AC-F11-310` | `action/tests/test_runtime_sources.py`, `test_component_scan.py`, `test_entrypoint.py`, `test_container.py`, `test_release_workflow.py` | ✓ |
 | `REQ-F11-320` | `AC-F11-320` | `packages/attest-cli/tests/test_release_packaging.py`, `action/tests/test_release_candidate.py`, `test_container.py`, `test_action_performance_workflow.py`, `test_release_workflow.py`, `test_major_tag_workflow.py` | ✓ |
 | `REQ-F11-330` | `AC-F11-330` | `action/tests/test_release_candidate.py`, `test_entrypoint.py`, `test_container.py` | ✓ |
+| `REQ-F11-340` | `AC-F11-340` | `action/tests/test_release_candidate.py`, `test_container.py` | ✓ |
 
 > Populate this table as work proceeds. It is the artifact that proves "no gaps" — an empty cell
 > is a gap, visibly.

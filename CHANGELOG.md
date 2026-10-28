@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Accepted ADR-071 and reopened F-11 for an image-only security replacement: the source lock now
+  uses patched `dnspython==2.9.0` and development-only `msgpack==1.2.3`; contracts require exact
+  runtime inclusion/exclusion and a clean audit. The immutable `0.1.7` image remains historical;
+  attempt-1 candidate run `40674146751` completed every source, component, both-platform runtime,
+  image-scan, SBOM, provenance, and identity gate for exact manifest
+  `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
+  The reviewed main pin, three-run performance sequence, release, dogfood, public proofs, and
+  independently reviewed promotion remain required, with no Python distribution publication.
 - Added evidence-backed terminal launch media derived from public proof PR #13: typed CLI commands,
   verification waits, policy output, and an upload thumbnail show the same verified ChangeSet
   moving from denial to allow only after an effective non-author Review Record.

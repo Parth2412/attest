@@ -37,7 +37,7 @@ EXPECTED_ACTIONS: Final[set[str]] = {
 }
 REVIEWED_IMAGE: Final[str] = (
     "docker://ghcr.io/parth2412/attest@"
-    "sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356"
+    "sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61"
 )
 
 
@@ -303,6 +303,7 @@ def test_action_context_rejects_runtime_source_drift(tmp_path: Path) -> None:
 def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
     recipe = JUSTFILE.read_text(encoding="utf-8")
 
+    assert "mkdir -p build" in recipe
     assert "scripts/prepare_action_runtime_sources.py" in recipe
     assert '--runtime-sources "${validation_root}/runtime-sources"' in recipe
     assert '--file "${validation_root}/action-context/action/Dockerfile"' in recipe
@@ -314,12 +315,15 @@ def test_local_action_contract_prepares_the_closed_runtime_source() -> None:
 
 @pytest.mark.ac("AC-F11-290")
 @pytest.mark.ac("AC-F11-330")
+@pytest.mark.ac("AC-F11-340")
 def test_security_patch_lock_uses_reviewed_fixed_dependencies() -> None:
-    """REQ-F11-290/330: the lock excludes every reviewed affected dependency version."""
+    """REQ-F11-290/330/340: the lock excludes every reviewed affected version."""
     lock = tomllib.loads(LOCK_FILE.read_text(encoding="utf-8"))
     versions = {package["name"]: package["version"] for package in lock["package"]}
 
     assert versions["certifi"] == "2026.10.19"
+    assert versions["dnspython"] == "2.9.0"
+    assert versions["msgpack"] == "1.2.3"
     assert versions["python-discovery"] == "1.6.4"
     assert versions["setuptools"] == "84.1.0"
     assert versions["virtualenv"] == "21.14.13"
@@ -427,7 +431,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "release/patches/0.1.5.toml",
     ):
         assert f"--manifest {manifest}" in release_gate
-    assert "org.opencontainers.image.version=0.1.7-candidate" in str(jobs["build"]["steps"])
+    assert "org.opencontainers.image.version=0.1.8-candidate" in str(jobs["build"]["steps"])
     image_tests = jobs["test-image"]
     assert image_tests["permissions"] == {"contents": "read", "packages": "read"}
     assert "env" not in image_tests
@@ -575,7 +579,7 @@ def test_candidate_workflow_has_closed_supply_chain() -> None:
         "io.github.parth2412.attest.source-artifact=${{ needs.source.outputs.source-ref }}",
         "org.opencontainers.image.revision=${{ github.sha }}",
         "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
-        "org.opencontainers.image.version=0.1.7-candidate",
+        "org.opencontainers.image.version=0.1.8-candidate",
     ]
     evidence_step = next(
         step

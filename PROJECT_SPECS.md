@@ -4,9 +4,9 @@
 
 - **Project Name**: attest
 - **Version**: 0.0.0 workspace; current public product/image `0.1.7`, store `0.1.2`, CLI `0.1.5`,
-  immutable Action `v1.0.7`, and reviewed moving Action major `v1`. F-01 through F-11 are Done,
-  and F-12 is Planned.
-- **Last Updated**: 2026-10-26
+  immutable Action `v1.0.7`, and reviewed moving Action major `v1`. F-01 through F-10 are Done,
+  F-11 is In progress under `ADR-071`, and F-12 is Planned.
+- **Last Updated**: 2026-10-28
 - **Primary Purpose**: An open-source, CI-native tool that produces cryptographically signed,
   tamper-evident provenance attestations for code changes, and verifies them as a merge gate. For
   each merged change it emits an in-toto Statement, wrapped in a DSSE envelope, signed keylessly
@@ -27,13 +27,18 @@
 
 ## Current Project Status
 
-- **Development Stage**: **Public `v0.1.7` pre-alpha.** BOOT-001 and F-01 through F-11 are
-  complete. `ADR-068` published the corrected store/CLI runtime as product/image `0.1.7`,
-  immutable Action `v1.0.7`, and reviewed moving major `v1`. F-12 remains Planned and unpublished
+- **Development Stage**: **Public `v0.1.7` pre-alpha; F-11 security replacement in progress.**
+  BOOT-001 and F-01 through F-10 are complete. `ADR-068` published product/image `0.1.7` and
+  immutable Action `v1.0.7`; `ADR-071` subsequently identified affected runtime dnspython and
+  requires image-only `0.1.8` / Action `v1.0.8` before F-11 returns to Done. F-12 remains Planned and unpublished
   pending `CH-04`; external M2/M3 adoption and validation gates remain pending.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
-  across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
-  safe fork-denial, dogfood, and reviewed moving-major gates are green for exact release commit
+  across Linux and macOS. ADR-071 candidate run `40674146751`, attempt 1, is green for exact
+  two-platform image
+  `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`;
+  the reviewed main pin and downstream performance/release/proof/promotion gates remain pending.
+  The prior candidate, three-run Action performance, protected release, public proof,
+  safe fork-denial, dogfood, and reviewed moving-major gates remain green for release commit
   `c42e52d038f5ecdcc498679cb7648e5b0957d489` and image manifest
   `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -45,9 +50,11 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,321 tests with two
+  entrypoint and startup contracts. The current reconciliation gate passes 1,319 tests with two
   intentional environment-dependent skips and 23 explicitly deselected live/container tests.
 - **Known Issues**:
+  - Public image `0.1.7` and immutable Action `v1.0.7` contain affected `dnspython==2.8.0` under
+    `GHSA-45c3-73f7-pv4m`; `ADR-071` requires a fully gated image-only replacement.
   - Candidate run `40086747745` passed validation, corresponding-source, and component gates but
     reached the old 60-minute build ceiling before producing a candidate; it is not promotable.
   - Immutable Actions through `v1.0.6` remain historical. New deployments should use `v1.0.7`,
@@ -366,6 +373,10 @@ be added to that table without a corresponding ADR.
 
 ## Recent Changes Log
 
+- **2026-10-28**: Accepted `ADR-071` after the pull-request security gate detected
+  `GHSA-45c3-73f7-pv4m` and `GHSA-j586-36cw-2gc2`. The source lock now uses exact patched
+  dnspython `2.9.0` and development-only msgpack `1.2.3`; F-11 is reopened until the unique
+  image-only `0.1.8` / Action `v1.0.8` lifecycle completes without Python publication.
 - **2026-10-26**: Accepted and implemented `ADR-069`. The source baseline replaces affected
   build-only setuptools `84.0.0` with patched `84.1.0` and development-only virtualenv `21.14.12`
   with patched `21.14.13`, retaining python-discovery `1.6.4`. All three remain absent from the

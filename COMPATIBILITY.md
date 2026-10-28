@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.19.0` |
+| Version | `1.20.1` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-10-26 |
+| Last updated | 2026-10-28 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -43,9 +43,12 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
-F-11's published Action/image are active and F-11 is Done. `ADR-068` completed public store
+F-11's published Action/image remain active, but F-11 is In progress under `ADR-071`. `ADR-068` completed public store
 `0.1.2`, CLI `0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, and reviewed moving `v1`; every
-earlier release remains immutable historical evidence. F-12 is Planned and `attest-export`
+earlier release remains immutable historical evidence. Exact inspection subsequently found
+affected `dnspython==2.8.0` in that immutable image. `ADR-071` requires an image-only `0.1.8` /
+Action `v1.0.8` replacement with no Python publication before F-11 returns to Done. F-12 is
+Planned and `attest-export`
 remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
@@ -241,6 +244,12 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
+- **2026-10-28**: Accepted `ADR-071`, reopened F-11, and recorded the required image-only
+  `0.1.8` / Action `v1.0.8` replacement for affected runtime dnspython without changing any
+  Python package version or earlier immutable artifact. Attempt-1 candidate run `40674146751`
+  passed all source, two-platform runtime, scan, SBOM, provenance, and identity gates for reviewed
+  image `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`;
+  public channels remain on `0.1.7`/`v1.0.7` until the remaining gates complete.
 - **2026-10-26**: Accepted and implemented `ADR-069` as a source-only security correction. Future
   builds use exact patched setuptools `84.1.0`; development environments use exact patched
   virtualenv `21.14.13`; python-discovery remains `1.6.4`; and runtime-exclusion contracts remain
