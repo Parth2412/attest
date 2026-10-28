@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.12` |
+| Version | `1.7.13` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-28 |
 
 ---
 
@@ -144,6 +144,13 @@ development-only `virtualenv==21.14.13` after new upstream advisories affected t
 reviewed pins. `python-discovery==1.6.4` remains unchanged. Setuptools is removed after the Action
 build; virtualenv and python-discovery remain excluded from its runtime. Existing public artifacts
 therefore remain immutable, while any future candidate must use and prove the patched baseline.
+
+`ADR-071` advances the runtime baseline from affected `dnspython==2.8.0` to exact patched
+`dnspython==2.9.0` and the development baseline from affected `msgpack==1.2.2` to exact patched
+`msgpack==1.2.3`. The Action runtime must contain the former and exclude the latter. Because the
+public `0.1.7` image contains affected dnspython, the corrected lock must enter one unique
+two-platform `0.1.8-candidate` and the complete image-only release lifecycle; no Python
+distribution is republished.
 
 ### 3.1 Notes on specific choices
 

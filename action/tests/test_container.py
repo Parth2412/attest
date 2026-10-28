@@ -540,6 +540,7 @@ def test_source_built_git_clones_over_verified_public_https() -> None:
 @pytest.mark.ac("AC-F11-250")
 @pytest.mark.ac("AC-F11-290")
 @pytest.mark.ac("AC-F11-330")
+@pytest.mark.ac("AC-F11-340")
 def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> None:
     inspected = _docker(
         "image",
@@ -603,7 +604,8 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "assert callable(detect_github); "
         "assert importlib.metadata.version('attest-cli') == '0.1.5'; "
         "assert importlib.metadata.version('certifi') == '2026.10.19'; "
-        "excluded = {'virtualenv', 'python-discovery'}; "
+        "assert importlib.metadata.version('dnspython') == '2.9.0'; "
+        "excluded = {'msgpack', 'virtualenv', 'python-discovery'}; "
         "installed = {distribution.metadata['Name'].lower() "
         "for distribution in importlib.metadata.distributions()}; "
         "assert excluded.isdisjoint(installed); "
@@ -617,7 +619,7 @@ def test_runtime_uses_deterministic_archived_bytecode_and_balanced_layers() -> N
         "runtime_path + '\\n'; "
         "runtime_entries = zipfile.ZipFile(runtime_path).infolist(); "
         "runtime_roots = {entry.filename.split('/', 1)[0] for entry in runtime_entries}; "
-        "assert len(runtime_entries) == 1066; "
+        "assert len(runtime_entries) == 1078; "
         "assert {'attest_cli', 'attest_sign', 'pydantic', 'rich', 'sigstore', 'typer'} "
         "<= runtime_roots; "
         "assert {'id', 'securesystemslib'}.isdisjoint(runtime_roots); "
