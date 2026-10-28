@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.31.0` |
+| Version | `1.31.1` |
 | Status | **NORMATIVE** for recorded decisions |
 | Last updated | 2026-10-28 |
 
@@ -4434,6 +4434,17 @@ and every earlier immutable record remain unchanged.
 | Requirement | Production work | Files |
 |---|---|---|
 | `REQ-F11-340` | Lock exact patched dnspython and msgpack; prove the clean source graph and exact runtime inclusion/exclusion; build, review, pin, measure, release, dogfood, prove, and independently promote a unique image-only `0.1.8`/`v0.1.8`/`v1.0.8` replacement without publishing Python distributions; then rebase ADR-070 onto the secured baseline | workspace lock, Action candidate/runtime/performance/release/promotion workflows and contracts, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+### ADR-071 implementation evidence to date
+
+Reviewed source PR #172 merged to protected `dev` as
+`905c30679d291bce13ad3140703162cf3405e55b`. Automatic candidate run `40674146751`, attempt 1,
+passed the complete gate and produced context
+`sha256:8b863e6dc4733bb7050b27f34863b3db87db7ff069562ce348a98db0642c17bd`, corresponding source
+`sha256:7a346ff30f6886f5ab06045b0dfd2be645fd2a9df9a6fdabc1f280562e2ae1af`, and multi-platform image
+`sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
+The reviewed main pin and all downstream performance, release, public-proof, and independent
+promotion gates remain mandatory.
 
 Acceptance authorizes only this bounded dependency and image-only security replacement. It does not
 authorize another package version, feature, API, format, runner, cache, privilege, threshold,

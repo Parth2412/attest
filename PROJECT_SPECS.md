@@ -33,8 +33,12 @@
   requires image-only `0.1.8` / Action `v1.0.8` before F-11 returns to Done. F-12 remains Planned and unpublished
   pending `CH-04`; external M2/M3 adoption and validation gates remain pending.
 - **Build Status**: Locked local, pull-request, and main CI gates are green on Python 3.12 and 3.13
-  across Linux and macOS. Candidate, three-run Action performance, protected release, public proof,
-  safe fork-denial, dogfood, and reviewed moving-major gates are green for exact release commit
+  across Linux and macOS. ADR-071 candidate run `40674146751`, attempt 1, is green for exact
+  two-platform image
+  `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`;
+  the reviewed main pin and downstream performance/release/proof/promotion gates remain pending.
+  The prior candidate, three-run Action performance, protected release, public proof,
+  safe fork-denial, dogfood, and reviewed moving-major gates remain green for release commit
   `c42e52d038f5ecdcc498679cb7648e5b0957d489` and image manifest
   `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`.
 - **Test Coverage**: F-01 enforces the 95% `attest-core` branch-coverage floor. F-02 enforces the
@@ -46,7 +50,7 @@
   and 95% package gates; F-04's complete GitHub contract is at 92.64%. F-07 has 91.07% branch
   coverage across filesystem, Git CLI, optional pygit2, and OCI Referrers conformance. F-10
   enforces 90% CLI branch coverage and currently reaches 91.41%, including installed-wheel
-  entrypoint and startup contracts. The current reconciliation gate passes 1,321 tests with two
+  entrypoint and startup contracts. The current reconciliation gate passes 1,319 tests with two
   intentional environment-dependent skips and 23 explicitly deselected live/container tests.
 - **Known Issues**:
   - Public image `0.1.7` and immutable Action `v1.0.7` contain affected `dnspython==2.8.0` under

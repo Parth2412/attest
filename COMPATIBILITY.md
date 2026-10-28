@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.20.0` |
+| Version | `1.20.1` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
 | Last updated | 2026-10-28 |
 
@@ -246,7 +246,10 @@ entire adoption strategy (`CH-07`).
 
 - **2026-10-28**: Accepted `ADR-071`, reopened F-11, and recorded the required image-only
   `0.1.8` / Action `v1.0.8` replacement for affected runtime dnspython without changing any
-  Python package version or earlier immutable artifact.
+  Python package version or earlier immutable artifact. Attempt-1 candidate run `40674146751`
+  passed all source, two-platform runtime, scan, SBOM, provenance, and identity gates for reviewed
+  image `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`;
+  public channels remain on `0.1.7`/`v1.0.7` until the remaining gates complete.
 - **2026-10-26**: Accepted and implemented `ADR-069` as a source-only security correction. Future
   builds use exact patched setuptools `84.1.0`; development environments use exact patched
   virtualenv `21.14.13`; python-discovery remains `1.6.4`; and runtime-exclusion contracts remain

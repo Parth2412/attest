@@ -624,6 +624,15 @@ identity-attestation, reviewed digest-pinning, three-run performance, release, d
 same-repository proof, fork-denial, and independent moving-major promotion boundary. No Python
 distribution may be built or published for this correction.
 
+Reviewed source PR #172 merged to protected `dev` at
+`905c30679d291bce13ad3140703162cf3405e55b`. Automatic candidate run `40674146751`, attempt 1,
+then passed validation, public corresponding-source publication and attestation, exact component
+scan, the 88-minute multi-platform build, clean amd64/arm64 image scans, both real-container
+contracts, SBOM/provenance validation, and identity-bound attestation. It produced context
+`sha256:8b863e6dc4733bb7050b27f34863b3db87db7ff069562ce348a98db0642c17bd`, corresponding source
+`sha256:7a346ff30f6886f5ab06045b0dfd2be645fd2a9df9a6fdabc1f280562e2ae1af`, and reviewed image
+`sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
+
 ### 4.2 Two-phase supply chain
 
 1. After implementation lands on protected `dev`, a candidate workflow builds from an explicitly
@@ -807,6 +816,7 @@ write authority.
 - [x] Exact corrected lock, image `0.1.6`, source `v0.1.6`, immutable Action `v1.0.6`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete without a Python publication
 - [x] Candidate run `40114789855` satisfies `ADR-068` source correspondence, exact context, 23-test both-platform runtime, zero-vulnerability image scans, component policy, SBOM, provenance, and identity-attestation gates for the unique `0.1.7-candidate`
 - [x] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
+- [x] Attempt-1 candidate run `40674146751` proves the exact ADR-071 source, context, corresponding-source, component, two-platform runtime/scan, SBOM, provenance, and identity-attestation boundaries before reviewed digest pinning
 - [ ] Exact patched lock, image `0.1.8`, immutable `v0.1.8`/`v1.0.8`, dogfood, public-package non-publication, both public proofs, and independently reviewed `v1` promotion complete under `ADR-071`
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and

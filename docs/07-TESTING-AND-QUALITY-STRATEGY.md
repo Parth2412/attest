@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document ID | `QA-001` |
-| Version | `1.5.8` |
+| Version | `1.5.9` |
 | Status | **NORMATIVE** for test obligations |
 | Last updated | 2026-10-28 |
 
@@ -260,7 +260,8 @@ A release **MUST NOT** ship unless:
 - [x] F-11 retains the historical 20-job release gate; immutable failed runs `37796984054`, `37899003696`, `37946041636`, `38056326479`, `38257587284`, and `38570478871`; and, for ADR-063, three fresh consecutive attempt-1 20-job Action-step measurements plus the combined 60-sample result; every result includes image pull, reports the strict 15-second engineering target, and passes the strict release SLO below 18 seconds
 - [x] The `ADR-065` lock contains exact `certifi==2026.10.19`, `virtualenv==21.14.12`, and `python-discovery==1.6.4`; dependency audit is clean; and both real-container platforms prove the corrected certifi runtime and virtualenv exclusion
 - [x] The current `ADR-069` source baseline replaces the subsequently affected pins with exact build-only `setuptools==84.1.0` and development-only `virtualenv==21.14.13`, retains `python-discovery==1.6.4`, and proves all three tools remain absent from the published Action runtime without republishing it
-- [ ] `ADR-071` locks exact `dnspython==2.9.0` and development-only `msgpack==1.2.3`, proves a clean audit plus exact runtime inclusion/exclusion on both architectures, and completes the image-only `0.1.8`/`v0.1.8`/`v1.0.8` lifecycle without publishing Python distributions
+- [x] `ADR-071` locks exact `dnspython==2.9.0` and development-only `msgpack==1.2.3`; the clean audit and attempt-1 run `40674146751` prove exact runtime inclusion/exclusion, source correspondence, component and image scans, real-container behavior, SBOM, provenance, and identity on both architectures
+- [ ] The reviewed main pin, three exact attempt-1 performance runs, immutable image/release, public-package non-publication, dogfood, both public proofs, and independently reviewed `v1` promotion complete the ADR-071 lifecycle
 - [x] The `ADR-066` image builds against exact `musl-dev==1.2.5-r24`, runs exact `musl==1.2.5-r24`, retains its single-line installed-version record after package metadata removal, and rejects affected `r23` on both architectures
 - [x] The `ADR-067` source, Dockerfile, component, and release contracts require signed, SHA-512-locked curl `8.23.0`, reject `8.22.0`, preserve the HTTP/1.1-only transport and sole Git VEX statement, and retain failed run `39829765757` as negative evidence
 - [x] Candidate run `39906806331`, attempt 1, proves exact source `ae456176d0faefb732b9d8d8a4526365ad559278`, context `sha256:646ac89af1aa583ce3780c8542d980559a6782b171131df017daf35293440df1`, corresponding source `sha256:535fb5f393bc57d28383cd8f453eac87e196531d44d28e835e54efefcbb22e0a`, and multi-platform candidate `sha256:f389b16257feab193532de0ea0b9339bb69255f9ff130f7b594f87ac4a0d10fe` pass every existing source-correspondence, 23-test real-container, two-platform scan, component-scan, SBOM, provenance, and identity-attestation gate before reviewed digest pinning
