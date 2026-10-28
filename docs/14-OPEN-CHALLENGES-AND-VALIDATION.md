@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `CHALLENGE-001` |
-| Version | `1.1.8` |
+| Version | `1.1.9` |
 | Status | **NORMATIVE** for validation gates and empirical unknowns |
-| Last updated | 2026-10-15 |
+| Last updated | 2026-10-28 |
 
 ---
 
@@ -178,25 +178,33 @@ cryptographic attestations as change-management evidence. Nobody has tested this
 
 ### The experiment
 Hand-build a **mock** evidence bundle — `manifest.json`, `summary.md`, one control narrative,
-five real attestations, `verify.sh`. No code required beyond `CH-01`/`CH-02` output. Show it to
-**two practising auditors** (SOC 2, ideally one with ISO 42001 exposure) and ask three questions:
+five real attestations, one clearly synthetic policy-exception lifecycle, `verify.sh`. No code
+required beyond `CH-01`/`CH-02` output. Show it to **two practising auditors** (SOC 2, ideally one
+with ISO 42001 exposure) and ask five questions:
 
 1. Would you accept this as change-management evidence for AI-generated code?
 2. What is missing that you would need?
 3. Which control identifiers would you actually cite?
+4. Does the proposed authorization and retrospective-review lifecycle preserve enough evidence
+   for an emergency release, and which fields or trust sources are missing?
+5. When retrospective review is overdue, should later releases be blocked, escalated, or governed
+   by organisation policy?
 
 Question 3 supplies the input `ADR-016` defers.
+Questions 4 and 5 validate `ADR-070` before a public Policy Exception Record format exists.
 
 ### Gate
 - [ ] Two auditors reviewed the mock
 - [ ] At least one would accept it, with or without stated additions
 - [ ] Control identifiers obtained for at least one framework
+- [ ] At least one would accept the exception-lifecycle shape, with or without stated additions
+- [ ] The overdue-review enforcement recommendation and its rationale are recorded
 
 ### Outcomes
 | Result | Action |
 |---|---|
-| Accepted | Close `CH-04`; mark the mapping `status: reviewed` per `ADR-016`; F-12 can reach DoD |
-| Accepted with additions | Add the missing fields to `SPEC-001` via ADR **before** M1 publication if they touch the format |
+| Accepted | Close `CH-04`; mark the mapping `status: reviewed` per `ADR-016`; baseline the Policy Exception Record through the follow-up ADR required by `ADR-070`; F-12 can begin |
+| Accepted with additions | Record the missing evidence fields and exception-lifecycle corrections in an ADR before production F-12 implementation; change `SPEC-001` only if the practitioner requirement actually changes that Predicate |
 | Both reject | Kill criterion `K2` territory. The compliance thesis is wrong; re-evaluate against `RISK-001 §5` before building F-12. |
 
 ---

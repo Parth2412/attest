@@ -4374,6 +4374,94 @@ threshold, trust-boundary, evidence-record, or F-12 change.
 
 ---
 
+## ADR-070 — Preserve policy exceptions as a signed append-only lifecycle
+
+**Status:** Accepted · **Date:** 2026-10-28 · **Affects:** `GLOSS-001`, `BRD-F12`,
+`CHALLENGE-001`, the `CH-04` validation kit, future exception-record specification work ·
+**Clarifies:** `ADR-016`, `ADR-064`
+
+**Context.** External operations-practitioner feedback on the public `v0.1.7` launch identified a
+material gap in the planned Evidence Bundle. Reporting that a required review was missing records
+the policy failure, but it does not explain who accepted an emergency release, why the exception
+was accepted, when retrospective review became due, or whether that review ever happened. A
+successful deployment also cannot be treated as closure of the outstanding review obligation.
+
+The current `SPEC-001` Predicate records authorship and forge review at collection time. It does
+not record an organisation's later decision to release despite a denied Policy Decision. Adding
+that decision to the existing Predicate would mix separate trust events and would require mutating
+or replacing an already signed record. Accepting unsigned free-form exception metadata during
+export would let the exporter invent the decision history and would not satisfy independent
+verification.
+
+GitHub Actions exposes deployment review history containing the decision state, comment,
+environment, and stable user identity. That forge response is a viable collection source, but it
+is not durable offline evidence by itself. The selected fields and a digest of the raw source must
+be captured by a trusted workflow and signed when the event occurs.
+
+`ADR-016` allowed F-12 engineering before mapping review, but the later accepted `ADR-064`
+explicitly restored the `CH-04` challenge gate. This decision does not bypass that gate. It
+authorizes the normative design and validation mock only; production implementation remains
+blocked until the required practitioner evidence closes or explicitly amends `CH-04`.
+
+**Decision.**
+
+1. Independent approval remains the default release path. An emergency route is a narrowly
+   identified exception, not an implicit success path.
+2. A policy exception is represented by a separate signed, versioned **Policy Exception Record**.
+   It does not change `SPEC-001` and is never inserted into or used to rewrite an existing
+   AI-authorship Statement.
+3. The authorization event binds the exact ChangeSet Digest, denied Policy Decision and policy
+   source digests, failed predicate identifiers, deployment target and workflow run, stable
+   requester and Decision Owner identities, reason, authorization time, and mandatory
+   retrospective-review deadline. It also binds a digest of the forge source from which the
+   decision was collected.
+4. Retrospective review is a second append-only signed event. It links the authorization record,
+   records a stable reviewer identity, completion time, disposition, and review/remediation
+   evidence, and leaves the authorization event unchanged.
+5. Given a fixed generation timestamp, F-12 derives each lifecycle as `open`, `overdue`, or
+   `closed`. Deployment success does not close it. A closure is valid only when its ChangeSet and
+   authorization bindings match and its signed evidence verifies against the configured identity.
+6. Evidence failures (missing or unverifiable attestations) and authorized policy exceptions are
+   separate manifest collections. Neither may hide or relabel the other.
+7. Unverified, incomplete, open, and overdue records remain prominent and machine-readable. No
+   flag, configuration value, or environment variable may suppress them from an Evidence Bundle.
+8. Whether an overdue retrospective review blocks a later release, triggers escalation, or both
+   remains policy-configurable until `CH-04` practitioner feedback supports a default. Export must
+   report the state without claiming that reporting alone enforces it.
+9. The existing `CH-04` mock gains a clearly synthetic, unsigned lifecycle example for shape
+   review. It must not be described as signed production evidence. No production package, CLI,
+   Action, schema, or release artifact changes under this validation-only authorization.
+
+**Rationale.** Separate append-only events preserve the time and identity of each decision without
+rewriting earlier evidence. Binding both events to the same ChangeSet and authorization digest
+lets an auditor distinguish a denied change, an accepted emergency decision, an outstanding
+obligation, and its eventual disposition. Keeping the first example explicitly synthetic allows
+practitioners to correct the shape before a public wire format is created.
+
+**Rejected alternatives.** Adding mutable exception fields to `SPEC-001`; treating deployment
+success as closure; accepting exporter-authored manual metadata as verified; replacing the
+original authorization record when review completes; hiding overdue records; making every
+exception automatically allowable; beginning production F-12 code before `CH-04` closes.
+
+**Consequences.** The validation bundle and feedback form expand immediately. Closing `CH-04`
+must now evaluate the exception lifecycle as well as the original ChangeSet and Review Record
+shape. A later ADR must finalize the Policy Exception Record predicate, signer/verifier registry,
+collection source, storage behavior, and CLI surface before implementation. The next product
+release will require compatibility, security, clean-container, public-proof, and immutable-release
+evidence appropriate to every package and artifact it changes.
+
+### ADR-070 accepted validation plan
+
+| Requirement | Validation work | Files |
+|---|---|---|
+| `REQ-F12-140`–`REQ-F12-190` | Define lifecycle behavior, add synthetic authorization and retrospective-review records, distinguish evidence failures from policy exceptions, render open/overdue/closed semantics, and obtain practitioner decisions on sufficiency and overdue enforcement | `GLOSS-001`, `BRD-F12`, `CH-04` mock manifest, summary, control narrative, feedback form, and mock policy-exception records |
+
+Acceptance authorizes only the normative design and `CH-04` validation artifacts above. It does
+not close `CH-04`, mark a mapping reviewed, implement or publish `attest-export`, create a public
+wire format, change `SPEC-001`, alter verification or policy behavior, or authorize a release.
+
+---
+
 ## ADR-071 — Replace vulnerable runtime and development dependencies with an immutable Action patch
 
 **Status:** Accepted · **Date:** 2026-10-28 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,

@@ -1,6 +1,6 @@
 {
   "format": "ch04-mock-evidence",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "status": "draft-unreviewed",
   "generatedAt": "2026-10-16T08:50:23Z",
   "assembly": {
@@ -38,8 +38,45 @@
     }
   ],
   "exceptions": {
-    "unattestedChangesEvaluated": false,
-    "verificationFailures": []
+    "evidenceFailures": {
+      "unattestedChangesEvaluated": false,
+      "verificationFailures": []
+    },
+    "policyExceptions": [
+      {
+        "exceptionId": "validation-exception-001",
+        "integrityStatus": "synthetic-unsigned-validation-only",
+        "derivedAt": "2026-10-16T08:50:23Z",
+        "derivedState": "closed",
+        "authorizationPath": "policy-exceptions/validation-exception-001-authorized.json",
+        "authorizationSha256": "29299526bd099341355ed944c643166594de883bd492cc4a883686cba7e0e99b",
+        "reviewDeadline": "2026-10-16T12:00:00Z",
+        "closurePath": "policy-exceptions/validation-exception-001-reviewed.json",
+        "closureSha256": "4bc446d0da07648cb74f4bb9042128ebf6555036c2d878a250f74f55f0869faf"
+      },
+      {
+        "exceptionId": "validation-exception-002",
+        "integrityStatus": "synthetic-unsigned-validation-only",
+        "derivedAt": "2026-10-16T08:50:23Z",
+        "derivedState": "overdue",
+        "authorizationPath": "policy-exceptions/validation-exception-002-authorized.json",
+        "authorizationSha256": "ee89b341e2d3fc27590062f949284672262ac5410076e2dc64a29ce696b586d6",
+        "reviewDeadline": "2026-10-16T08:00:00Z",
+        "closurePath": null,
+        "closureSha256": null
+      },
+      {
+        "exceptionId": "validation-exception-003",
+        "integrityStatus": "synthetic-unsigned-validation-only",
+        "derivedAt": "2026-10-16T08:50:23Z",
+        "derivedState": "open",
+        "authorizationPath": "policy-exceptions/validation-exception-003-authorized.json",
+        "authorizationSha256": "094013b95143ad871979d64b88476ffd7323247fb3609589309f0f1b8a9fa51c",
+        "reviewDeadline": "2026-10-17T08:30:00Z",
+        "closurePath": null,
+        "closureSha256": null
+      }
+    ]
   },
   "manifestDigestPolicy": {
     "algorithm": "sha256",
@@ -97,20 +134,20 @@
     {
       "path": "summary.md",
       "role": "summary",
-      "size": 4554,
-      "sha256": "a7acc3d4f96ff41eefc03aed6d434af65b0f77ee8520d57a928361246b99858f"
+      "size": 7094,
+      "sha256": "6d19cf9bc0bc9fffdd344fdaa30484d31eb43c01e886982ca9c75a7a7629e9c1"
     },
     {
       "path": "controls/change-management.md",
       "role": "control-narrative",
-      "size": 2694,
-      "sha256": "73e266bb4aeb5cae344388c44d24ee56fb03b267248ba578c0c273bb558fc862"
+      "size": 4354,
+      "sha256": "4913ec9b22e39ef577ddeb4e7803bebfff0dd55d81cb1675e8aa4a05bb091970"
     },
     {
       "path": "feedback.md",
       "role": "practitioner-feedback-template",
-      "size": 1548,
-      "sha256": "d463d11c0df2fcfd23d884e04b35bcc12f0c9830889bc461653f5564b2e9ca4b"
+      "size": 3036,
+      "sha256": "fd617fa30dcb16f034fdde34be7786e4b8414671df6e69b901486db5998c4f76"
     },
     {
       "path": "verification-config.yaml",
@@ -121,8 +158,32 @@
     {
       "path": "verify.sh",
       "role": "verification-script",
-      "size": 4554,
-      "sha256": "0bc26d824af444096592c2a470336550f9a59ceb28d73b19abd721a4844ce373"
+      "size": 10767,
+      "sha256": "f402bc3ba98545ed0246546c603ccf0a053e11b1914652a29a2c70e48aaecd02"
+    },
+    {
+      "path": "policy-exceptions/validation-exception-001-authorized.json",
+      "role": "policy-exception-authorization-validation-mock",
+      "size": 1850,
+      "sha256": "29299526bd099341355ed944c643166594de883bd492cc4a883686cba7e0e99b"
+    },
+    {
+      "path": "policy-exceptions/validation-exception-001-reviewed.json",
+      "role": "policy-exception-review-validation-mock",
+      "size": 1416,
+      "sha256": "4bc446d0da07648cb74f4bb9042128ebf6555036c2d878a250f74f55f0869faf"
+    },
+    {
+      "path": "policy-exceptions/validation-exception-002-authorized.json",
+      "role": "policy-exception-authorization-validation-mock",
+      "size": 1816,
+      "sha256": "ee89b341e2d3fc27590062f949284672262ac5410076e2dc64a29ce696b586d6"
+    },
+    {
+      "path": "policy-exceptions/validation-exception-003-authorized.json",
+      "role": "policy-exception-authorization-validation-mock",
+      "size": 1836,
+      "sha256": "094013b95143ad871979d64b88476ffd7323247fb3609589309f0f1b8a9fa51c"
     },
     {
       "path": "attestations/e39d6cb916ca81bb5beaf07048e3f28c74b9142b5e34d9bc91d4aafc6d988533.sigstore.json",
