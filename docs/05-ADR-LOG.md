@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.30.1` |
+| Version | `1.31.0` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-23 |
+| Last updated | 2026-10-28 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -4371,3 +4371,70 @@ versions remain core/collect/policy `0.1.0`, sign `0.1.1`, store `0.1.2`, CLI `0
 Acceptance authorizes only this bounded source, build-tool, development-tool, test, and documentation
 correction. It does not authorize a package, image, Release, tag, candidate, API, format, feature,
 threshold, trust-boundary, evidence-record, or F-12 change.
+
+---
+
+## ADR-071 — Replace vulnerable runtime and development dependencies with an immutable Action patch
+
+**Status:** Accepted · **Date:** 2026-10-28 · **Affects:** `TECH-001`, `QA-001`, `SEC-001`,
+`BRD-INDEX`, `BRD-F11`, `COMPAT-001`, `F-11` · **Amends:** `ADR-065`, `ADR-068`, `ADR-069`
+
+**Context.** On 2026-10-28 the protected pull-request security gate detected two high-severity
+advisories published on 2026-10-27. `GHSA-45c3-73f7-pv4m` / `CVE-2026-114605` affects
+`dnspython<2.9.0`: attacker-controlled DNS compression-pointer chains can cause excessive CPU
+consumption. `GHSA-j586-36cw-2gc2` / `CVE-2026-114613` affects `msgpack<1.2.3`: the C extension
+leaks a decoded map value when strict map-key validation rejects the key.
+
+Exact inspection of public manifest
+`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`
+proves the immutable `0.1.7` Action image contains affected `dnspython==2.8.0`; `msgpack` is absent
+from that runtime and enters only through development-only `pip-audit`/`CacheControl`. The public
+Action must therefore be replaced. Fresh Python installations already resolve a patched
+dnspython under the existing transitive constraints, and msgpack is not a product dependency, so
+republishing any Python distribution would create unrelated public bytes.
+
+**Decision.** Preserve every existing package, image, Release, tag, Bundle, and evidence record as
+immutable history. Lock exactly `dnspython==2.9.0` and development-only `msgpack==1.2.3`. The
+source contract must reject earlier versions, `pip-audit` must be clean, and a real container must
+prove exact dnspython inclusion plus msgpack exclusion while retaining all prior runtime controls.
+
+Merge the reviewed source correction to protected `dev`, then build one unique two-platform
+`0.1.8-candidate` through the complete existing source-correspondence, real-container, component
+and image scan, SBOM, provenance, and identity-attestation boundary. A second reviewed change must
+pin that exact manifest without changing its bytes. The exact protected `main` commit must pass
+three fresh ordered attempt-1 20-job measurements and the combined 60-sample release SLO.
+
+Promote only the reviewed candidate, without rebuilding, to image `0.1.8`, product `v0.1.8`, and
+immutable Action `v1.0.8`. Publish no Python distribution. Production dogfood, same-repository
+proof, safe fork denial, public-package non-publication probes, and independent protected review
+must all succeed before moving `v1` from `v1.0.7`. The ADR-070 validation change remains separate
+and may merge only after it is rebased onto this clean protected baseline and its full gate passes.
+
+**Rationale.** The runtime advisory invalidates a source-only response: users of the current
+Action receive the affected bytes by immutable digest. Rebuilding under a new patch identity
+preserves history while delivering corrected bytes. Keeping msgpack development-only and avoiding
+Python publication retains the smallest honest artifact boundary. Repeating the established
+candidate-through-promotion lifecycle gives the replacement the same assurance as every prior
+moving-`v1` update.
+
+**Rejected alternatives.** Ignoring the alert, suppressing `pip-audit`, declaring dnspython
+unreachable without artifact proof, mutating `0.1.7` or `v1.0.7`, moving `v1` directly, rebuilding
+without a unique candidate, publishing unchanged Python packages, or weakening scan, performance,
+proof, or review gates would either leave affected public bytes or misrepresent the release.
+Updating to unrelated later dependency versions is also rejected; the exact first patched
+versions provide the bounded reviewed correction.
+
+**Consequences.** F-11 returns to `In progress` until the image-only patch lifecycle completes.
+The Action build context, deterministic runtime archive, manifest, and evidence identities change.
+Public APIs, predicate and policy formats, package versions, trust roots, performance thresholds,
+and every earlier immutable record remain unchanged.
+
+### ADR-071 accepted implementation plan
+
+| Requirement | Production work | Files |
+|---|---|---|
+| `REQ-F11-340` | Lock exact patched dnspython and msgpack; prove the clean source graph and exact runtime inclusion/exclusion; build, review, pin, measure, release, dogfood, prove, and independently promote a unique image-only `0.1.8`/`v0.1.8`/`v1.0.8` replacement without publishing Python distributions; then rebase ADR-070 onto the secured baseline | workspace lock, Action candidate/runtime/performance/release/promotion workflows and contracts, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
+
+Acceptance authorizes only this bounded dependency and image-only security replacement. It does not
+authorize another package version, feature, API, format, runner, cache, privilege, threshold,
+trust boundary, evidence schema, F-12 implementation, or mutation of an existing public record.
