@@ -1,0 +1,51 @@
+{
+  "candidateFormat": "policy-exception-event/v0-validation",
+  "integrityStatus": "synthetic-unsigned-validation-only",
+  "scenario": {
+    "synthetic": true,
+    "purpose": "Validate prominent overdue-state reporting; this event did not occur"
+  },
+  "exceptionId": "validation-exception-002",
+  "eventType": "authorized",
+  "changeSetDigest": "7356fbb663dcf6edcd7f40aae67dd4dce34d4004f85037c0057bb62a22df0ac2",
+  "policy": {
+    "decision": "deny",
+    "decisionSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "sourceSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "failedPredicates": [
+      "require.review.minHumanApprovals"
+    ]
+  },
+  "deployment": {
+    "provider": "github",
+    "repository": "https://github.com/Parth2412/attest-action-proof",
+    "environment": "production",
+    "workflowRunId": "35996154567",
+    "workflowRunAttempt": 2,
+    "workflowRef": "Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/4/merge"
+  },
+  "requester": {
+    "identity": "github:100000004:release-requester",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "decisionOwner": {
+    "identity": "github:100000005:incident-commander",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "separationOfDuties": {
+    "decisionOwnerIsRequester": false,
+    "decisionOwnerIsChangeAuthor": false
+  },
+  "reason": {
+    "code": "security-containment",
+    "summary": "Synthetic example: an emergency containment change could not wait for the ordinary review path"
+  },
+  "source": {
+    "kind": "github-actions-deployment-review",
+    "digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "authorizedAt": "2026-10-16T07:15:00Z",
+  "retrospectiveReviewDueAt": "2026-10-16T08:00:00Z"
+}

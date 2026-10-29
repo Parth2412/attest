@@ -1,0 +1,35 @@
+{
+  "candidateFormat": "policy-exception-event/v0-validation",
+  "integrityStatus": "synthetic-unsigned-validation-only",
+  "scenario": {
+    "synthetic": true,
+    "purpose": "Validate append-only retrospective-review closure; this event did not occur"
+  },
+  "exceptionId": "validation-exception-001",
+  "eventType": "retrospective-review-completed",
+  "authorizationEventSha256": "29299526bd099341355ed944c643166594de883bd492cc4a883686cba7e0e99b",
+  "changeSetDigest": "9b369576434dfecc2d65418479c997533f8926d5c64a58d144c338b3ceaadced",
+  "reviewer": {
+    "identity": "github:100000003:retrospective-reviewer",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "review": {
+    "missingReviewPerformed": true,
+    "completedAt": "2026-10-16T08:45:28Z",
+    "disposition": "accepted-with-follow-up",
+    "reviewEvidence": {
+      "kind": "sigstore-bundle",
+      "path": "../attestations/7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96.sigstore.json",
+      "sha256": "7a6a5ec34871032dee948b244180a214223a9fcb6a99feb33fed5355c0b90f96",
+      "changeSetDigest": "9b369576434dfecc2d65418479c997533f8926d5c64a58d144c338b3ceaadced"
+    },
+    "remediationReferences": [
+      "validation://follow-up/require-independent-review"
+    ]
+  },
+  "source": {
+    "kind": "github-actions-deployment-review",
+    "digest": "4444444444444444444444444444444444444444444444444444444444444444"
+  }
+}

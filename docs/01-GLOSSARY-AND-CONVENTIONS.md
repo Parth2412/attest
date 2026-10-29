@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `GLOSS-001` |
-| Version | `1.0.8` |
+| Version | `1.0.9` |
 | Status | **NORMATIVE** for terminology and identifiers |
-| Last updated | 2026-09-23 |
+| Last updated | 2026-10-28 |
 
 > **Why this document exists.** Ambiguous vocabulary is the single largest source of drift in
 > AI-assisted implementation. If "attestation", "claim", and "record" are used loosely, an
@@ -53,6 +53,8 @@ for it.
 | **Decision** | The output of policy evaluation: `allow`, `warn`, or `deny`, plus reasons. | result, verdict (reserved — see below), outcome |
 | **Verdict** | Reserved exclusively for a human or automated **reviewer's** conclusion inside a Review Record. Never for policy output. | — |
 | **Evidence Bundle** | An export artifact mapping one or more Bundles to control identifiers, for audit. | report, export, audit pack |
+| **Policy Exception Record** | A signed, append-only record of an explicitly authorized departure from a Policy Decision, or of the later retrospective review that resolves it. It is bound to one ChangeSet and does not alter the original Decision or Statement. | bypass log, waiver, overridden Decision |
+| **Decision Owner** | The stably identified human who explicitly accepts a Policy exception and its resulting retrospective-review obligation. | approver, releaser, bypass actor |
 | **Control** | An identified requirement from a compliance framework (e.g. SOC 2 CC8.1). | requirement (reserved for our own REQs), rule |
 
 ### 2.2 Explicitly banned language

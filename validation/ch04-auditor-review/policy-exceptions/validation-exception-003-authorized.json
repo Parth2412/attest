@@ -1,0 +1,51 @@
+{
+  "candidateFormat": "policy-exception-event/v0-validation",
+  "integrityStatus": "synthetic-unsigned-validation-only",
+  "scenario": {
+    "synthetic": true,
+    "purpose": "Validate open-state reporting before the review deadline; this event did not occur"
+  },
+  "exceptionId": "validation-exception-003",
+  "eventType": "authorized",
+  "changeSetDigest": "ed8d845eebb48b1fe38e916e8767b65ea0103b82d8d8a1a7d32aa1d311974081",
+  "policy": {
+    "decision": "deny",
+    "decisionSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "sourceSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "failedPredicates": [
+      "require.review.minHumanApprovals"
+    ]
+  },
+  "deployment": {
+    "provider": "github",
+    "repository": "https://github.com/Parth2412/attest-action-proof",
+    "environment": "production",
+    "workflowRunId": "38711403197",
+    "workflowRunAttempt": 3,
+    "workflowRef": "Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/8/merge"
+  },
+  "requester": {
+    "identity": "github:100000006:release-requester",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "decisionOwner": {
+    "identity": "github:100000007:incident-commander",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "separationOfDuties": {
+    "decisionOwnerIsRequester": false,
+    "decisionOwnerIsChangeAuthor": false
+  },
+  "reason": {
+    "code": "availability-restoration",
+    "summary": "Synthetic example: authorization is active and its retrospective-review deadline has not elapsed"
+  },
+  "source": {
+    "kind": "github-actions-deployment-review",
+    "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "authorizedAt": "2026-10-16T08:30:00Z",
+  "retrospectiveReviewDueAt": "2026-10-17T08:30:00Z"
+}

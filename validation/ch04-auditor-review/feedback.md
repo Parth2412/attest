@@ -31,6 +31,35 @@ Please complete one copy per reviewer. Written responses are required to close `
    - Authoritative source or citation:
    - Why this evidence supports that control:
 
+4. Does the proposed authorization and retrospective-review lifecycle preserve enough evidence
+   for an emergency release? (`yes` / `yes, with additions` / `no`)
+
+   Required additions or removals:
+
+   - Is the named Decision Owner sufficient?
+   - Is the reason and forge-source digest sufficient?
+   - Is the binding to the denied Decision, policy, ChangeSet, deployment, and deadline sufficient?
+   - Which source must establish requester, Decision Owner, and retrospective reviewer identity?
+   - Must the Decision Owner be distinct from both requester and change author in every case?
+
+5. When retrospective review is overdue, what should happen?
+
+   - Block subsequent releases, trigger escalation, or both:
+   - Should this be a product default or organisation Policy:
+   - Which role must receive escalation:
+   - Is a maximum deadline required; if so, what bound:
+
+## Policy-exception presentation
+
+- Are `open`, `overdue`, and `closed` the correct lifecycle states?
+- Is it clear that deployment success does not close the exception?
+- Does the closed example prove that the missing review later occurred, or is additional evidence
+  required?
+- Is an append-only closure event preferable to updating the authorization record?
+- Are the synthetic and unsigned limitations sufficiently prominent?
+- Which exception fields would be sensitive or inappropriate to retain in an audit artifact?
+- Should an unresolved exception appear per control, once globally, or in both places?
+
 ## Presentation and verification
 
 - Was `summary.md` understandable without product-team explanation?
