@@ -7,7 +7,7 @@
 | Milestone | M2 |
 | Package | `action/` |
 | Depends on | `F-06`, `F-07`, `F-09`, `F-10` |
-| Status | **In progress** · `ADR-071` requires an image-only `0.1.8` / Action `v1.0.8` security replacement before F-11 returns to Done |
+| Status | **Done** · `ADR-071` completed the image-only `0.1.8` / Action `v1.0.8` security replacement without Python publication |
 
 ---
 
@@ -606,7 +606,7 @@ review decision, tag response, and evidence digests. This evidence completes `RE
 
 ### 4.1.21 Runtime DNS parser security replacement
 
-`ADR-071` reopens F-11 after `GHSA-45c3-73f7-pv4m` / `CVE-2026-114605` established that
+`ADR-071` reopened F-11 after `GHSA-45c3-73f7-pv4m` / `CVE-2026-114605` established that
 `dnspython<2.9.0` can consume excessive CPU while following attacker-controlled DNS compression
 pointers. Exact inspection proves the immutable public `0.1.7` Action image contains affected
 `dnspython==2.8.0`. The corrected source lock must use exact `dnspython==2.9.0`.
@@ -632,6 +632,17 @@ contracts, SBOM/provenance validation, and identity-bound attestation. It produc
 `sha256:8b863e6dc4733bb7050b27f34863b3db87db7ff069562ce348a98db0642c17bd`, corresponding source
 `sha256:7a346ff30f6886f5ab06045b0dfd2be645fd2a9df9a6fdabc1f280562e2ae1af`, and reviewed image
 `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
+
+Reviewed release commit `1ea933184d1467c0716a5c23e9a1d005c1906567` passed attempt-1
+performance runs `40709397086`, `40709604753`, and `40709798027` at p95 values of 14, 11, and
+13 seconds; their 60 samples recomputed to p50 9 seconds and p95 13 seconds. Protected release
+run `40710909968` promoted the candidate without rebuilding, published image `0.1.8` plus
+immutable `v0.1.8`/`v1.0.8`, proved public Python distributions unchanged, and completed dogfood.
+Same-repository proof PR #17 retained denial before review and success after independent review;
+fork proof PR #18 retained failure before signing or write authority. After reviewed promotion PR
+#174 and exact main CI run `40825606742`, protected run `40826304070` independently revalidated
+the release and proofs before moving only `v1` to the immutable release commit. This evidence
+completes `REQ-F11-340`, `AC-F11-340`, and F-11.
 
 ### 4.2 Two-phase supply chain
 
@@ -817,7 +828,7 @@ write authority.
 - [x] Candidate run `40114789855` satisfies `ADR-068` source correspondence, exact context, 23-test both-platform runtime, zero-vulnerability image scans, component policy, SBOM, provenance, and identity-attestation gates for the unique `0.1.7-candidate`
 - [x] Store `0.1.2`, exact-pinned CLI `0.1.5`, image `0.1.7`, immutable `v0.1.7`/`v1.0.7`, dogfood, public proof, fork denial, and independently reviewed `v1` promotion complete under `ADR-068`
 - [x] Attempt-1 candidate run `40674146751` proves the exact ADR-071 source, context, corresponding-source, component, two-platform runtime/scan, SBOM, provenance, and identity-attestation boundaries before reviewed digest pinning
-- [ ] Exact patched lock, image `0.1.8`, immutable `v0.1.8`/`v1.0.8`, dogfood, public-package non-publication, both public proofs, and independently reviewed `v1` promotion complete under `ADR-071`
+- [x] Exact patched lock, image `0.1.8`, immutable `v0.1.8`/`v1.0.8`, dogfood, public-package non-publication, both public proofs, and independently reviewed `v1` promotion complete under `ADR-071`
 
 Completion evidence: release performance run `36761068084` attempt 1 measured p50 11 s and
 nearest-rank p95 14 s on release commit `4e73dcaf888f15967da66826d48cca5ac6684fcb`; recovery run

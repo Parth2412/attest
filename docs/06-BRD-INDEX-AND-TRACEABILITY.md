@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `BRD-INDEX` |
-| Version | `2.6.15` |
+| Version | `2.6.16` |
 | Status | Baselined |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-29 |
 
 ---
 
@@ -191,7 +191,7 @@ remain governed by the individual BRD and `CHALLENGE-001`.
 | `F-08` | Done |
 | `F-09` | Done |
 | `F-10` | Done |
-| `F-11` | In progress |
+| `F-11` | Done |
 | `F-12` | Planned |
 
 ### 7.2 Requirement-to-test mapping

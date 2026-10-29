@@ -26,8 +26,8 @@ verification, and both policy decisions; its editable
 attest records chain of custody. It does not infer who wrote a line of code, assess code quality,
 or decide whether an organisation satisfies a compliance framework.
 
-> **Status:** public `v0.1.7` pre-alpha. F-01 through F-11 are complete and available as six
-> Python distributions, multi-platform image `0.1.7`, immutable Action `v1.0.7`, and reviewed
+> **Status:** public `v0.1.8` pre-alpha. F-01 through F-11 are complete and available as six
+> Python distributions, multi-platform image `0.1.8`, immutable Action `v1.0.8`, and reviewed
 > moving tag `v1`. Evidence export (F-12) remains planned and unpublished pending
 > practising-auditor validation (`CH-04`). The external adoption gates for a stable product/v1
 > declaration remain open.
@@ -65,7 +65,7 @@ SHAs; do not replace them with mutable branch names.
 ```bash
 uvx --from attest-cli==0.1.5 attest init \
   --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
-  --action-ref Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
+  --action-ref Parth2412/attest/action@1ea933184d1467c0716a5c23e9a1d005c1906567
 ```
 
 This creates exactly three files and refuses to overwrite an existing target:
@@ -89,7 +89,7 @@ attest init \
   --github-repository OWNER/REPOSITORY \
   --default-branch main \
   --checkout-ref actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 \
-  --action-ref Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
+  --action-ref Parth2412/attest/action@1ea933184d1467c0716a5c23e9a1d005c1906567
 ```
 
 The generated workflow grants only the permissions required for a publishing `run`: repository
@@ -102,7 +102,7 @@ this boundary with `pull_request_target`.
 The initializer is the recommended setup path. The generated Action step is equivalent to:
 
 ```yaml
-- uses: Parth2412/attest/action@c42e52d038f5ecdcc498679cb7648e5b0957d489
+- uses: Parth2412/attest/action@1ea933184d1467c0716a5c23e9a1d005c1906567
   env:
     GITHUB_TOKEN: ${{ github.token }}
   with:
@@ -124,7 +124,7 @@ Successful runs expose the ChangeSet Digest, stored Bundle reference, policy Dec
 log index. Configuration, signature, identity, storage, and network failures remain fatal even when
 policy violations are configured as non-blocking.
 
-The released Action is also available as immutable `v1.0.7` and reviewed moving tag `v1`. For a
+The released Action is also available as immutable `v1.0.8` and reviewed moving tag `v1`. For a
 reproducible workflow, pin the full release commit shown above. The Action itself consumes the
 reviewed multi-platform image only by digest—never by a mutable image tag.
 
@@ -197,7 +197,7 @@ A policy gate affects merging only after a repository administrator makes its ch
 ## Release and public evidence
 
 The current immutable source release is
-[`v0.1.7`](https://github.com/Parth2412/attest/releases/tag/v0.1.7). It contains the release
+[`v0.1.8`](https://github.com/Parth2412/attest/releases/tag/v0.1.8). It contains the release
 contract, checksums, public-package verification, SBOM, SLSA provenance, vulnerability and
 component scans, performance evidence, dogfood Bundle, and verification records.
 
@@ -212,19 +212,19 @@ component scans, performance evidence, dogfood Bundle, and verification records.
 | `attest-export` | unpublished; F-12 is not complete |
 
 The current Action release points to commit
-`c42e52d038f5ecdcc498679cb7648e5b0957d489` and image manifest
-`sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`.
+`1ea933184d1467c0716a5c23e9a1d005c1906567` and image manifest
+`sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
 Immutable release tags cannot be updated or deleted.
 
 Public behaviour is independently inspectable:
 
-- [same-repository proof PR #13](https://github.com/Parth2412/attest-action-proof/pull/13)
+- [same-repository proof PR #17](https://github.com/Parth2412/attest-action-proof/pull/17)
   denied the unreviewed ChangeSet, passed after the project owner's review, and merged;
-- [fork proof PR #14](https://github.com/Parth2412/attest-action-proof/pull/14) failed before
+- [fork proof PR #18](https://github.com/Parth2412/attest-action-proof/pull/18) failed before
   receiving signing or write authority; and
-- [release `v0.1.7`](https://github.com/Parth2412/attest/releases/tag/v0.1.7) retains the exact
+- [release `v0.1.8`](https://github.com/Parth2412/attest/releases/tag/v0.1.8) retains the exact
   publication evidence, while [promotion run
-  `40287925165`](https://github.com/Parth2412/attest/actions/runs/40287925165) independently
+  `40826304070`](https://github.com/Parth2412/attest/actions/runs/40826304070) independently
   revalidated the release and both proofs before reviewed `v1` movement.
 
 ## Security model and limitations
@@ -240,8 +240,8 @@ attest is designed to fail closed, but its trust boundary must remain explicit:
 - Predicate identifiers remain unstable throughout the `v0.x` series.
 - Auditor-facing Evidence Bundle export is not shipped; CH-04 must close before F-12 reaches its
   Definition of Done.
-- The v1.0.7 hosted cold-start p95 values were 12, 14, and 14 seconds, with a combined p50 of
-  11 seconds and p95 of 14 seconds across 60 samples. Every result passed both the engineering
+- The v1.0.8 hosted cold-start p95 values were 14, 11, and 13 seconds, with a combined p50 of
+  9 seconds and p95 of 13 seconds across 60 samples. Every result passed both the engineering
   target below 15 seconds and the release SLO below 18 seconds.
 
 Read the complete [security threat model](docs/12-SECURITY-THREAT-MODEL.md), and report suspected

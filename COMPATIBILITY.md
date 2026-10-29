@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `COMPAT-001` |
-| Version | `1.20.1` |
+| Version | `1.20.2` |
 | Status | Descriptive — **commentary**. Version *policy* is normative in `GLOSS-001 §5` |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-29 |
 
 > **What this file is for.** attest publishes several independently-versioned contracts: a
 > distribution set, a wire format, a digest algorithm, an exit-code table, and a policy schema.
@@ -33,8 +33,8 @@
 | Policy | `attest-policy` | `attest_policy` | 0.1.0 | Python 3.12+ | `F-09` | active |
 | Export | `attest-export` | `attest_export` | 0.1.0 | Python 3.12+ | `F-12` | scaffold |
 | CLI | `attest-cli` | `attest_cli` | 0.1.5 | Python 3.12+ | `F-10` | active |
-| GitHub Action | `Parth2412/attest/action` | — | v1.0.7 / v1 | Container | `F-11` | active |
-| Container image | `ghcr.io/parth2412/attest` | — | 0.1.7 | multi-platform Alpine manifest | `F-11` | active |
+| GitHub Action | `Parth2412/attest/action` | — | v1.0.8 / v1 | Container | `F-11` | active |
+| Container image | `ghcr.io/parth2412/attest` | — | 0.1.8 | multi-platform Alpine manifest | `F-11` | active |
 | Specification | `SPEC-001` | — | 0.1.5 (document) | — | `F-01`, `F-07`, `F-08` | baselined, unpublished |
 | Test vectors | `spec/testvectors/` | — | tracks `SPEC-001 §12` | — | `F-01`, `F-02` | active |
 
@@ -43,13 +43,11 @@ active in `attest-collect`; F-06 signing and F-08 verification are active in `at
 storage is active in `attest-store`; and F-09 policy evaluation is active in `attest-policy`.
 F-04 is complete, including the `REQ-F04-150` fail-closed context resolver. F-08 verification and
 its `REQ-F08-170` explicitly non-cryptographic inspection operation are complete. F-10's CLI and
-F-11's published Action/image remain active, but F-11 is In progress under `ADR-071`. `ADR-068` completed public store
-`0.1.2`, CLI `0.1.5`, image `0.1.7`, immutable Action `v1.0.7`, and reviewed moving `v1`; every
-earlier release remains immutable historical evidence. Exact inspection subsequently found
-affected `dnspython==2.8.0` in that immutable image. `ADR-071` requires an image-only `0.1.8` /
-Action `v1.0.8` replacement with no Python publication before F-11 returns to Done. F-12 is
-Planned and `attest-export`
-remains a development scaffold pending `CH-04`.
+F-11's published Action/image remain active and F-11 is Done. `ADR-071` completed image-only
+`0.1.8` / Action `v1.0.8` publication with no Python distribution, then independently promoted
+reviewed `v1` to exact release commit `1ea933184d1467c0716a5c23e9a1d005c1906567`. The affected
+`0.1.7` image and every earlier release remain immutable historical evidence. F-12 is Planned and
+`attest-export` remains a development scaffold pending `CH-04`.
 See `PROJECT_SPECS.md §Current Project Status`.
 
 The GitHub owner is resolved to `parth2412` in the predicate URI (`ADR-013`, `BOOT-001 §16`). The
@@ -177,7 +175,7 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 | `attest-export` | `attest-core`, `attest-store`, `attest-sign` | 0.1.0 | import-linter `layers` |
 | `attest-cli` | core, collect, sign, store, policy; export activates with F-12 | published `0.1.5`: exact core/collect/policy 0.1.0, sign 0.1.1, store 0.1.2 | import-linter `layers` |
 | `attest_sign.verifier` | **must not** import `attest_sign.sigstore_signer` | — | import-linter `verifier-isolation` (`ARCH-001 §1` P3) |
-| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.7; Action v1.0.7/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `REQ-F11-330`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-069` |
+| GitHub Action | multi-platform container image, pinned **by manifest digest, not tag** | public image 0.1.8; Action v1.0.8/v1 | `REQ-F11-010`, `REQ-F11-290`, `REQ-F11-300`, `REQ-F11-310`, `REQ-F11-320`, `REQ-F11-330`, `REQ-F11-340`, `C-09`, `ADR-046`, `ADR-064`, `ADR-065`–`ADR-071` |
 
 ---
 
@@ -201,8 +199,8 @@ top-level composition root (`ADR-022`, `ARCH-001 §2.1`).
 
 | Channel | Artifact | Audience | Feature |
 |---|---|---|---|
-| GHCR | public `ghcr.io/parth2412/attest:0.1.7` for amd64/arm64 at immutable manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356` | **Primary** CI channel | `F-11` |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.7` and reviewed moving `v1` at release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489` | Most users — generated workflows pin a commit | `F-11` |
+| GHCR | public `ghcr.io/parth2412/attest:0.1.8` for amd64/arm64 at immutable manifest `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61` | **Primary** CI channel | `F-11` |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.8` and reviewed moving `v1` at release commit `1ea933184d1467c0716a5c23e9a1d005c1906567` | Most users — generated workflows pin a commit | `F-11` |
 | PyPI | core, collect, policy `0.1.0`; sign `0.1.1`; store `0.1.2`; CLI `0.1.5`; no export distribution | Python-native teams | `F-11` publication of implemented F-01–F-10 artifacts |
 | Homebrew | formula | Local developer use | post-v1.0 |
 
@@ -244,12 +242,13 @@ entire adoption strategy (`CH-07`).
 
 ## 10. Changelog
 
-- **2026-10-28**: Accepted `ADR-071`, reopened F-11, and recorded the required image-only
-  `0.1.8` / Action `v1.0.8` replacement for affected runtime dnspython without changing any
-  Python package version or earlier immutable artifact. Attempt-1 candidate run `40674146751`
-  passed all source, two-platform runtime, scan, SBOM, provenance, and identity gates for reviewed
-  image `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`;
-  public channels remain on `0.1.7`/`v1.0.7` until the remaining gates complete.
+- **2026-10-29**: Completed `ADR-071` and returned F-11 to Done. Attempt-1 candidate run
+  `40674146751`, three attempt-1 performance runs, protected release run `40710909968`, dogfood,
+  public-package non-publication, same-repository proof PR #17, fork-denial PR #18, and protected
+  promotion run `40826304070` completed in order. Public image `0.1.8`, immutable
+  `v0.1.8`/`v1.0.8`, and reviewed `v1` resolve to release commit
+  `1ea933184d1467c0716a5c23e9a1d005c1906567`; Python package versions and earlier immutable
+  artifacts remain unchanged.
 - **2026-10-26**: Accepted and implemented `ADR-069` as a source-only security correction. Future
   builds use exact patched setuptools `84.1.0`; development environments use exact patched
   virtualenv `21.14.13`; python-discovery remains `1.6.4`; and runtime-exclusion contracts remain
