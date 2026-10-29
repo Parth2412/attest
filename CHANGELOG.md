@@ -4,14 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- Accepted ADR-071 and reopened F-11 for an image-only security replacement: the source lock now
-  uses patched `dnspython==2.9.0` and development-only `msgpack==1.2.3`; contracts require exact
-  runtime inclusion/exclusion and a clean audit. The immutable `0.1.7` image remains historical;
-  attempt-1 candidate run `40674146751` completed every source, component, both-platform runtime,
-  image-scan, SBOM, provenance, and identity gate for exact manifest
-  `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
-  The reviewed main pin, three-run performance sequence, release, dogfood, public proofs, and
-  independently reviewed promotion remain required, with no Python distribution publication.
+- Completed ADR-071 and returned F-11 to Done on exact release commit
+  `1ea933184d1467c0716a5c23e9a1d005c1906567`. Attempt-1 candidate run `40674146751` completed
+  every source, component, both-platform runtime, image-scan, SBOM, provenance, and identity gate
+  for manifest `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
+  Performance runs `40709397086`, `40709604753`, and `40709798027` passed both thresholds with
+  p95 values of 14, 11, and 13 seconds and a combined 60-sample p50 of 9 seconds and p95 of 13
+  seconds. Protected release run `40710909968` published image `0.1.8` and immutable
+  `v0.1.8`/`v1.0.8`, completed dogfood, and proved that no Python distribution was published.
+  Same-repository proof PR #17, fork-denial PR #18, and independently approved promotion run
+  `40826304070` completed before reviewed `v1` moved to the exact release commit. Every earlier
+  artifact remains immutable history.
 - Added evidence-backed terminal launch media derived from public proof PR #13: typed CLI commands,
   verification waits, policy output, and an upload thumbnail show the same verified ChangeSet
   moving from denial to allow only after an effective non-author Review Record.

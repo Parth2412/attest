@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `TECH-001` |
-| Version | `1.7.13` |
+| Version | `1.7.14` |
 | Status | **NORMATIVE** for libraries, versions, and tooling |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-29 |
 
 ---
 
@@ -358,13 +358,14 @@ is by far the most persuasive demo you will have.
 | Channel | Artifact | Audience |
 |---|---|---|
 | PyPI | Current core/collect/policy `0.1.0`, sign `0.1.1`, store `0.1.2`, and CLI `0.1.5`; `attest-export` is unpublished | Python-native teams; CLI exact-pins sign `0.1.1`, store `0.1.2`, and the other three libraries at `0.1.0`; no export package until F-12 |
-| GHCR | Current public `ghcr.io/parth2412/attest:0.1.7` at manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356`; every earlier manifest remains immutable | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.7`, and reviewed moving `v1`, all at release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
+| GHCR | Current public `ghcr.io/parth2412/attest:0.1.8` at manifest `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`; every earlier manifest remains immutable | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`, current immutable `v1.0.8`, and reviewed moving `v1`, all at release commit `1ea933184d1467c0716a5c23e9a1d005c1906567`; earlier patch tags remain immutable historical records | Most users — hides Python entirely; generated workflows pin a commit |
 | Homebrew | Formula (post-v1.0; not F-11) | Local developer use |
 
-`ADR-068` published store `0.1.2`, CLI `0.1.5`, image `0.1.7`, and Action `v1.0.7`. The CLI
-exact-pins the corrected store; every other internal package version is unchanged. Public guidance
-uses the full release commit above, immutable `v1.0.7`, or the independently reviewed moving `v1`.
+`ADR-071` published image `0.1.8` and Action `v1.0.8` without publishing a Python distribution.
+The public store remains `0.1.2`, the CLI remains `0.1.5`, and every other internal package
+version is unchanged. Public guidance uses the full release commit above, immutable `v1.0.8`, or
+the independently reviewed moving `v1`.
 
 The current image records and pins the verified `python:3.12.14-alpine3.23` base digest and, under
 `ADR-062` as amended by `ADR-067`, builds unmodified Git `2.52.0` and curl `8.23.0` from their

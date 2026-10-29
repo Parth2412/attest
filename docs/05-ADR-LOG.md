@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document ID | `ADR-LOG` |
-| Version | `1.31.1` |
+| Version | `1.31.2` |
 | Status | **NORMATIVE** for recorded decisions |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-29 |
 
 > **Purpose.** Every non-obvious decision is recorded with its rationale and its rejected
 > alternatives. This exists so that six months from now — or when an implementation agent
@@ -4435,7 +4435,7 @@ and every earlier immutable record remain unchanged.
 |---|---|---|
 | `REQ-F11-340` | Lock exact patched dnspython and msgpack; prove the clean source graph and exact runtime inclusion/exclusion; build, review, pin, measure, release, dogfood, prove, and independently promote a unique image-only `0.1.8`/`v0.1.8`/`v1.0.8` replacement without publishing Python distributions; then rebase ADR-070 onto the secured baseline | workspace lock, Action candidate/runtime/performance/release/promotion workflows and contracts, Action manifest, release notes, `TECH-001`, `QA-001`, `SEC-001`, `BRD-INDEX`, `BRD-F11`, `COMPAT-001`, project and public release records |
 
-### ADR-071 implementation evidence to date
+### ADR-071 implementation evidence
 
 Reviewed source PR #172 merged to protected `dev` as
 `905c30679d291bce13ad3140703162cf3405e55b`. Automatic candidate run `40674146751`, attempt 1,
@@ -4443,8 +4443,23 @@ passed the complete gate and produced context
 `sha256:8b863e6dc4733bb7050b27f34863b3db87db7ff069562ce348a98db0642c17bd`, corresponding source
 `sha256:7a346ff30f6886f5ab06045b0dfd2be645fd2a9df9a6fdabc1f280562e2ae1af`, and multi-platform image
 `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61`.
-The reviewed main pin and all downstream performance, release, public-proof, and independent
-promotion gates remain mandatory.
+
+Reviewed release commit `1ea933184d1467c0716a5c23e9a1d005c1906567` passed exact attempt-1
+performance runs `40709397086`, `40709604753`, and `40709798027` at p95 values of 14, 11, and
+13 seconds; their combined 60 samples passed at p50 9 seconds and p95 13 seconds. Protected
+release run `40710909968`, attempt 1, promoted the reviewed manifest without rebuilding, published
+image `0.1.8` and immutable `v0.1.8`/`v1.0.8`, completed dogfood and asset verification, and
+proved that no Python distribution was published.
+
+Same-repository proof PR #17 retained the identical signed ChangeSet denied without review and
+allowed only after independent owner review. Fork proof PR #18 retained `ERR-SIGN-301` before
+repository-controlled execution. Reviewed promotion PR #174 merged as
+`5a8c86e7017dbbe64bec37ffd7752a4de0c6e1ef`; exact main CI run `40825606742`, attempt 1, passed.
+Protected promotion run `40826304070`, attempt 1, then independently revalidated the immutable
+release, tag rules, release artifacts, public proofs, signed Bundles, and fork denial before the
+required `action-major` review moved only `v1` to the exact `v1.0.8` release commit. Its preflight
+and final artifacts retain every source, proof, review, tag, and promotion response. This completes
+`REQ-F11-340`, `AC-F11-340`, ADR-071, and F-11 while every earlier record remains immutable.
 
 Acceptance authorizes only this bounded dependency and image-only security replacement. It does not
 authorize another package version, feature, API, format, runner, cache, privilege, threshold,
