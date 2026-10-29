@@ -1,0 +1,51 @@
+{
+  "candidateFormat": "policy-exception-event/v0-validation",
+  "integrityStatus": "synthetic-unsigned-validation-only",
+  "scenario": {
+    "synthetic": true,
+    "purpose": "Validate the proposed authorization and retrospective-review evidence shape; this event did not occur"
+  },
+  "exceptionId": "validation-exception-001",
+  "eventType": "authorized",
+  "changeSetDigest": "9b369576434dfecc2d65418479c997533f8926d5c64a58d144c338b3ceaadced",
+  "policy": {
+    "decision": "deny",
+    "decisionSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "failedPredicates": [
+      "require.review.minHumanApprovals"
+    ]
+  },
+  "deployment": {
+    "provider": "github",
+    "repository": "https://github.com/Parth2412/attest-action-proof",
+    "environment": "production",
+    "workflowRunId": "38869963939",
+    "workflowRunAttempt": 1,
+    "workflowRef": "Parth2412/attest-action-proof/.github/workflows/attest.yml@refs/pull/10/merge"
+  },
+  "requester": {
+    "identity": "github:100000001:release-requester",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "decisionOwner": {
+    "identity": "github:100000002:incident-commander",
+    "identityProvider": "github",
+    "synthetic": true
+  },
+  "separationOfDuties": {
+    "decisionOwnerIsRequester": false,
+    "decisionOwnerIsChangeAuthor": false
+  },
+  "reason": {
+    "code": "urgent-service-restoration",
+    "summary": "Synthetic example: waiting for ordinary review would prolong a customer-impacting outage"
+  },
+  "source": {
+    "kind": "github-actions-deployment-review",
+    "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "authorizedAt": "2026-10-16T08:05:00Z",
+  "retrospectiveReviewDueAt": "2026-10-16T12:00:00Z"
+}

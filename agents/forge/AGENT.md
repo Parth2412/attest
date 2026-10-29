@@ -85,8 +85,8 @@ the most persuasive demo available.
 
 | Channel | Artifact | Audience |
 |---|---|---|
-| GHCR | Public `ghcr.io/parth2412/attest:0.1.7` amd64/arm64 image at immutable manifest `sha256:14e47087c9e6346c8115ba29eb00a922fcc3da630411058f8f35fee7684bf356` | **Primary** CI channel |
-| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.7` and reviewed moving `v1` at release commit `c42e52d038f5ecdcc498679cb7648e5b0957d489` | Most users — generated workflows pin a commit |
+| GHCR | Public `ghcr.io/parth2412/attest:0.1.8` amd64/arm64 image at immutable manifest `sha256:1b40c02bfacaae958a2adf9bfc25485fe0c22794db50c19aa401db530ea36c61` | **Primary** CI channel |
+| GitHub Action | `Parth2412/attest/action@<full-sha>`; immutable `v1.0.8` and reviewed moving `v1` at release commit `1ea933184d1467c0716a5c23e9a1d005c1906567` | Most users — generated workflows pin a commit |
 | PyPI | Core, collect, policy `0.1.0`; sign `0.1.1`; store `0.1.2`; CLI `0.1.5` | Python-native teams; no export package until F-12 |
 | Homebrew | formula | Local developer use, post-v1.0 |
 
@@ -106,8 +106,8 @@ is not Forge's to trigger.
 
 ## `CH-09` — container cold start
 
-`CH-09` and F-11 are closed under `ADR-064`, the completed `ADR-065`–`ADR-068` replacements, and
-the source-only `ADR-069` tooling patch.
+`CH-09` and F-11 are closed under `ADR-064`, the completed `ADR-065`–`ADR-068` and `ADR-071`
+replacements, and the source-only `ADR-069` tooling patch.
 `REQ-F11-280` retains a strict engineering target
 below 15 s p95 and a separate strict release SLO below 18 s p95.
 
@@ -115,7 +115,7 @@ below 15 s p95 and a separate strict release SLO below 18 s p95.
 `ubuntu-latest` Action jobs using the frozen staging fixture. Time the Action step including image
 pull but excluding checkout; retain every run ID/duration and use nearest-rank p95 for each run and
 the combined 60 samples. Report both thresholds independently; only p95 below 18 s authorizes a
-release. The v1.0.7 results were 12, 14, and 14 s, with combined p50 11 s and p95 14 s.
+release. The v1.0.8 results were 14, 11, and 13 s, with combined p50 9 s and p95 13 s.
 
 Related: `attest --help` under 300 ms (`AC-F10-080`) depends on lazy imports, which is a shared
 concern with Pixel.

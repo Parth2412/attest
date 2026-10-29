@@ -18,6 +18,148 @@ cd "${ROOT}"
 printf 'Checking manifest-indexed file digests...\n'
 jq -r '.files[] | "\(.sha256)  \(.path)"' manifest.json | sha256sum --check --strict
 
+printf 'Checking synthetic policy-exception lifecycle links...\n'
+generated_at="$(jq -er '.generatedAt | strings' manifest.json)"
+
+jq -e --arg generated_at "${generated_at}" '
+  (.files | map(.path) | length) == (.files | map(.path) | unique | length) and
+  .exceptions.evidenceFailures.unattestedChangesEvaluated == false and
+  (.exceptions.evidenceFailures.verificationFailures | type == "array") and
+  (.exceptions.policyExceptions | length == 3) and
+  (.exceptions.policyExceptions | map(.exceptionId) | length) ==
+    (.exceptions.policyExceptions | map(.exceptionId) | unique | length) and
+  (.exceptions.policyExceptions | map(.integrityStatus) |
+    all(. == "synthetic-unsigned-validation-only")) and
+  (.exceptions.policyExceptions | map(.derivedAt) | all(. == $generated_at)) and
+  (.exceptions.policyExceptions | map(.derivedState) | sort == ["closed", "open", "overdue"])
+' manifest.json >/dev/null
+
+while IFS=$'\t' read -r exception_id integrity_status derived_state authorization_path \
+  authorization_sha review_deadline closure_path closure_sha; do
+  actual_authorization_sha="$(sha256sum "${authorization_path}" | awk '{print $1}')"
+  if [[ "${actual_authorization_sha}" != "${authorization_sha}" ]]; then
+    printf 'authorization digest mismatch for %s\n' "${exception_id}" >&2
+    exit 1
+  fi
+
+  jq -e \
+    --arg exception_id "${exception_id}" \
+    --arg integrity_status "${integrity_status}" \
+    --arg review_deadline "${review_deadline}" \
+    '
+      .candidateFormat == "policy-exception-event/v0-validation" and
+      .integrityStatus == $integrity_status and
+      .scenario.synthetic == true and
+      .exceptionId == $exception_id and
+      .eventType == "authorized" and
+      (.changeSetDigest | test("^[0-9a-f]{64}$")) and
+      .policy.decision == "deny" and
+      (.policy.decisionSha256 | test("^[0-9a-f]{64}$")) and
+      (.policy.sourceSha256 | test("^[0-9a-f]{64}$")) and
+      (.policy.failedPredicates | type == "array" and length > 0) and
+      (.deployment.workflowRunId | strings | length > 0) and
+      (.deployment.workflowRunAttempt | numbers | . >= 1) and
+      (.requester.identity | strings | length > 0) and
+      (.decisionOwner.identity | strings | length > 0) and
+      (.separationOfDuties.decisionOwnerIsRequester | type == "boolean") and
+      (.separationOfDuties.decisionOwnerIsChangeAuthor | type == "boolean") and
+      (.reason.code | strings | length > 0) and
+      (.reason.summary | strings | length > 0) and
+      (.source.digest | test("^[0-9a-f]{64}$")) and
+      .retrospectiveReviewDueAt == $review_deadline and
+      ((.authorizedAt | fromdateiso8601) <= (.retrospectiveReviewDueAt | fromdateiso8601))
+    ' "${authorization_path}" >/dev/null
+
+  authorization_change_set="$(jq -er '.changeSetDigest' "${authorization_path}")"
+  authorization_time="$(jq -er '.authorizedAt' "${authorization_path}")"
+
+  if [[ -n "${closure_path}" ]]; then
+    if [[ "${derived_state}" != "closed" || -z "${closure_sha}" ]]; then
+      printf 'closed lifecycle metadata is incomplete for %s\n' "${exception_id}" >&2
+      exit 1
+    fi
+
+    actual_closure_sha="$(sha256sum "${closure_path}" | awk '{print $1}')"
+    if [[ "${actual_closure_sha}" != "${closure_sha}" ]]; then
+      printf 'closure digest mismatch for %s\n' "${exception_id}" >&2
+      exit 1
+    fi
+
+    jq -e \
+      --arg exception_id "${exception_id}" \
+      --arg integrity_status "${integrity_status}" \
+      --arg authorization_sha "${authorization_sha}" \
+      --arg change_set "${authorization_change_set}" \
+      --arg authorization_time "${authorization_time}" \
+      '
+        .candidateFormat == "policy-exception-event/v0-validation" and
+        .integrityStatus == $integrity_status and
+        .scenario.synthetic == true and
+        .exceptionId == $exception_id and
+        .eventType == "retrospective-review-completed" and
+        .authorizationEventSha256 == $authorization_sha and
+        .changeSetDigest == $change_set and
+        (.reviewer.identity | strings | length > 0) and
+        .review.missingReviewPerformed == true and
+        ((.review.completedAt | fromdateiso8601) >= ($authorization_time | fromdateiso8601)) and
+        (.review.disposition | strings | length > 0) and
+        .review.reviewEvidence.changeSetDigest == $change_set and
+        (.review.reviewEvidence.sha256 | test("^[0-9a-f]{64}$")) and
+        (.review.remediationReferences | type == "array") and
+        (.source.digest | test("^[0-9a-f]{64}$"))
+      ' "${closure_path}" >/dev/null
+
+    review_evidence_path="$(jq -er '.review.reviewEvidence.path' "${closure_path}")"
+    case "${review_evidence_path}" in
+      ../attestations/*.sigstore.json) ;;
+      *)
+        printf 'invalid review-evidence path for %s\n' "${exception_id}" >&2
+        exit 1
+        ;;
+    esac
+    expected_review_evidence_sha="$(jq -er '.review.reviewEvidence.sha256' "${closure_path}")"
+    actual_review_evidence_sha="$(
+      sha256sum "$(dirname -- "${closure_path}")/${review_evidence_path}" | awk '{print $1}'
+    )"
+    if [[ "${actual_review_evidence_sha}" != "${expected_review_evidence_sha}" ]]; then
+      printf 'review-evidence digest mismatch for %s\n' "${exception_id}" >&2
+      exit 1
+    fi
+  else
+    if [[ -n "${closure_sha}" ]]; then
+      printf 'closure digest exists without a closure path for %s\n' "${exception_id}" >&2
+      exit 1
+    fi
+    expected_state="$(
+      jq -nr \
+        --arg generated_at "${generated_at}" \
+        --arg review_deadline "${review_deadline}" \
+        'if ($generated_at | fromdateiso8601) > ($review_deadline | fromdateiso8601)
+         then "overdue" else "open" end'
+    )"
+    if [[ "${derived_state}" != "${expected_state}" ]]; then
+      printf 'derived lifecycle state mismatch for %s\n' "${exception_id}" >&2
+      exit 1
+    fi
+  fi
+done < <(
+  jq -r '
+    .exceptions.policyExceptions[] |
+    [
+      .exceptionId,
+      .integrityStatus,
+      .derivedState,
+      .authorizationPath,
+      .authorizationSha256,
+      .reviewDeadline,
+      (.closurePath // ""),
+      (.closureSha256 // "")
+    ] | @tsv
+  ' manifest.json
+)
+
+printf '%s\n' 'Policy-exception files are structurally linked synthetic mocks, not signed evidence.'
+
 verify_bundle() {
   local file_name="$1"
   local identity="$2"
